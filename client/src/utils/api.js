@@ -18,6 +18,18 @@ export async function apiRequest(endpoint, options = {}) {
     delete headers['Content-Type'];
   }
 
+  // Parse request body for fallback simulator
+  let parsedBody = null;
+  if (options.body && typeof options.body === 'string') {
+    try {
+      parsedBody = JSON.parse(options.body);
+    } catch (e) {
+      parsedBody = options.body;
+    }
+  } else if (options.body && typeof options.body === 'object') {
+    parsedBody = options.body;
+  }
+
   // Ensure correct URL with API_BASE_URL support
   let url = endpoint;
   if (!url.startsWith('http')) {
@@ -41,12 +53,11 @@ export async function apiRequest(endpoint, options = {}) {
     }
 
     if (!response.ok) {
-      // If 404 (common when frontend deployed statically on Vercel without backend proxy)
-      const method = (options.method || 'GET').toUpperCase();
-      if ((response.status === 404 || response.status === 502 || response.status === 503) && method === 'GET') {
-        const fallback = handleFallbackRoute(endpoint);
+      // Handle 404, 405 (Method Not Allowed on Vercel static rewrites), 502, 503
+      if (response.status === 404 || response.status === 405 || response.status === 502 || response.status === 503) {
+        const fallback = handleFallbackRoute(endpoint, options, parsedBody);
         if (fallback !== null) {
-          console.warn(`[Rollixia] Remote API unavailable (${response.status}). Serving client catalog for: ${endpoint}`);
+          console.warn(`[Rollixia] Remote API responded with status ${response.status}. Serving client fallback for: ${endpoint}`);
           return fallback;
         }
       }
@@ -60,13 +71,10 @@ export async function apiRequest(endpoint, options = {}) {
 
     return data;
   } catch (err) {
-    const method = (options.method || 'GET').toUpperCase();
-    if (method === 'GET') {
-      const fallback = handleFallbackRoute(endpoint);
-      if (fallback !== null) {
-        console.warn(`[Rollixia] Network error connecting to ${url}. Serving client catalog for: ${endpoint}`);
-        return fallback;
-      }
+    const fallback = handleFallbackRoute(endpoint, options, parsedBody);
+    if (fallback !== null) {
+      console.warn(`[Rollixia] Network error connecting to ${url}. Serving client fallback for: ${endpoint}`);
+      return fallback;
     }
     throw err;
   }

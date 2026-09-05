@@ -74,13 +74,54 @@ export function getFallbackProducts(searchParams = '') {
 }
 
 export function getFallbackProductBySlug(slug) {
-  return FALLBACK_PRODUCTS.find(p => p.slug === slug || String(p.id) === slug) || null;
+  if (!slug) return null;
+  let cleanSlug = '';
+  try {
+    cleanSlug = decodeURIComponent(String(slug)).trim().toLowerCase().replace(/\/+$/, '');
+  } catch (e) {
+    cleanSlug = String(slug).trim().toLowerCase().replace(/\/+$/, '');
+  }
+
+  const p = FALLBACK_PRODUCTS.find(item => {
+    if (!item) return false;
+    const itemSlug = String(item.slug || '').trim().toLowerCase();
+    const itemId = String(item.id || '').trim();
+    return (
+      itemSlug === cleanSlug ||
+      itemSlug.replace(/-/g, '') === cleanSlug.replace(/-/g, '') ||
+      itemId === cleanSlug
+    );
+  });
+  if (!p) return null;
+
+  return {
+    product: p,
+    ...p,
+    media: p.media || [],
+    licenses: p.licenses || [],
+    features: p.features || [],
+    compatibility: p.compatibility || [],
+    faqs: p.faqs || [],
+    reviews: p.reviews || [],
+    testimonials: p.testimonials || [],
+    sections: p.sections || [],
+    ratingBreakdown: { 5: 14, 4: 1, 3: 0, 2: 0, 1: 0 },
+    pricingPlans: p.licenses || [],
+    activeFile: {
+      id: 1,
+      file_name: `${p.slug}-v1.0.0.zip`,
+      file_size: 15485760,
+      version: '1.0.0'
+    }
+  };
 }
 
 export function getFallbackRelated(slug) {
   const current = getFallbackProductBySlug(slug);
-  if (!current) return FALLBACK_PRODUCTS.slice(0, 4);
-  return FALLBACK_PRODUCTS.filter(p => p.id !== current.id && p.category_id === current.category_id).slice(0, 4);
+  const currentId = current?.product?.id || current?.id;
+  const currentCatId = current?.product?.category_id || current?.category_id;
+  if (!currentId) return FALLBACK_PRODUCTS.slice(0, 4);
+  return FALLBACK_PRODUCTS.filter(p => p.id !== currentId && p.category_id === currentCatId).slice(0, 4);
 }
 
 export const FALLBACK_SETTINGS = {
@@ -274,22 +315,22 @@ export function simulateGetOrder(orderNumber) {
 }
 
 export function handleFallbackRoute(endpoint, options = {}, requestBody = null) {
-  const clean = endpoint.replace(/^\/?api\/?/, '').split('?')[0];
+  const clean = endpoint.replace(/^\/?api\/?/, '').split('?')[0].replace(/\/+$/, '');
   const queryStr = endpoint.includes('?') ? endpoint.substring(endpoint.indexOf('?')) : '';
   const method = (options.method || 'GET').toUpperCase();
 
   // POST Handlers
   if (method === 'POST') {
-    if (clean === 'cart/calculate' || clean === 'cart/calculate/') {
+    if (clean === 'cart/calculate') {
       return simulateCalculateCart(requestBody);
     }
-    if (clean === 'orders' || clean === 'orders/') {
+    if (clean === 'orders') {
       return simulateCreateOrder(requestBody);
     }
-    if (clean === 'payments/verify' || clean === 'payments/verify/') {
+    if (clean === 'payments/verify') {
       return simulateVerifyPayment(requestBody);
     }
-    if (clean === 'payments/paytm/initiate' || clean === 'payments/paytm/initiate/') {
+    if (clean === 'payments/paytm/initiate') {
       return {
         txnToken: `SIMULATED_PAYTM_TOKEN_${Date.now()}`,
         orderId: requestBody?.orderId || `ORD-${Date.now()}`,
@@ -314,22 +355,22 @@ export function handleFallbackRoute(endpoint, options = {}, requestBody = null) 
   }
 
   // GET Handlers
-  if (clean === 'categories' || clean === 'categories/') {
+  if (clean === 'categories') {
     return FALLBACK_CATEGORIES;
   }
-  if (clean === 'products/featured' || clean === 'products/featured/') {
+  if (clean === 'products/featured') {
     return getFallbackFeatured();
   }
-  if (clean === 'products' || clean === 'products/') {
+  if (clean === 'products') {
     return getFallbackProducts(queryStr);
   }
   if (clean.startsWith('products/') && clean.endsWith('/related')) {
-    const slug = clean.replace(/^products\//, '').replace(/\/related$/, '');
-    return getFallbackRelated(slug);
+    const raw = clean.replace(/^products\//, '').replace(/\/related$/, '');
+    return getFallbackRelated(raw);
   }
   if (clean.startsWith('products/')) {
-    const slug = clean.replace(/^products\//, '');
-    const product = getFallbackProductBySlug(slug);
+    const raw = clean.replace(/^products\//, '');
+    const product = getFallbackProductBySlug(raw);
     if (product) return product;
   }
   if (clean.startsWith('orders/')) {

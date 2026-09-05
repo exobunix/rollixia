@@ -44,29 +44,41 @@ export async function apiRequest(endpoint, options = {}) {
       headers
     });
 
-    const contentType = response.headers.get('content-type');
+    const contentType = (response.headers.get('content-type') || '').toLowerCase();
     let data = null;
-    if (contentType && contentType.includes('application/json')) {
-      data = await response.json();
+    let isJson = false;
+    if (contentType.includes('application/json')) {
+      try {
+        data = await response.json();
+        isJson = true;
+      } catch (e) {
+        data = await response.text();
+      }
     } else {
       data = await response.text();
     }
 
-    if (!response.ok) {
-      // Handle 404, 405 (Method Not Allowed on Vercel static rewrites), 502, 503
-      if (response.status === 404 || response.status === 405 || response.status === 502 || response.status === 503) {
-        const fallback = handleFallbackRoute(endpoint, options, parsedBody);
-        if (fallback !== null) {
-          console.warn(`[Rollixia] Remote API responded with status ${response.status}. Serving client fallback for: ${endpoint}`);
-          return fallback;
-        }
+    // Check if Vercel SPA rewrite returned index.html for an API endpoint
+    const isHtmlResponse = typeof data === 'string' && (
+      contentType.includes('text/html') ||
+      data.trim().startsWith('<!DOCTYPE') ||
+      data.trim().startsWith('<html')
+    );
+
+    if (!response.ok || isHtmlResponse) {
+      const fallback = handleFallbackRoute(endpoint, options, parsedBody);
+      if (fallback !== null) {
+        console.warn(`[Rollixia] Remote API unavailable or returned HTML rewrite (${response.status}). Serving client fallback for: ${endpoint}`);
+        return fallback;
       }
 
-      const errorMsg = (data && data.error) || (typeof data === 'string' ? data : 'Request failed');
-      const err = new Error(errorMsg);
-      err.status = response.status;
-      err.data = data;
-      throw err;
+      if (!response.ok) {
+        const errorMsg = (data && data.error) || (typeof data === 'string' && !isHtmlResponse ? data : 'Request failed');
+        const err = new Error(errorMsg);
+        err.status = response.status;
+        err.data = data;
+        throw err;
+      }
     }
 
     return data;

@@ -87,9 +87,10 @@ function DynamicIcon({ name, size = 20, className = '', style }) {
 import { getFallbackProductBySlug, getFallbackRelated } from '../../data/catalogFallbackService.js';
 
 export function DynamicProductPage({ slug, productData: initialData, onNavigate, isPreviewMode = false }) {
-  const fallbackProduct = !initialData && slug ? getFallbackProductBySlug(slug) : null;
+  const cleanSlug = slug ? decodeURIComponent(String(slug)).trim() : '';
+  const fallbackProduct = !initialData && cleanSlug ? getFallbackProductBySlug(cleanSlug) : null;
   const [data, setData] = useState(() => initialData || fallbackProduct || null);
-  const [related, setRelated] = useState(() => (!initialData && slug ? getFallbackRelated(slug) : []));
+  const [related, setRelated] = useState(() => (!initialData && cleanSlug ? getFallbackRelated(cleanSlug) : []));
   const [loading, setLoading] = useState(() => !initialData && !fallbackProduct);
 
   // Gallery & Lightbox State
@@ -144,30 +145,59 @@ export function DynamicProductPage({ slug, productData: initialData, onNavigate,
   useEffect(() => {
     if (initialData) {
       setData(initialData);
-      if (initialData.licenses && initialData.licenses.length > 0) {
-        setSelectedLicense(initialData.licenses[0]);
+      const lics = initialData.licenses || initialData.product?.licenses || [];
+      if (lics.length > 0) {
+        setSelectedLicense(lics[0]);
       }
+      setLoading(false);
       return;
     }
 
     if (!slug) return;
-    setLoading(true);
+
+    const normalizedSlug = decodeURIComponent(String(slug)).trim();
+    const localFallback = getFallbackProductBySlug(normalizedSlug);
+
+    // Provide instant responsive render if catalog fallback is available
+    if (localFallback) {
+      setData(localFallback);
+      const lics = localFallback.licenses || [];
+      if (lics.length > 0) {
+        setSelectedLicense(lics[0]);
+      }
+      setLoading(false);
+    } else if (!data) {
+      setLoading(true);
+    }
+
     if (!isPreviewMode) {
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }
 
-    apiRequest(`/api/products/${slug}`)
+    apiRequest(`/api/products/${encodeURIComponent(normalizedSlug)}`)
       .then(res => {
-        setData(res);
-        if (res.licenses && res.licenses.length > 0) {
-          setSelectedLicense(res.licenses[0]);
+        if (res && (res.product || res.id)) {
+          setData(res);
+          const lics = res.licenses || res.product?.licenses || [];
+          if (lics.length > 0) {
+            setSelectedLicense(lics[0]);
+          }
         }
       })
-      .catch(err => console.error(err))
+      .catch(err => {
+        console.error('Failed to load product from API:', err);
+        if (localFallback) {
+          setData(localFallback);
+        }
+      })
       .finally(() => setLoading(false));
 
-    apiRequest(`/api/products/${slug}/related`)
-      .then(res => setRelated(res || []))
+    apiRequest(`/api/products/${encodeURIComponent(normalizedSlug)}/related`)
+      .then(res => {
+        if (Array.isArray(res) && res.length > 0) {
+          setRelated(res);
+        }
+      })
       .catch(() => {});
   }, [slug, initialData, isPreviewMode]);
 
@@ -188,7 +218,9 @@ export function DynamicProductPage({ slug, productData: initialData, onNavigate,
     );
   }
 
-  if (!data || !data.product) {
+  const product = data?.product || (data?.id ? data : null);
+
+  if (!product || !product.id) {
     return (
       <div className="pdp-container" style={{ padding: '6rem 1.5rem', textAlign: 'center' }}>
         <div style={{
@@ -205,7 +237,7 @@ export function DynamicProductPage({ slug, productData: initialData, onNavigate,
         }}>
           <AlertCircle size={32} />
         </div>
-        <h2 style={{ fontSize: '1.75rem', fontWeight: 800, color: '#fff', marginBottom: '0.5rem' }}>Product Not Found</h2>
+        <h2 style={{ fontSize: '1.75rem', fontWeight: 800, color: 'var(--text-primary)', marginBottom: '0.5rem' }}>Product Not Found</h2>
         <p style={{ color: 'var(--text-secondary)', maxWidth: '440px', margin: '0 auto 2rem', fontSize: '0.95rem' }}>
           The requested digital product could not be located or may have been updated in our catalog.
         </p>
@@ -219,15 +251,12 @@ export function DynamicProductPage({ slug, productData: initialData, onNavigate,
     );
   }
 
-  const {
-    product,
-    media = [],
-    licenses = [],
-    features = [],
-    faqs = [],
-    testimonials = [],
-    sections: dbSections = []
-  } = data;
+  const media = data?.media || product.media || [];
+  const licenses = data?.licenses || product.licenses || [];
+  const features = data?.features || product.features || [];
+  const faqs = data?.faqs || product.faqs || [];
+  const testimonials = data?.testimonials || product.testimonials || [];
+  const dbSections = data?.sections || product.sections || [];
 
   // Price calculation based on selected license or base product
   const selectedLicenseRegular = (selectedLicense && selectedLicense.regular_price) ? selectedLicense.regular_price : product.regular_price;

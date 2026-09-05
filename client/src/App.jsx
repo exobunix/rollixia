@@ -118,7 +118,9 @@ export function App() {
 
     if (firstSegment === 'products') {
       if (segments[1]) {
-        return { page: 'product-detail', params: { slug: segments[1], ...queryParams } };
+        let slug = segments[1];
+        try { slug = decodeURIComponent(segments[1]); } catch (e) {}
+        return { page: 'product-detail', params: { slug, ...queryParams } };
       }
       return { page: 'products', params: queryParams };
     }

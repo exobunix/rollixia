@@ -18,16 +18,11 @@ import {
   SlidersHorizontal
 } from 'lucide-react';
 
+import { FALLBACK_CATEGORIES, getFallbackFeatured } from '../../data/catalogFallbackService.js';
+
 export function HomePage({ onNavigate }) {
-  const [categories, setCategories] = useState([]);
-  const [featuredData, setFeaturedData] = useState({
-    all: [],
-    bestsellers: [],
-    trending: [],
-    topRated: [],
-    freeDeals: [],
-    newArrivals: []
-  });
+  const [categories, setCategories] = useState(() => FALLBACK_CATEGORIES || []);
+  const [featuredData, setFeaturedData] = useState(() => getFallbackFeatured());
   const [activeTab, setActiveTab] = useState('all');
   const [viewMode, setViewMode] = useState('scroll'); // 'scroll' | 'grid'
   const [quickViewSlug, setQuickViewSlug] = useState(null);
@@ -35,9 +30,11 @@ export function HomePage({ onNavigate }) {
   const scrollRef = useRef(null);
 
   useEffect(() => {
-    apiRequest('/api/categories').then(data => setCategories(data)).catch(() => {});
+    apiRequest('/api/categories').then(data => {
+      if (Array.isArray(data) && data.length > 0) setCategories(data);
+    }).catch(() => {});
     apiRequest('/api/products/featured').then(data => {
-      setFeaturedData(data);
+      if (data && data.all && data.all.length > 0) setFeaturedData(data);
     }).catch(() => {});
   }, []);
 

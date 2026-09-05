@@ -23,6 +23,7 @@ import { useCart } from '../../context/CartContext';
 import { useCurrency } from '../../context/CurrencyContext';
 import { useTheme } from '../../context/ThemeContext';
 import { apiRequest } from '../../utils/api';
+import { FALLBACK_CATEGORIES } from '../../data/catalogFallbackService.js';
 
 
 export function Header({ onNavigate, onOpenSearch }) {
@@ -31,7 +32,7 @@ export function Header({ onNavigate, onOpenSearch }) {
   const { currency, toggleCurrency } = useCurrency();
   const { theme, toggleTheme } = useTheme();
 
-  const [categories, setCategories] = useState([]);
+  const [categories, setCategories] = useState(() => FALLBACK_CATEGORIES || []);
   const [isCatMenuOpen, setIsCatMenuOpen] = useState(false);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
@@ -39,7 +40,9 @@ export function Header({ onNavigate, onOpenSearch }) {
 
   useEffect(() => {
     apiRequest('/api/categories')
-      .then(data => setCategories(data))
+      .then(data => {
+        if (Array.isArray(data) && data.length > 0) setCategories(data);
+      })
       .catch(() => {});
 
     if (user) {

@@ -84,10 +84,13 @@ function DynamicIcon({ name, size = 20, className = '', style }) {
   return <Component size={size} className={className} style={style} />;
 }
 
+import { getFallbackProductBySlug, getFallbackRelated } from '../../data/catalogFallbackService.js';
+
 export function DynamicProductPage({ slug, productData: initialData, onNavigate, isPreviewMode = false }) {
-  const [data, setData] = useState(initialData || null);
-  const [related, setRelated] = useState([]);
-  const [loading, setLoading] = useState(!initialData);
+  const fallbackProduct = !initialData && slug ? getFallbackProductBySlug(slug) : null;
+  const [data, setData] = useState(() => initialData || fallbackProduct || null);
+  const [related, setRelated] = useState(() => (!initialData && slug ? getFallbackRelated(slug) : []));
+  const [loading, setLoading] = useState(() => !initialData && !fallbackProduct);
 
   // Gallery & Lightbox State
   const [selectedGalleryIndex, setSelectedGalleryIndex] = useState(0);

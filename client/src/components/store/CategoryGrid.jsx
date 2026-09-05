@@ -70,7 +70,7 @@ export function CategoryGrid({ categories = [], onSelectCategory }) {
                   padding: '3px 8px',
                   borderRadius: 'var(--radius-full)'
                 }}>
-                  {cat.product_count} items
+                  {cat.product_count !== undefined ? cat.product_count : 1} items
                 </span>
               </div>
 

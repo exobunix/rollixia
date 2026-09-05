@@ -3,11 +3,19 @@ import { ProductCard } from '../../components/store/ProductCard';
 import { QuickViewModal } from '../../components/store/QuickViewModal';
 import { apiRequest } from '../../utils/api';
 import { Search, Filter, X, SlidersHorizontal, ArrowUpDown } from 'lucide-react';
+import { getFallbackProducts, FALLBACK_CATEGORIES } from '../../data/catalogFallbackService.js';
 
 export function ProductsPage({ initialCategory, initialBadge, initialSearch, onNavigate }) {
-  const [products, setProducts] = useState([]);
-  const [categories, setCategories] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [products, setProducts] = useState(() => {
+    const fb = getFallbackProducts(new URLSearchParams({
+      ...(initialCategory ? { category: initialCategory } : {}),
+      ...(initialBadge ? { badge: initialBadge } : {}),
+      ...(initialSearch ? { q: initialSearch } : {})
+    }));
+    return fb.products || [];
+  });
+  const [categories, setCategories] = useState(() => FALLBACK_CATEGORIES || []);
+  const [loading, setLoading] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState(initialCategory || '');
   const [selectedBadge, setSelectedBadge] = useState(initialBadge || '');
   const [searchQuery, setSearchQuery] = useState(initialSearch || '');
@@ -24,11 +32,12 @@ export function ProductsPage({ initialCategory, initialBadge, initialSearch, onN
   }, [initialCategory, initialBadge, initialSearch]);
 
   useEffect(() => {
-    apiRequest('/api/categories').then(data => setCategories(data)).catch(() => {});
+    apiRequest('/api/categories').then(data => {
+      if (Array.isArray(data) && data.length > 0) setCategories(data);
+    }).catch(() => {});
   }, []);
 
   useEffect(() => {
-    setLoading(true);
     const params = new URLSearchParams();
     if (selectedCategory) params.append('category', selectedCategory);
     if (selectedBadge) params.append('badge', selectedBadge);
@@ -37,8 +46,19 @@ export function ProductsPage({ initialCategory, initialBadge, initialSearch, onN
     if (maxPrice < 10000) params.append('max_price', maxPrice);
 
     apiRequest(`/api/products?${params.toString()}`)
-      .then(res => setProducts(res.products || []))
-      .catch(err => console.error(err))
+      .then(res => {
+        if (res && Array.isArray(res.products) && res.products.length > 0) {
+          setProducts(res.products);
+        } else {
+          const fb = getFallbackProducts(params);
+          setProducts(fb.products || []);
+        }
+      })
+      .catch(err => {
+        console.warn('API fetch error, using fallback catalog:', err);
+        const fb = getFallbackProducts(params);
+        setProducts(fb.products || []);
+      })
       .finally(() => setLoading(false));
   }, [selectedCategory, selectedBadge, searchQuery, sortBy, maxPrice]);
 

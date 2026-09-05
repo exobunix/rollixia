@@ -1,0 +1,67 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 800" width="100%" height="100%">
+  <defs>
+    <linearGradient id="cinemaBg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#18041d"/>
+      <stop offset="50%" stop-color="#0d0214"/>
+      <stop offset="100%" stop-color="#020005"/>
+    </linearGradient>
+    <linearGradient id="neonPink" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#f43f5e"/>
+      <stop offset="50%" stop-color="#ec4899"/>
+      <stop offset="100%" stop-color="#a855f7"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="1200" height="800" fill="url(#cinemaBg)"/>
+
+  <!-- Film Strip Top & Bottom -->
+  <g fill="#1f0729" stroke="#ec4899" stroke-opacity="0.3">
+    <rect x="0" y="0" width="1200" height="50"/>
+    <rect x="0" y="750" width="1200" height="50"/>
+  </g>
+  <g fill="#000000">
+    <rect x="40" y="10" width="30" height="30" rx="4"/>
+    <rect x="110" y="10" width="30" height="30" rx="4"/>
+    <rect x="180" y="10" width="30" height="30" rx="4"/>
+    <rect x="1000" y="10" width="30" height="30" rx="4"/>
+    <rect x="1070" y="10" width="30" height="30" rx="4"/>
+    <rect x="1140" y="10" width="30" height="30" rx="4"/>
+  </g>
+
+  <!-- Badge -->
+  <g transform="translate(430, 90)">
+    <rect width="340" height="42" rx="21" fill="#ec4899" fill-opacity="0.2" stroke="#ec4899" stroke-width="1.5"/>
+    <text x="170" y="27" font-family="'Outfit', sans-serif" font-size="14" font-weight="800" fill="#f43f5e" text-anchor="middle" letter-spacing="2">BIGGEST VIDEO EDITING BUNDLE 🎬</text>
+  </g>
+
+  <!-- Headline -->
+  <text x="600" y="210" font-family="'Outfit', sans-serif" font-size="44" font-weight="900" fill="#ffffff" text-anchor="middle">
+    THE WORLD'S BIGGEST
+  </text>
+  <text x="600" y="280" font-family="'Outfit', sans-serif" font-size="64" font-weight="900" fill="url(#neonPink)" text-anchor="middle" letter-spacing="1">
+    VIDEO EDITING BUNDLE
+  </text>
+
+  <!-- Asset Counter Pills -->
+  <g transform="translate(200, 340)">
+    <rect x="0" y="0" width="240" height="70" rx="16" fill="#1c072b" stroke="#f43f5e" stroke-width="1.5"/>
+    <text x="120" y="32" font-family="'Outfit', sans-serif" font-size="20" font-weight="900" fill="#ffffff" text-anchor="middle">2000+ FX PRESETS</text>
+    <text x="120" y="55" font-family="'Plus Jakarta Sans', sans-serif" font-size="12" fill="#fda4af" text-anchor="middle">Premiere • FCP • DaVinci</text>
+
+    <rect x="280" y="0" width="240" height="70" rx="16" fill="#1c072b" stroke="#f43f5e" stroke-width="1.5"/>
+    <text x="400" y="32" font-family="'Outfit', sans-serif" font-size="20" font-weight="900" fill="#ffffff" text-anchor="middle">1000+ SOUND FX</text>
+    <text x="400" y="55" font-family="'Plus Jakarta Sans', sans-serif" font-size="12" fill="#fda4af" text-anchor="middle">Whoosh • Risers • Hits</text>
+
+    <rect x="560" y="0" width="240" height="70" rx="16" fill="#1c072b" stroke="#f43f5e" stroke-width="1.5"/>
+    <text x="680" y="32" font-family="'Outfit', sans-serif" font-size="20" font-weight="900" fill="#ffffff" text-anchor="middle">500+ CINEMATIC LUTS</text>
+    <text x="680" y="55" font-family="'Plus Jakarta Sans', sans-serif" font-size="12" fill="#fda4af" text-anchor="middle">Film • Vlog • Teal &amp; Orange</text>
+  </g>
+
+  <!-- Price CTA Banner -->
+  <g transform="translate(400, 480)">
+    <rect width="400" height="180" rx="24" fill="#240a35" stroke="#ec4899" stroke-width="2"/>
+    <text x="200" y="60" font-family="'Outfit', sans-serif" font-size="18" font-weight="700" fill="#e2e8f0" text-anchor="middle">LIFETIME ACCESS ONLY</text>
+    <text x="200" y="125" font-family="'Outfit', sans-serif" font-size="64" font-weight="900" fill="#f43f5e" text-anchor="middle">₹399</text>
+    <text x="200" y="155" font-family="'Plus Jakarta Sans', sans-serif" font-size="13" font-weight="700" fill="#34d399" text-anchor="middle">✓ Instant Google Drive &amp; Direct Downloads</text>
+  </g>
+</svg>

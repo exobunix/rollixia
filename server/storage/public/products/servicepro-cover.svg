@@ -1,0 +1,59 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 675" width="1200" height="675">
+  <defs>
+    <linearGradient id="bg9" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#090d16" />
+      <stop offset="50%" stop-color="#0f2942" />
+      <stop offset="100%" stop-color="#083344" />
+    </linearGradient>
+    <linearGradient id="servGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#06b6d4" />
+      <stop offset="100%" stop-color="#3b82f6" />
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="675" fill="url(#bg9)" />
+  <circle cx="950" cy="200" r="300" fill="#06b6d4" opacity="0.12" filter="blur(90px)" />
+  
+  <g transform="translate(80, 140)">
+    <rect width="190" height="32" rx="16" fill="rgba(6, 182, 212, 0.15)" stroke="#06b6d4" stroke-width="1.5" />
+    <text x="95" y="21" fill="#22d3ee" font-family="'Plus Jakarta Sans', sans-serif" font-size="12" font-weight="800" text-anchor="middle" letter-spacing="1.5">HOME SERVICES PLATFORM</text>
+    
+    <text x="0" y="90" fill="#ffffff" font-family="'Outfit', sans-serif" font-size="52" font-weight="900" letter-spacing="-1">ServicePro</text>
+    <text x="0" y="135" fill="url(#servGrad)" font-family="'Outfit', sans-serif" font-size="28" font-weight="700">On-Demand Home Services Platform</text>
+    
+    <text x="0" y="185" fill="#94a3b8" font-family="'Plus Jakarta Sans', sans-serif" font-size="16" font-weight="400">Connect Customers With Verified Local Service Professionals</text>
+    <text x="0" y="215" fill="#94a3b8" font-family="'Plus Jakarta Sans', sans-serif" font-size="16" font-weight="400">Booking Calendar, Provider Dispatch &amp; Centralized Admin</text>
+
+    <g transform="translate(0, 260)">
+      <rect width="140" height="36" rx="8" fill="rgba(255,255,255,0.06)" stroke="rgba(255,255,255,0.12)" />
+      <text x="70" y="23" fill="#f8fafc" font-family="'Plus Jakarta Sans', sans-serif" font-size="13" font-weight="700" text-anchor="middle">🧹 50+ Services</text>
+      
+      <rect x="155" width="140" height="36" rx="8" fill="rgba(255,255,255,0.06)" stroke="rgba(255,255,255,0.12)" />
+      <text x="225" y="23" fill="#f8fafc" font-family="'Plus Jakarta Sans', sans-serif" font-size="13" font-weight="700" text-anchor="middle">📍 Map Routing</text>
+
+      <rect x="310" width="140" height="36" rx="8" fill="rgba(255,255,255,0.06)" stroke="rgba(255,255,255,0.12)" />
+      <text x="380" y="23" fill="#f8fafc" font-family="'Plus Jakarta Sans', sans-serif" font-size="13" font-weight="700" text-anchor="middle">⭐ Verified Reviews</text>
+    </g>
+  </g>
+
+  <g transform="translate(700, 110)">
+    <rect width="420" height="380" rx="20" fill="rgba(15, 23, 42, 0.95)" stroke="rgba(6, 182, 212, 0.3)" stroke-width="2" />
+    <rect x="25" y="25" width="370" height="150" rx="12" fill="#1e293b" />
+    <text x="45" y="70" fill="#06b6d4" font-family="'Outfit', sans-serif" font-size="22" font-weight="800">On-Demand Ecosystem</text>
+    <text x="45" y="105" fill="#ffffff" font-size="14">End-to-end home maintenance and service bookings.</text>
+    <text x="45" y="135" fill="#94a3b8" font-size="12">Cleaning, plumbing, electrical, AC repair and painting.</text>
+
+    <g transform="translate(25, 200)">
+      <rect width="175" height="145" rx="10" fill="#090d16" stroke="rgba(6, 182, 212, 0.2)" />
+      <text x="20" y="45" fill="#06b6d4" font-size="24">📱</text>
+      <text x="20" y="80" fill="#ffffff" font-family="'Outfit', sans-serif" font-size="14" font-weight="700">Customer Booking</text>
+      <text x="20" y="105" fill="#94a3b8" font-size="11">Time slots &amp; live track</text>
+    </g>
+
+    <g transform="translate(220, 200)">
+      <rect width="175" height="145" rx="10" fill="#090d16" stroke="rgba(59, 130, 246, 0.2)" />
+      <text x="20" y="45" fill="#3b82f6" font-size="24">🛠️</text>
+      <text x="20" y="80" fill="#ffffff" font-family="'Outfit', sans-serif" font-size="14" font-weight="700">Partner Portal</text>
+      <text x="20" y="105" fill="#94a3b8" font-size="11">Job alerts &amp; earnings</text>
+    </g>
+  </g>
+</svg>

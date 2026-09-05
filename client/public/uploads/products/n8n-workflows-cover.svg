@@ -1,0 +1,68 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 800" width="100%" height="100%">
+  <defs>
+    <linearGradient id="techBg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#050b14"/>
+      <stop offset="50%" stop-color="#0b172a"/>
+      <stop offset="100%" stop-color="#030712"/>
+    </linearGradient>
+    <linearGradient id="cyanGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#38bdf8"/>
+      <stop offset="50%" stop-color="#818cf8"/>
+      <stop offset="100%" stop-color="#c084fc"/>
+    </linearGradient>
+    <linearGradient id="nodeGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1e293b"/>
+      <stop offset="100%" stop-color="#0f172a"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1200" height="800" fill="url(#techBg)"/>
+
+  <!-- Network Automation Grid & Nodes -->
+  <g stroke="#38bdf8" stroke-width="1.5" stroke-dasharray="6 4" opacity="0.25">
+    <line x1="200" y1="250" x2="450" y2="250"/>
+    <line x1="450" y1="250" x2="700" y2="350"/>
+    <line x1="700" y1="350" x2="950" y2="250"/>
+    <line x1="450" y1="250" x2="600" y2="550"/>
+    <line x1="700" y1="350" x2="600" y2="550"/>
+  </g>
+
+  <!-- Automation Nodes -->
+  <g fill="url(#nodeGrad)" stroke="#38bdf8" stroke-width="2">
+    <rect x="140" y="210" width="120" height="80" rx="14"/>
+    <rect x="390" y="210" width="120" height="80" rx="14"/>
+    <rect x="640" y="310" width="120" height="80" rx="14"/>
+    <rect x="890" y="210" width="120" height="80" rx="14"/>
+    <rect x="540" y="510" width="120" height="80" rx="14"/>
+  </g>
+
+  <g font-family="'JetBrains Mono', monospace" font-size="13" font-weight="700" fill="#38bdf8" text-anchor="middle">
+    <text x="200" y="255">Webhook</text>
+    <text x="450" y="255">AI Agent</text>
+    <text x="700" y="355">Transform</text>
+    <text x="950" y="255">Database</text>
+    <text x="600" y="555">Slack/CRM</text>
+  </g>
+
+  <!-- Badge -->
+  <g transform="translate(450, 70)">
+    <rect width="300" height="42" rx="21" fill="#0284c7" fill-opacity="0.2" stroke="#38bdf8" stroke-width="1.5"/>
+    <text x="150" y="26" font-family="'JetBrains Mono', monospace" font-size="14" font-weight="800" fill="#38bdf8" text-anchor="middle" letter-spacing="2">AUTOMATION MEGA PACK ⚡</text>
+  </g>
+
+  <!-- Main Headline -->
+  <text x="600" y="180" font-family="'Outfit', sans-serif" font-size="52" font-weight="900" fill="#ffffff" text-anchor="middle" letter-spacing="1">
+    10,000 n8n WORKFLOWS
+  </text>
+  <text x="600" y="235" font-family="'Plus Jakarta Sans', sans-serif" font-size="20" font-weight="600" fill="url(#cyanGrad)" text-anchor="middle">
+    Yours for the Price of a Coffee • Lifetime Updates
+  </text>
+
+  <!-- Pricing Card -->
+  <g transform="translate(380, 620)">
+    <rect width="440" height="120" rx="20" fill="#0f172a" stroke="#38bdf8" stroke-width="2" stroke-opacity="0.5"/>
+    <text x="220" y="65" font-family="'Outfit', sans-serif" font-size="56" font-weight="900" fill="#38bdf8" text-anchor="middle">₹299</text>
+    <text x="220" y="98" font-family="'Plus Jakarta Sans', sans-serif" font-size="14" font-weight="700" fill="#94a3b8" text-anchor="middle">Instant JSON Import • Production Ready</text>
+  </g>
+</svg>

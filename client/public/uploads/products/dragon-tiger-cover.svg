@@ -1,0 +1,67 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 675" width="1200" height="675">
+  <defs>
+    <linearGradient id="bg7" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#180404" />
+      <stop offset="50%" stop-color="#3f0808" />
+      <stop offset="100%" stop-color="#180808" />
+    </linearGradient>
+    <linearGradient id="dragonGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#fbbf24" />
+      <stop offset="50%" stop-color="#ef4444" />
+      <stop offset="100%" stop-color="#f59e0b" />
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="675" fill="url(#bg7)" />
+  <circle cx="950" cy="200" r="300" fill="#ef4444" opacity="0.12" filter="blur(90px)" />
+  
+  <g transform="translate(80, 130)">
+    <rect width="190" height="32" rx="16" fill="rgba(239, 68, 68, 0.2)" stroke="#ef4444" stroke-width="1.5" />
+    <text x="95" y="21" fill="#f87171" font-family="'Plus Jakarta Sans', sans-serif" font-size="12" font-weight="800" text-anchor="middle" letter-spacing="1.5">GAMING PLATFORM</text>
+    
+    <text x="0" y="90" fill="#ffffff" font-family="'Outfit', sans-serif" font-size="52" font-weight="900" letter-spacing="-1">Dragon Tiger</text>
+    <text x="0" y="135" fill="url(#dragonGrad)" font-family="'Outfit', sans-serif" font-size="28" font-weight="700">Real-Time Gaming Platform</text>
+    
+    <text x="0" y="185" fill="#fca5a5" font-family="'Plus Jakarta Sans', sans-serif" font-size="16" font-weight="400">Ready-To-Deploy Software For Legally Authorized Gaming Operators</text>
+    <text x="0" y="215" fill="#cbd5e1" font-family="'Plus Jakarta Sans', sans-serif" font-size="16" font-weight="400">High-FPS Real-Time Table • Central Admin &amp; Player Management</text>
+
+    <!-- Responsible Gaming Warning Notice -->
+    <g transform="translate(0, 250)">
+      <rect width="520" height="60" rx="10" fill="rgba(239, 68, 68, 0.12)" stroke="rgba(239, 68, 68, 0.3)" />
+      <text x="15" y="24" fill="#f87171" font-family="'Plus Jakarta Sans', sans-serif" font-size="12" font-weight="800">⚖️ LEGAL &amp; RESPONSIBLE GAMING NOTICE:</text>
+      <text x="15" y="44" fill="#cbd5e1" font-family="'Plus Jakarta Sans', sans-serif" font-size="11">Subject to local laws and licensing. For authorized operators only.</text>
+    </g>
+
+    <g transform="translate(0, 330)">
+      <rect width="140" height="36" rx="8" fill="rgba(255,255,255,0.06)" stroke="rgba(255,255,255,0.12)" />
+      <text x="70" y="23" fill="#f8fafc" font-family="'Plus Jakarta Sans', sans-serif" font-size="13" font-weight="700" text-anchor="middle">⚡ Real-Time Engine</text>
+      
+      <rect x="155" width="140" height="36" rx="8" fill="rgba(255,255,255,0.06)" stroke="rgba(255,255,255,0.12)" />
+      <text x="225" y="23" fill="#f8fafc" font-family="'Plus Jakarta Sans', sans-serif" font-size="13" font-weight="700" text-anchor="middle">🛡️ Admin Security</text>
+
+      <rect x="310" width="140" height="36" rx="8" fill="rgba(255,255,255,0.06)" stroke="rgba(255,255,255,0.12)" />
+      <text x="380" y="23" fill="#f8fafc" font-family="'Plus Jakarta Sans', sans-serif" font-size="13" font-weight="700" text-anchor="middle">📊 Reporting Suite</text>
+    </g>
+  </g>
+
+  <g transform="translate(720, 110)">
+    <rect width="400" height="390" rx="20" fill="rgba(24, 4, 4, 0.95)" stroke="rgba(239, 68, 68, 0.35)" stroke-width="2" />
+    <rect x="25" y="25" width="350" height="150" rx="12" fill="#2d0a0a" />
+    <text x="45" y="70" fill="#fbbf24" font-family="'Outfit', sans-serif" font-size="22" font-weight="800">Dragon vs Tiger Table</text>
+    <text x="45" y="105" fill="#f87171" font-size="14">Multiplayer Card Game Architecture</text>
+    <text x="45" y="135" fill="#e2e8f0" font-size="12">Fast round settlements, history roadmap &amp; audio cues.</text>
+
+    <g transform="translate(25, 200)">
+      <rect width="165" height="150" rx="10" fill="#180404" stroke="rgba(239, 68, 68, 0.25)" />
+      <text x="20" y="45" fill="#ef4444" font-size="24">🐉</text>
+      <text x="20" y="80" fill="#ffffff" font-family="'Outfit', sans-serif" font-size="14" font-weight="700">Dragon Side</text>
+      <text x="20" y="105" fill="#fca5a5" font-size="11">Real-time betting</text>
+    </g>
+
+    <g transform="translate(210, 200)">
+      <rect width="165" height="150" rx="10" fill="#180404" stroke="rgba(239, 68, 68, 0.25)" />
+      <text x="20" y="45" fill="#f59e0b" font-size="24">🐅</text>
+      <text x="20" y="80" fill="#ffffff" font-family="'Outfit', sans-serif" font-size="14" font-weight="700">Tiger Side</text>
+      <text x="20" y="105" fill="#fde68a" font-size="11">Fast card draw</text>
+    </g>
+  </g>
+</svg>

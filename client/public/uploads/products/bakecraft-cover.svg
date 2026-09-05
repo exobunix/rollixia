@@ -1,0 +1,59 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 675" width="1200" height="675">
+  <defs>
+    <linearGradient id="bg5" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1c1917" />
+      <stop offset="50%" stop-color="#292524" />
+      <stop offset="100%" stop-color="#451a03" />
+    </linearGradient>
+    <linearGradient id="bakeGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#f59e0b" />
+      <stop offset="100%" stop-color="#fbbf24" />
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="675" fill="url(#bg5)" />
+  <circle cx="950" cy="200" r="300" fill="#f59e0b" opacity="0.1" filter="blur(90px)" />
+  
+  <g transform="translate(80, 140)">
+    <rect width="170" height="32" rx="16" fill="rgba(245, 158, 11, 0.15)" stroke="#f59e0b" stroke-width="1.5" />
+    <text x="85" y="21" fill="#fbbf24" font-family="'Plus Jakarta Sans', sans-serif" font-size="12" font-weight="800" text-anchor="middle" letter-spacing="1.5">WORDPRESS THEME</text>
+    
+    <text x="0" y="90" fill="#ffffff" font-family="'Outfit', sans-serif" font-size="52" font-weight="900" letter-spacing="-1">BakeCraft</text>
+    <text x="0" y="135" fill="url(#bakeGrad)" font-family="'Outfit', sans-serif" font-size="28" font-weight="700">Premium Bakery &amp; Food WordPress Theme</text>
+    
+    <text x="0" y="185" fill="#d6d3d1" font-family="'Plus Jakarta Sans', sans-serif" font-size="16" font-weight="400">Artisan Cake Shops, Bakeries &amp; Gourmet Culinary Brands</text>
+    <text x="0" y="215" fill="#a8a29e" font-family="'Plus Jakarta Sans', sans-serif" font-size="16" font-weight="400">Online Cake Ordering • Menu Layouts • WooCommerce Compatible</text>
+
+    <g transform="translate(0, 260)">
+      <rect width="140" height="36" rx="8" fill="rgba(255,255,255,0.06)" stroke="rgba(255,255,255,0.12)" />
+      <text x="70" y="23" fill="#f8fafc" font-family="'Plus Jakarta Sans', sans-serif" font-size="13" font-weight="700" text-anchor="middle">🎂 Custom Menus</text>
+      
+      <rect x="155" width="140" height="36" rx="8" fill="rgba(255,255,255,0.06)" stroke="rgba(255,255,255,0.12)" />
+      <text x="225" y="23" fill="#f8fafc" font-family="'Plus Jakarta Sans', sans-serif" font-size="13" font-weight="700" text-anchor="middle">🛒 Online Orders</text>
+
+      <rect x="310" width="140" height="36" rx="8" fill="rgba(255,255,255,0.06)" stroke="rgba(255,255,255,0.12)" />
+      <text x="380" y="23" fill="#f8fafc" font-family="'Plus Jakarta Sans', sans-serif" font-size="13" font-weight="700" text-anchor="middle">📱 100% Responsive</text>
+    </g>
+  </g>
+
+  <g transform="translate(700, 110)">
+    <rect width="420" height="380" rx="20" fill="rgba(28, 25, 23, 0.95)" stroke="rgba(245, 158, 11, 0.3)" stroke-width="2" />
+    <rect x="25" y="25" width="370" height="160" rx="12" fill="#292524" />
+    <text x="50" y="70" fill="#fbbf24" font-family="'Outfit', sans-serif" font-size="22" font-weight="800">Delightful Food Presentation</text>
+    <text x="50" y="105" fill="#e7e5e4" font-size="14">Tailored for sweet shops, bakeries and cafes.</text>
+    <text x="50" y="135" fill="#a8a29e" font-size="12">Includes reservation forms, order pickup slots &amp; delivery zones.</text>
+
+    <g transform="translate(25, 210)">
+      <rect width="175" height="135" rx="10" fill="#1c1917" stroke="rgba(245, 158, 11, 0.2)" />
+      <text x="20" y="45" fill="#f59e0b" font-size="24">🧁</text>
+      <text x="20" y="80" fill="#ffffff" font-family="'Outfit', sans-serif" font-size="14" font-weight="700">Artisan Catalog</text>
+      <text x="20" y="105" fill="#a8a29e" font-size="11">Flavor &amp; tier builder</text>
+    </g>
+
+    <g transform="translate(220, 210)">
+      <rect width="175" height="135" rx="10" fill="#1c1917" stroke="rgba(245, 158, 11, 0.2)" />
+      <text x="20" y="45" fill="#f59e0b" font-size="24">⚡</text>
+      <text x="20" y="80" fill="#ffffff" font-family="'Outfit', sans-serif" font-size="14" font-weight="700">1-Click Demo Import</text>
+      <text x="20" y="105" fill="#a8a29e" font-size="11">Pre-styled templates</text>
+    </g>
+  </g>
+</svg>

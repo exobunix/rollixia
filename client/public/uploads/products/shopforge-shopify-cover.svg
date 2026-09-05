@@ -1,0 +1,60 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 675" width="1200" height="675">
+  <defs>
+    <linearGradient id="bg2" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#06121e" />
+      <stop offset="50%" stop-color="#0f172a" />
+      <stop offset="100%" stop-color="#042f2e" />
+    </linearGradient>
+    <linearGradient id="shopifyGreen" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#10b981" />
+      <stop offset="100%" stop-color="#06b6d4" />
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="675" fill="url(#bg2)" />
+  <circle cx="1000" cy="180" r="280" fill="#10b981" opacity="0.12" filter="blur(90px)" />
+  <circle cx="200" cy="500" r="220" fill="#06b6d4" opacity="0.1" filter="blur(90px)" />
+  
+  <g transform="translate(80, 140)">
+    <rect width="160" height="32" rx="16" fill="rgba(16, 185, 129, 0.15)" stroke="#10b981" stroke-width="1.5" />
+    <text x="80" y="21" fill="#34d399" font-family="'Plus Jakarta Sans', sans-serif" font-size="12" font-weight="800" text-anchor="middle" letter-spacing="1.5">SHOPIFY THEME</text>
+    
+    <text x="0" y="90" fill="#ffffff" font-family="'Outfit', sans-serif" font-size="52" font-weight="900" letter-spacing="-1">ShopForge Shopify</text>
+    <text x="0" y="135" fill="url(#shopifyGreen)" font-family="'Outfit', sans-serif" font-size="28" font-weight="700">Premium Multipurpose Shopify Theme</text>
+    
+    <text x="0" y="185" fill="#94a3b8" font-family="'Plus Jakarta Sans', sans-serif" font-size="16" font-weight="400">Shopify Online Store 2.0 • Drag &amp; Drop Sections Everywhere</text>
+    <text x="0" y="215" fill="#94a3b8" font-family="'Plus Jakarta Sans', sans-serif" font-size="16" font-weight="400">Built-In Product Filters • Pre-Order Engine • Mega Menu</text>
+
+    <g transform="translate(0, 260)">
+      <rect width="140" height="36" rx="8" fill="rgba(255,255,255,0.06)" stroke="rgba(255,255,255,0.12)" />
+      <text x="70" y="23" fill="#f8fafc" font-family="'Plus Jakarta Sans', sans-serif" font-size="13" font-weight="700" text-anchor="middle">⚡ OS 2.0 Native</text>
+      
+      <rect x="155" width="150" height="36" rx="8" fill="rgba(255,255,255,0.06)" stroke="rgba(255,255,255,0.12)" />
+      <text x="230" y="23" fill="#f8fafc" font-family="'Plus Jakarta Sans', sans-serif" font-size="13" font-weight="700" text-anchor="middle">🎨 45+ Presets</text>
+
+      <rect x="320" width="140" height="36" rx="8" fill="rgba(255,255,255,0.06)" stroke="rgba(255,255,255,0.12)" />
+      <text x="390" y="23" fill="#f8fafc" font-family="'Plus Jakarta Sans', sans-serif" font-size="13" font-weight="700" text-anchor="middle">🛡️ Verified Assets</text>
+    </g>
+  </g>
+
+  <g transform="translate(680, 110)">
+    <rect width="450" height="380" rx="20" fill="rgba(15, 23, 42, 0.9)" stroke="rgba(16, 185, 129, 0.3)" stroke-width="2" />
+    <rect x="30" y="30" width="390" height="170" rx="12" fill="#1e293b" />
+    <text x="50" y="80" fill="#ffffff" font-family="'Outfit', sans-serif" font-size="24" font-weight="800">Shopify 2.0 Full Suite</text>
+    <text x="50" y="115" fill="#34d399" font-family="'Plus Jakarta Sans', sans-serif" font-size="14" font-weight="700">Save $2,000/year on 3rd party Shopify apps</text>
+    <text x="50" y="145" fill="#94a3b8" font-family="'Plus Jakarta Sans', sans-serif" font-size="13">Native swatches, countdowns, stock counters &amp; quick view.</text>
+    
+    <g transform="translate(30, 220)">
+      <rect width="185" height="130" rx="10" fill="rgba(16, 185, 129, 0.1)" stroke="rgba(16, 185, 129, 0.25)" />
+      <text x="20" y="45" fill="#34d399" font-size="24">🛒</text>
+      <text x="20" y="80" fill="#ffffff" font-family="'Outfit', sans-serif" font-size="15" font-weight="700">Dynamic Cart Drawer</text>
+      <text x="20" y="105" fill="#94a3b8" font-size="12">Free shipping motivator</text>
+    </g>
+
+    <g transform="translate(235, 220)">
+      <rect width="185" height="130" rx="10" fill="rgba(6, 182, 212, 0.1)" stroke="rgba(6, 182, 212, 0.25)" />
+      <text x="20" y="45" fill="#06b6d4" font-size="24">📈</text>
+      <text x="20" y="80" fill="#ffffff" font-family="'Outfit', sans-serif" font-size="15" font-weight="700">High ROAS Layouts</text>
+      <text x="20" y="105" fill="#94a3b8" font-size="12">Engineered for DTC brands</text>
+    </g>
+  </g>
+</svg>

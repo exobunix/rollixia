@@ -62,6 +62,10 @@ export function ProductCard({ product, onSelect, onQuickView }) {
         <img
           src={product.thumbnail || 'https://images.unsplash.com/photo-1551288049-bebda4e38f71?auto=format&fit=crop&w=800&q=80'}
           alt={product.title}
+          onError={(e) => {
+            e.currentTarget.onerror = null;
+            e.currentTarget.src = 'https://images.unsplash.com/photo-1551288049-bebda4e38f71?auto=format&fit=crop&w=800&q=80';
+          }}
           style={{
             position: 'absolute',
             top: 0,

@@ -585,6 +585,10 @@ export function DynamicProductPage({ slug, productData: initialData, onNavigate,
                     src={product.hero_image || currentGalleryImg.media_url}
                     alt={product.title}
                     className="pdp-mockup-img"
+                    onError={(e) => {
+                      e.currentTarget.onerror = null;
+                      e.currentTarget.src = 'https://images.unsplash.com/photo-1551288049-bebda4e38f71?auto=format&fit=crop&w=1200&q=80';
+                    }}
                   />
 
                   {product.demo_url && (
@@ -702,7 +706,14 @@ export function DynamicProductPage({ slug, productData: initialData, onNavigate,
                   onClick={() => setSelectedGalleryIndex(idx)}
                   className={`pdp-thumb-btn ${selectedGalleryIndex === idx ? 'active' : ''}`}
                 >
-                  <img src={img.media_url} alt="" />
+                  <img
+                    src={img.media_url}
+                    alt=""
+                    onError={(e) => {
+                      e.currentTarget.onerror = null;
+                      e.currentTarget.src = 'https://images.unsplash.com/photo-1551288049-bebda4e38f71?auto=format&fit=crop&w=400&q=80';
+                    }}
+                  />
                 </button>
               ))}
             </div>
@@ -866,7 +877,14 @@ export function DynamicProductPage({ slug, productData: initialData, onNavigate,
                     className="pdp-showcase-frame"
                     style={{ order: isReversed ? 2 : 1 }}
                   >
-                    <img src={item.image} alt={item.title} />
+                    <img
+                      src={item.image}
+                      alt={item.title}
+                      onError={(e) => {
+                        e.currentTarget.onerror = null;
+                        e.currentTarget.src = 'https://images.unsplash.com/photo-1551288049-bebda4e38f71?auto=format&fit=crop&w=1200&q=80';
+                      }}
+                    />
                   </div>
 
                   {/* Text & Bullets */}
@@ -943,6 +961,10 @@ export function DynamicProductPage({ slug, productData: initialData, onNavigate,
                   <img
                     src={s.url}
                     alt={s.caption || `Screenshot ${idx + 1}`}
+                    onError={(e) => {
+                      e.currentTarget.onerror = null;
+                      e.currentTarget.src = 'https://images.unsplash.com/photo-1551288049-bebda4e38f71?auto=format&fit=crop&w=1000&q=80';
+                    }}
                     style={{ width: '100%', height: '100%', objectFit: 'cover', transition: 'transform 0.3s ease' }}
                   />
                 </div>
@@ -1592,8 +1614,12 @@ export function DynamicProductPage({ slug, productData: initialData, onNavigate,
         <div className="pdp-sticky-bar">
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem', overflow: 'hidden' }}>
             <img
-              src={product.thumbnail || product.hero_image}
+              src={product.thumbnail || product.hero_image || 'https://images.unsplash.com/photo-1551288049-bebda4e38f71?auto=format&fit=crop&w=200&q=80'}
               alt=""
+              onError={(e) => {
+                e.currentTarget.onerror = null;
+                e.currentTarget.src = 'https://images.unsplash.com/photo-1551288049-bebda4e38f71?auto=format&fit=crop&w=200&q=80';
+              }}
               style={{ width: '42px', height: '42px', borderRadius: 'var(--radius-sm)', objectFit: 'cover', flexShrink: 0, border: '1px solid var(--border-subtle)' }}
             />
             <div style={{ overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>

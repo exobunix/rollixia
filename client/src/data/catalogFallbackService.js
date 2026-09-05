@@ -94,9 +94,39 @@ export function getFallbackProductBySlug(slug) {
   });
   if (!p) return null;
 
+  const parsedSections = (p.sections || []).map(sec => {
+    let parsedContent = sec.content;
+    let parsedSettings = sec.settings;
+    if (typeof sec.content === 'string') {
+      try {
+        parsedContent = JSON.parse(sec.content);
+        if (typeof parsedContent === 'string') {
+          try { parsedContent = JSON.parse(parsedContent); } catch (e) {}
+        }
+      } catch (e) {}
+    }
+    if (typeof sec.settings === 'string') {
+      try { parsedSettings = JSON.parse(sec.settings); } catch (e) {}
+    }
+    return {
+      ...sec,
+      content: parsedContent,
+      settings: parsedSettings
+    };
+  });
+
+  let parsedTechnicalSpecs = p.technical_specs;
+  if (typeof p.technical_specs === 'string') {
+    try { parsedTechnicalSpecs = JSON.parse(p.technical_specs); } catch (e) {}
+  }
+
   return {
-    product: p,
+    product: {
+      ...p,
+      technical_specs: parsedTechnicalSpecs
+    },
     ...p,
+    technical_specs: parsedTechnicalSpecs,
     media: p.media || [],
     licenses: p.licenses || [],
     features: p.features || [],
@@ -104,7 +134,7 @@ export function getFallbackProductBySlug(slug) {
     faqs: p.faqs || [],
     reviews: p.reviews || [],
     testimonials: p.testimonials || [],
-    sections: p.sections || [],
+    sections: parsedSections,
     ratingBreakdown: { 5: 14, 4: 1, 3: 0, 2: 0, 1: 0 },
     pricingPlans: p.licenses || [],
     activeFile: {

@@ -309,7 +309,8 @@ export function DynamicProductPage({ slug, productData: initialData, onNavigate,
   };
 
   const expandAllFaqs = () => {
-    const faqList = getSectionData('faq') || faqs;
+    const rawFaq = getSectionData('faq');
+    const faqList = Array.isArray(rawFaq) ? rawFaq : (Array.isArray(faqs) ? faqs : []);
     setOpenFaqIndices(faqList.map((_, idx) => idx));
   };
 
@@ -318,10 +319,22 @@ export function DynamicProductPage({ slug, productData: initialData, onNavigate,
   };
 
   // Helper to extract content of a section from database sections
-  const getSection = (type) => dbSections.find(s => s.section_type === type);
+  const getSection = (type) => (Array.isArray(dbSections) ? dbSections.find(s => s && (s.section_type === type || s.type === type)) : null);
   const getSectionData = (type) => {
     const sec = getSection(type);
-    return sec ? sec.content : null;
+    if (!sec || sec.content === undefined || sec.content === null) return null;
+    let val = sec.content;
+    if (typeof val === 'string') {
+      try {
+        val = JSON.parse(val);
+        if (typeof val === 'string') {
+          try { val = JSON.parse(val); } catch (e) {}
+        }
+      } catch (e) {
+        // Keep original string if not valid JSON
+      }
+    }
+    return val;
   };
 
   // ----------------------------------------------------
@@ -701,12 +714,17 @@ export function DynamicProductPage({ slug, productData: initialData, onNavigate,
 
   // 04. Highlights Grid
   const renderHighlights = () => {
-    const highlights = getSectionData('highlights') || [
+    let raw = getSectionData('highlights');
+    if (typeof raw === 'string') {
+      try { raw = JSON.parse(raw); } catch (e) {}
+    }
+    const defaultHighlights = [
       { icon: 'Zap', title: 'Ready to Deploy', description: 'Immediate production setup with clean scaffolding.' },
       { icon: 'ShieldCheck', title: 'Commercial License', description: 'Safe for commercial and client deployments.' },
       { icon: 'Layers', title: 'Modular Architecture', description: 'Clean extensible code built to scale.' },
       { icon: 'RefreshCw', title: 'Lifetime Updates', description: 'Continuous improvements and bug fixes.' }
     ];
+    const highlights = Array.isArray(raw) ? raw : defaultHighlights;
 
     if (!highlights || !highlights.length) return null;
 
@@ -717,7 +735,7 @@ export function DynamicProductPage({ slug, productData: initialData, onNavigate,
             {highlights.map((hl, idx) => (
               <div key={idx} className="pdp-card">
                 <div className="pdp-card-icon">
-                  <DynamicIcon name={hl.icon} size={20} />
+                  <DynamicIcon name={hl.icon || 'Zap'} size={20} />
                 </div>
                 <h3 className="pdp-card-title">{hl.title}</h3>
                 <p className="pdp-card-text">{hl.description}</p>
@@ -731,8 +749,12 @@ export function DynamicProductPage({ slug, productData: initialData, onNavigate,
 
   // 05. Product Overview
   const renderOverview = () => {
-    const overviewContent = getSectionData('overview');
-    const specsList = overviewContent?.specs || [
+    let overviewContent = getSectionData('overview');
+    if (typeof overviewContent === 'string') {
+      try { overviewContent = JSON.parse(overviewContent); } catch (e) {}
+    }
+    const rawSpecs = overviewContent?.specs;
+    const specsList = Array.isArray(rawSpecs) ? rawSpecs : [
       { label: 'Category', value: product.category_name || 'Software Application' },
       { label: 'Delivery', value: 'Instant Download & Access' },
       { label: 'License', value: 'Commercial Single Project' },
@@ -779,7 +801,11 @@ export function DynamicProductPage({ slug, productData: initialData, onNavigate,
 
   // 06. Key Features
   const renderFeatures = () => {
-    const featList = getSectionData('features') || features;
+    let raw = getSectionData('features');
+    if (typeof raw === 'string') {
+      try { raw = JSON.parse(raw); } catch (e) {}
+    }
+    const featList = Array.isArray(raw) ? raw : (Array.isArray(features) ? features : []);
     if (!featList || !featList.length) return null;
 
     return (
@@ -809,7 +835,11 @@ export function DynamicProductPage({ slug, productData: initialData, onNavigate,
 
   // 07. Feature Showcase (Alternating visual rows)
   const renderShowcase = () => {
-    const showcaseList = getSectionData('showcase');
+    let raw = getSectionData('showcase');
+    if (typeof raw === 'string') {
+      try { raw = JSON.parse(raw); } catch (e) {}
+    }
+    const showcaseList = Array.isArray(raw) ? raw : [];
     if (!showcaseList || !showcaseList.length) return null;
 
     return (
@@ -861,7 +891,7 @@ export function DynamicProductPage({ slug, productData: initialData, onNavigate,
                       {item.description}
                     </p>
 
-                    {item.bullet_points && item.bullet_points.length > 0 && (
+                    {Array.isArray(item.bullet_points) && item.bullet_points.length > 0 && (
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem', marginTop: '0.5rem' }}>
                         {item.bullet_points.map((bp, bIdx) => (
                           <div key={bIdx} style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
@@ -885,7 +915,11 @@ export function DynamicProductPage({ slug, productData: initialData, onNavigate,
 
   // 08. Screenshots Grid
   const renderScreenshots = () => {
-    const screenshots = getSectionData('screenshots');
+    let raw = getSectionData('screenshots');
+    if (typeof raw === 'string') {
+      try { raw = JSON.parse(raw); } catch (e) {}
+    }
+    const screenshots = Array.isArray(raw) ? raw : [];
     if (!screenshots || !screenshots.length) return null;
 
     return (
@@ -927,12 +961,17 @@ export function DynamicProductPage({ slug, productData: initialData, onNavigate,
 
   // 09. What's Included
   const renderIncluded = () => {
-    const items = getSectionData('included') || [
+    let raw = getSectionData('included');
+    if (typeof raw === 'string') {
+      try { raw = JSON.parse(raw); } catch (e) {}
+    }
+    const defaultItems = [
       { title: 'Full Clean Source Code', description: 'Unencrypted codebase ready for customization.', icon: 'FileCode' },
       { title: 'Setup Documentation', description: 'Comprehensive guides with setup steps.', icon: 'Package' },
       { title: 'Admin Dashboard', description: 'Complete backend panel for system control.', icon: 'Layers' },
       { title: 'Commercial License', description: 'Authorized for client or business use.', icon: 'ShieldCheck' }
     ];
+    const items = Array.isArray(raw) ? raw : defaultItems;
 
     return (
       <section className="pdp-section">
@@ -963,12 +1002,17 @@ export function DynamicProductPage({ slug, productData: initialData, onNavigate,
 
   // 10. How It Works
   const renderHowItWorks = () => {
-    const steps = getSectionData('how_it_works') || [
+    let raw = getSectionData('how_it_works');
+    if (typeof raw === 'string') {
+      try { raw = JSON.parse(raw); } catch (e) {}
+    }
+    const defaultSteps = [
       { step: '01', title: 'Choose Product', description: 'Review features and choose your license tier.', icon: 'ShoppingBag' },
       { step: '02', title: 'Complete Payment', description: 'Encrypted, instant checkout with direct confirmation.', icon: 'Lock' },
       { step: '03', title: 'Receive Access', description: 'Get download files and documentation immediately.', icon: 'DownloadCloud' },
       { step: '04', title: 'Deploy & Launch', description: 'Follow quickstart instructions to go live.', icon: 'Zap' }
     ];
+    const steps = Array.isArray(raw) ? raw : defaultSteps;
 
     return (
       <section className="pdp-section">
@@ -1005,8 +1049,17 @@ export function DynamicProductPage({ slug, productData: initialData, onNavigate,
 
   // 11. Technical Specifications
   const renderSpecs = () => {
-    const specs = getSectionData('specs');
-    if (!specs || !specs.length) return null;
+    let raw = getSectionData('specs');
+    if (typeof raw === 'string') {
+      try { raw = JSON.parse(raw); } catch (e) {}
+    }
+    let specs = Array.isArray(raw) ? raw : [];
+    if (!specs.length && typeof product.technical_specs === 'string') {
+      try { specs = JSON.parse(product.technical_specs); } catch (e) {}
+    } else if (!specs.length && Array.isArray(product.technical_specs)) {
+      specs = product.technical_specs;
+    }
+    if (!Array.isArray(specs) || !specs.length) return null;
 
     return (
       <section className="pdp-section">
@@ -1036,7 +1089,11 @@ export function DynamicProductPage({ slug, productData: initialData, onNavigate,
 
   // 12. Supported Platforms
   const renderPlatforms = () => {
-    const platforms = getSectionData('platforms');
+    let raw = getSectionData('platforms');
+    if (typeof raw === 'string') {
+      try { raw = JSON.parse(raw); } catch (e) {}
+    }
+    const platforms = Array.isArray(raw) ? raw : [];
     if (!platforms || !platforms.length) return null;
 
     return (
@@ -1066,7 +1123,11 @@ export function DynamicProductPage({ slug, productData: initialData, onNavigate,
 
   // 13. Use Cases
   const renderUseCases = () => {
-    const useCases = getSectionData('use_cases');
+    let raw = getSectionData('use_cases');
+    if (typeof raw === 'string') {
+      try { raw = JSON.parse(raw); } catch (e) {}
+    }
+    const useCases = Array.isArray(raw) ? raw : [];
     if (!useCases || !useCases.length) return null;
 
     return (
@@ -1192,7 +1253,11 @@ export function DynamicProductPage({ slug, productData: initialData, onNavigate,
 
   // 16. Customer Testimonials
   const renderTestimonials = () => {
-    const testList = (testimonials && testimonials.length > 0) ? testimonials : (getSectionData('testimonials') || []);
+    let raw = (testimonials && testimonials.length > 0) ? testimonials : getSectionData('testimonials');
+    if (typeof raw === 'string') {
+      try { raw = JSON.parse(raw); } catch (e) {}
+    }
+    const testList = Array.isArray(raw) ? raw : [];
     if (!testList || !testList.length) return null;
 
     return (
@@ -1240,7 +1305,11 @@ export function DynamicProductPage({ slug, productData: initialData, onNavigate,
 
   // 17. FAQ Accordion
   const renderFaq = () => {
-    const faqList = getSectionData('faq') || faqs;
+    let raw = getSectionData('faq');
+    if (typeof raw === 'string') {
+      try { raw = JSON.parse(raw); } catch (e) {}
+    }
+    const faqList = Array.isArray(raw) ? raw : (Array.isArray(faqs) ? faqs : []);
     if (!faqList || !faqList.length) return null;
 
     return (
@@ -1486,9 +1555,28 @@ export function DynamicProductPage({ slug, productData: initialData, onNavigate,
     'related', 'final_cta'
   ];
 
-  const orderedSections = dbSections.length > 0
-    ? dbSections.filter(s => s.is_visible === undefined || s.is_visible === 1 || s.is_visible === true).map(s => s.section_type || s.type)
-    : defaultCanonicalTypes;
+  let orderedSections = [];
+  if (Array.isArray(dbSections) && dbSections.length > 0) {
+    const customTypes = dbSections
+      .filter(s => s && (s.is_visible === undefined || s.is_visible === 1 || s.is_visible === true))
+      .map(s => s.section_type || s.type)
+      .filter(Boolean);
+
+    const combined = ['breadcrumb', 'hero'];
+    if (!customTypes.includes('gallery')) combined.push('gallery');
+
+    customTypes.forEach(t => {
+      if (!combined.includes(t)) combined.push(t);
+    });
+
+    ['overview', 'features', 'pricing', 'faq', 'license_delivery', 'related', 'final_cta'].forEach(t => {
+      if (!combined.includes(t)) combined.push(t);
+    });
+
+    orderedSections = combined;
+  } else {
+    orderedSections = defaultCanonicalTypes;
+  }
 
   return (
     <article className="pdp-page">

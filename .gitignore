@@ -28,6 +28,7 @@ yarn-error.log*
 *.sqlite3
 *.db
 *.backup*
+!server/database.sqlite
 
 # Operating System Files
 .DS_Store

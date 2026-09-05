@@ -1,3 +1,7 @@
+import { handleFallbackRoute } from '../data/catalogFallbackService.js';
+
+const API_BASE_URL = (import.meta.env.VITE_API_URL || '').replace(/\/+$/, '');
+
 export async function apiRequest(endpoint, options = {}) {
   const token = localStorage.getItem('digitalstore_token');
   const headers = {
@@ -14,34 +18,58 @@ export async function apiRequest(endpoint, options = {}) {
     delete headers['Content-Type'];
   }
 
-  // Ensure prefix /api if not present and not external URL
+  // Ensure correct URL with API_BASE_URL support
   let url = endpoint;
-  if (!url.startsWith('http') && !url.startsWith('/api')) {
-    url = `/api${url.startsWith('/') ? '' : '/'}${url}`;
+  if (!url.startsWith('http')) {
+    const cleanEndpoint = url.startsWith('/') ? url : `/${url}`;
+    const path = cleanEndpoint.startsWith('/api') ? cleanEndpoint : `/api${cleanEndpoint}`;
+    url = API_BASE_URL ? `${API_BASE_URL}${path}` : path;
   }
 
-  const response = await fetch(url, {
-    ...options,
-    headers
-  });
+  try {
+    const response = await fetch(url, {
+      ...options,
+      headers
+    });
 
-  const contentType = response.headers.get('content-type');
-  let data = null;
-  if (contentType && contentType.includes('application/json')) {
-    data = await response.json();
-  } else {
-    data = await response.text();
-  }
+    const contentType = response.headers.get('content-type');
+    let data = null;
+    if (contentType && contentType.includes('application/json')) {
+      data = await response.json();
+    } else {
+      data = await response.text();
+    }
 
-  if (!response.ok) {
-    const errorMsg = (data && data.error) || (typeof data === 'string' ? data : 'Request failed');
-    const err = new Error(errorMsg);
-    err.status = response.status;
-    err.data = data;
+    if (!response.ok) {
+      // If 404 (common when frontend deployed statically on Vercel without backend proxy)
+      const method = (options.method || 'GET').toUpperCase();
+      if ((response.status === 404 || response.status === 502 || response.status === 503) && method === 'GET') {
+        const fallback = handleFallbackRoute(endpoint);
+        if (fallback !== null) {
+          console.warn(`[Rollixia] Remote API unavailable (${response.status}). Serving client catalog for: ${endpoint}`);
+          return fallback;
+        }
+      }
+
+      const errorMsg = (data && data.error) || (typeof data === 'string' ? data : 'Request failed');
+      const err = new Error(errorMsg);
+      err.status = response.status;
+      err.data = data;
+      throw err;
+    }
+
+    return data;
+  } catch (err) {
+    const method = (options.method || 'GET').toUpperCase();
+    if (method === 'GET') {
+      const fallback = handleFallbackRoute(endpoint);
+      if (fallback !== null) {
+        console.warn(`[Rollixia] Network error connecting to ${url}. Serving client catalog for: ${endpoint}`);
+        return fallback;
+      }
+    }
     throw err;
   }
-
-  return data;
 }
 
 export const api = {

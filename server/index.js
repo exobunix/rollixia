@@ -85,12 +85,29 @@ app.use((err, req, res, next) => {
   });
 });
 
+let initPromise = null;
+async function ensureInit() {
+  if (!initPromise) {
+    initPromise = Promise.all([getDatabase(), connectMongoDB()]);
+  }
+  return initPromise;
+}
+
+// Ensure database connections for both traditional and serverless runtimes
+app.use(async (req, res, next) => {
+  try {
+    await ensureInit();
+    next();
+  } catch (err) {
+    console.error('Database connection error in request:', err);
+    next(err);
+  }
+});
+
 // Start Server
 async function start() {
   try {
-    await getDatabase();
-    // Connect to MongoDB Atlas
-    await connectMongoDB();
+    await ensureInit();
 
     app.listen(PORT, () => {
       console.log(`====================================================`);
@@ -106,4 +123,8 @@ async function start() {
   }
 }
 
-start();
+if (require.main === module) {
+  start();
+}
+
+module.exports = app;

@@ -162,7 +162,11 @@ router.post('/', optionalUser, async (req, res) => {
       orderId,
       orderNumber,
       totalAmount,
-      currency
+      currency,
+      user_id: userId
+    }, {
+      email: customer_email,
+      name: customer_name
     });
 
     res.status(201).json({

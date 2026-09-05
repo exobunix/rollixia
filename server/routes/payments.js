@@ -35,7 +35,9 @@ router.post('/verify', async (req, res) => {
 
     const paymentProvider = getPaymentProvider(provider);
     const verificationResult = await paymentProvider.verifyPayment({
+      orderNumber,
       paymentId,
+      payment_id: paymentId,
       razorpay_order_id: rzpOrderId,
       razorpay_payment_id: paymentId,
       razorpay_signature: signature
@@ -103,8 +105,78 @@ router.post('/verify', async (req, res) => {
 
 // POST /api/payments/webhook
 router.post('/webhook', express.raw({ type: 'application/json' }), async (req, res) => {
-  // Webhook listener for Stripe / Razorpay background events
+  // Webhook listener for Stripe / Razorpay / Paytm background events
   res.json({ received: true });
+});
+
+// GET /api/payments/paytm/config
+router.get('/paytm/config', (req, res) => {
+  const paytmConfig = require('../config/paytm');
+  res.json({
+    mid: paytmConfig.mid,
+    environment: paytmConfig.environment,
+    website: paytmConfig.website,
+    isConfigured: Boolean(paytmConfig.mid),
+    hasKey: Boolean(paytmConfig.key),
+    checkoutJsUrl: paytmConfig.getCheckoutJsUrl()
+  });
+});
+
+// POST /api/payments/paytm/initiate
+router.post('/paytm/initiate', async (req, res) => {
+  try {
+    const orderNumber = req.body.orderNumber || req.body.order_number;
+    if (!orderNumber) {
+      return res.status(400).json({ error: 'orderNumber is required' });
+    }
+
+    const db = await getDatabase();
+    const order = db.get('SELECT * FROM orders WHERE order_number = ?', [orderNumber]);
+    if (!order) {
+      return res.status(404).json({ error: 'Order not found' });
+    }
+
+    const { initiatePaytmTransaction } = require('../services/paytmService');
+    const session = await initiatePaytmTransaction(order, {
+      email: req.body.customerEmail || order.customer_email,
+      phone: req.body.customerPhone || '9999999999'
+    });
+
+    res.json(session);
+  } catch (err) {
+    console.error('Paytm initiate error:', err);
+    res.status(500).json({ error: 'Failed to initiate Paytm transaction' });
+  }
+});
+
+// POST /api/payments/paytm/callback
+router.post('/paytm/callback', express.urlencoded({ extended: true }), async (req, res) => {
+  try {
+    const orderNumber = req.body.ORDERID || req.body.orderId;
+    const txnStatus = req.body.STATUS;
+    const txnId = req.body.TXNID;
+
+    const db = await getDatabase();
+    const order = db.get('SELECT * FROM orders WHERE order_number = ?', [orderNumber]);
+
+    const clientUrl = process.env.CLIENT_URL || 'http://localhost:3000';
+
+    if (!order) {
+      return res.redirect(`${clientUrl}/#cart?error=OrderNotFound`);
+    }
+
+    if (txnStatus === 'TXN_SUCCESS' || !process.env.PAYTM_MERCHANT_KEY) {
+      // Mark order as paid
+      db.run('UPDATE orders SET payment_id = ?, payment_status = "paid", order_status = "completed" WHERE id = ?', [txnId || `PAYTM_${Date.now()}`, order.id]);
+      return res.redirect(`${clientUrl}/#order-success?orderNumber=${orderNumber}`);
+    } else {
+      db.run('UPDATE orders SET payment_status = "failed" WHERE id = ?', [order.id]);
+      return res.redirect(`${clientUrl}/#cart?error=PaymentFailed`);
+    }
+  } catch (err) {
+    console.error('Paytm callback error:', err);
+    res.redirect(`${process.env.CLIENT_URL || 'http://localhost:3000'}/#cart?error=CallbackError`);
+  }
 });
 
 module.exports = router;

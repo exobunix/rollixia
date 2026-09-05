@@ -68,9 +68,35 @@ class RazorpayProvider extends PaymentProvider {
   }
 }
 
+class PaytmPaymentProvider extends PaymentProvider {
+  async createPaymentSession(order, customer) {
+    const { initiatePaytmTransaction, paytmConfig } = require('./paytmService');
+    const session = await initiatePaytmTransaction(order, customer);
+    return {
+      success: true,
+      provider: 'paytm',
+      mid: paytmConfig.mid,
+      orderId: session.orderId,
+      amount: session.amount,
+      currency: session.currency || 'INR',
+      txnToken: session.txnToken,
+      paymentId: `PAYTM_${session.txnToken}`,
+      isLive: session.isLive,
+      checkoutJsUrl: session.checkoutJsUrl,
+      message: session.message
+    };
+  }
+
+  async verifyPayment({ orderNumber, paymentId, payment_id }) {
+    const { verifyPaytmTransaction } = require('./paytmService');
+    return await verifyPaytmTransaction(orderNumber, paymentId || payment_id);
+  }
+}
+
 const providers = {
   simulated: new SimulatedPaymentProvider(),
-  razorpay: new RazorpayProvider()
+  razorpay: new RazorpayProvider(),
+  paytm: new PaytmPaymentProvider()
 };
 
 function getPaymentProvider(providerName = 'simulated') {

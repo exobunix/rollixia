@@ -408,7 +408,16 @@ function initSchema(db) {
       { name: 'seo_title', def: 'TEXT' },
       { name: 'seo_description', def: 'TEXT' },
       { name: 'seo_keywords', def: 'TEXT' },
-      { name: 'og_image', def: 'TEXT' }
+      { name: 'og_image', def: 'TEXT' },
+      { name: 'video_type', def: "TEXT DEFAULT 'auto'" },
+      { name: 'video_thumbnail', def: 'TEXT' },
+      { name: 'video_title', def: 'TEXT' },
+      { name: 'video_description', def: 'TEXT' },
+      { name: 'customer_demo_url', def: 'TEXT' },
+      { name: 'partner_demo_url', def: 'TEXT' },
+      { name: 'admin_demo_url', def: 'TEXT' },
+      { name: 'web_demo_url', def: 'TEXT' },
+      { name: 'docs_url', def: 'TEXT' }
     ];
 
     for (const col of newCols) {

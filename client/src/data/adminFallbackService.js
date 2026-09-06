@@ -394,6 +394,13 @@ export function handleAdminFallbackRoute(clean, method, options = {}, requestBod
   }
 
   if (clean.startsWith('admin/products/') && clean.endsWith('/sections') && (method === 'PUT' || method === 'POST')) {
+    const id = clean.replace(/^admin\/products\//, '').replace(/\/sections$/, '');
+    const products = getStored(STORAGE_KEYS.PRODUCTS, [...FALLBACK_PRODUCTS]);
+    const idx = products.findIndex(p => String(p.id) === String(id));
+    if (idx >= 0 && requestBody?.sections) {
+      products[idx].sections = requestBody.sections;
+      setStored(STORAGE_KEYS.PRODUCTS, products);
+    }
     return { success: true, message: 'Product sections saved successfully' };
   }
 

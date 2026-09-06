@@ -36,7 +36,23 @@ import {
   AlertCircle,
   Wrench,
   Navigation,
-  Share2
+  Share2,
+  Database,
+  Server,
+  Code2,
+  Users,
+  Briefcase,
+  FolderTree,
+  ListChecks,
+  Sliders,
+  DollarSign,
+  MessageSquare,
+  Mail,
+  Phone,
+  Layout,
+  Layers3,
+  CheckSquare,
+  HelpCircle as QuestionIcon
 } from 'lucide-react';
 import { useCart } from '../../context/CartContext';
 import { useCurrency } from '../../context/CurrencyContext';
@@ -45,6 +61,7 @@ import { useToast } from '../../context/ToastContext';
 import { formatCurrency } from '../../utils/formatters';
 import { apiRequest } from '../../utils/api';
 import { Badge, StarRating } from '../../components/common/Badge';
+import { getFallbackProductBySlug, getFallbackRelated } from '../../data/catalogFallbackService.js';
 
 // Helper to render dynamic Lucide icons from string names
 function DynamicIcon({ name, size = 20, className = '', style }) {
@@ -77,14 +94,68 @@ function DynamicIcon({ name, size = 20, className = '', style }) {
     Globe,
     ShoppingBag,
     Wrench,
-    Navigation
+    Navigation,
+    Database,
+    Server,
+    Code2,
+    Users,
+    Briefcase,
+    FolderTree,
+    ListChecks,
+    Sliders,
+    DollarSign,
+    MessageSquare,
+    Mail,
+    Phone,
+    Layout
   };
 
   const Component = iconMap[name] || CheckCircle;
   return <Component size={size} className={className} style={style} />;
 }
 
-import { getFallbackProductBySlug, getFallbackRelated } from '../../data/catalogFallbackService.js';
+// Helper to auto-detect and parse video URLs (YouTube, Vimeo, MP4)
+function parseVideoUrl(rawUrl) {
+  if (!rawUrl || typeof rawUrl !== 'string') return null;
+  const url = rawUrl.trim();
+  if (!url) return null;
+
+  // YouTube detection (Standard, Shortened, Embed, Shorts)
+  const ytMatch = url.match(/(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?|shorts)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/i);
+  if (ytMatch && ytMatch[1]) {
+    return {
+      provider: 'youtube',
+      embedUrl: `https://www.youtube-nocookie.com/embed/${ytMatch[1]}?autoplay=0&rel=0`
+    };
+  }
+
+  // Vimeo detection
+  const vimeoMatch = url.match(/(?:vimeo\.com\/(?:channels\/(?:\w+\/)?|groups\/([^\/]*)\/videos\/|album\/(\d+)\/video\/|video\/|)(\d+))/i);
+  if (vimeoMatch && vimeoMatch[3]) {
+    return {
+      provider: 'vimeo',
+      embedUrl: `https://player.vimeo.com/video/${vimeoMatch[3]}`
+    };
+  }
+
+  // Direct MP4 or WebM
+  if (url.match(/\.(mp4|webm|ogg)($|\?)/i) || url.toLowerCase().includes('.mp4')) {
+    return {
+      provider: 'mp4',
+      src: url
+    };
+  }
+
+  // Generic fallback if already embed or direct link
+  if (url.includes('embed') || url.startsWith('http')) {
+    return {
+      provider: 'iframe',
+      embedUrl: url
+    };
+  }
+
+  return null;
+}
 
 export function DynamicProductPage({ slug, productData: initialData, onNavigate, isPreviewMode = false }) {
   const cleanSlug = slug ? decodeURIComponent(String(slug)).trim() : '';
@@ -149,151 +220,176 @@ export function DynamicProductPage({ slug, productData: initialData, onNavigate,
       if (lics.length > 0) {
         setSelectedLicense(lics[0]);
       }
+      return;
+    }
+
+    if (!cleanSlug) {
       setLoading(false);
       return;
     }
 
-    if (!slug) return;
+    let isMounted = true;
+    setLoading(true);
 
-    const normalizedSlug = decodeURIComponent(String(slug)).trim();
-    const localFallback = getFallbackProductBySlug(normalizedSlug);
-
-    // Provide instant responsive render if catalog fallback is available
-    if (localFallback) {
-      setData(localFallback);
-      const lics = localFallback.licenses || [];
-      if (lics.length > 0) {
-        setSelectedLicense(lics[0]);
-      }
-      setLoading(false);
-    } else if (!data) {
-      setLoading(true);
-    }
-
-    if (!isPreviewMode) {
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    }
-
-    apiRequest(`/api/products/${encodeURIComponent(normalizedSlug)}`)
+    apiRequest(`/api/products/${cleanSlug}`)
       .then(res => {
+        if (!isMounted) return;
         if (res && (res.product || res.id)) {
           setData(res);
           const lics = res.licenses || res.product?.licenses || [];
           if (lics.length > 0) {
             setSelectedLicense(lics[0]);
           }
+        } else if (fallbackProduct) {
+          setData(fallbackProduct);
+          const lics = fallbackProduct.licenses || [];
+          if (lics.length > 0) setSelectedLicense(lics[0]);
         }
       })
       .catch(err => {
-        console.error('Failed to load product from API:', err);
-        if (localFallback) {
-          setData(localFallback);
+        console.warn('API error, using local fallback:', err);
+        if (fallbackProduct && isMounted) {
+          setData(fallbackProduct);
+          const lics = fallbackProduct.licenses || [];
+          if (lics.length > 0) setSelectedLicense(lics[0]);
         }
       })
-      .finally(() => setLoading(false));
+      .finally(() => {
+        if (isMounted) setLoading(false);
+      });
 
-    apiRequest(`/api/products/${encodeURIComponent(normalizedSlug)}/related`)
-      .then(res => {
-        if (Array.isArray(res) && res.length > 0) {
-          setRelated(res);
+    apiRequest(`/api/products/${cleanSlug}/related`)
+      .then(relRes => {
+        if (!isMounted) return;
+        if (Array.isArray(relRes) && relRes.length > 0) {
+          setRelated(relRes);
         }
       })
       .catch(() => {});
-  }, [slug, initialData, isPreviewMode]);
 
+    return () => { isMounted = false; };
+  }, [cleanSlug, initialData]);
+
+  // Loading State
   if (loading) {
     return (
-      <div style={{ minHeight: '60vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '1rem', color: 'var(--text-muted)' }}>
-        <div style={{
-          width: '44px',
-          height: '44px',
-          border: '4px solid rgba(99, 102, 241, 0.2)',
-          borderTopColor: 'var(--primary)',
-          borderRadius: '50%',
-          animation: 'spin 0.8s linear infinite'
-        }} />
-        <style>{`@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }`}</style>
-        <p style={{ fontSize: '0.9rem', fontWeight: 600, letterSpacing: '0.04em' }}>Loading product experience...</p>
-      </div>
-    );
-  }
-
-  const product = data?.product || (data?.id ? data : null);
-
-  if (!product || !product.id) {
-    return (
-      <div className="pdp-container" style={{ padding: '6rem 1.5rem', textAlign: 'center' }}>
-        <div style={{
-          width: '64px',
-          height: '64px',
-          background: 'rgba(244, 63, 94, 0.12)',
-          border: '1px solid rgba(244, 63, 94, 0.25)',
-          borderRadius: 'var(--radius-xl)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          margin: '0 auto 1.5rem',
-          color: 'var(--accent-rose)'
-        }}>
-          <AlertCircle size={32} />
+      <div style={{ minHeight: '60vh', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-secondary)' }}>
+        <div style={{ textAlign: 'center' }}>
+          <div style={{
+            width: '40px',
+            height: '40px',
+            border: '3px solid rgba(99, 102, 241, 0.2)',
+            borderTopColor: 'var(--primary)',
+            borderRadius: '50%',
+            animation: 'spin 1s linear infinite',
+            margin: '0 auto 1rem'
+          }} />
+          <p style={{ fontWeight: 600 }}>Loading product experience...</p>
         </div>
-        <h2 style={{ fontSize: '1.75rem', fontWeight: 800, color: 'var(--text-primary)', marginBottom: '0.5rem' }}>Product Not Found</h2>
-        <p style={{ color: 'var(--text-secondary)', maxWidth: '440px', margin: '0 auto 2rem', fontSize: '0.95rem' }}>
-          The requested digital product could not be located or may have been updated in our catalog.
-        </p>
-        <button
-          onClick={() => onNavigate && onNavigate('products')}
-          className="btn btn-primary"
-        >
-          Explore Full Catalog
-        </button>
       </div>
     );
   }
 
-  const media = data?.media || product.media || [];
-  const licenses = data?.licenses || product.licenses || [];
-  const features = data?.features || product.features || [];
-  const faqs = data?.faqs || product.faqs || [];
-  const testimonials = data?.testimonials || product.testimonials || [];
-  const dbSections = data?.sections || product.sections || [];
+  // Not Found State
+  if (!data) {
+    return (
+      <div style={{ minHeight: '60vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '2rem' }}>
+        <div style={{ textAlign: 'center', maxWidth: '480px' }}>
+          <div style={{
+            width: '56px',
+            height: '56px',
+            borderRadius: 'var(--radius-lg)',
+            background: 'rgba(239, 68, 68, 0.1)',
+            color: '#ef4444',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            margin: '0 auto 1.5rem'
+          }}>
+            <AlertCircle size={28} />
+          </div>
+          <h2 style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--text-primary)', marginBottom: '0.75rem' }}>
+            Product Not Found
+          </h2>
+          <p style={{ color: 'var(--text-secondary)', marginBottom: '1.5rem', fontSize: '0.925rem' }}>
+            The product you are looking for does not exist, has been removed, or is currently unpublished.
+          </p>
+          <button
+            onClick={() => onNavigate && onNavigate('products')}
+            className="btn btn-primary"
+          >
+            Browse All Products
+          </button>
+        </div>
+      </div>
+    );
+  }
 
-  // Price calculation based on selected license or base product
-  const selectedLicenseRegular = (selectedLicense && selectedLicense.regular_price) ? selectedLicense.regular_price : product.regular_price;
-  const selectedLicenseOffer = (selectedLicense && selectedLicense.price !== undefined)
-    ? selectedLicense.price
-    : (product.sale_price !== null && product.sale_price !== undefined ? product.sale_price : product.regular_price);
+  // Normalize Product Payload
+  const product = data.product || data;
+  const media = Array.isArray(data.media) ? data.media : [];
+  const features = Array.isArray(data.features) ? data.features : [];
+  const faqs = Array.isArray(data.faqs) ? data.faqs : [];
+  const testimonials = Array.isArray(data.testimonials) ? data.testimonials : [];
+  const dbSections = Array.isArray(data.sections) ? data.sections : [];
+  const licenses = Array.isArray(data.licenses) ? data.licenses : [];
 
-  const currentPrice = selectedLicenseOffer;
-  const regularPrice = selectedLicenseRegular;
+  // Calculate Prices
+  const basePrice = product.sale_price !== null && product.sale_price !== undefined ? product.sale_price : product.regular_price;
+  const currentPrice = selectedLicense ? selectedLicense.price : basePrice;
+  const regularPrice = selectedLicense && selectedLicense.regular_price ? selectedLicense.regular_price : product.regular_price;
   const hasDiscount = regularPrice > currentPrice;
   const discountPct = hasDiscount ? Math.round(((regularPrice - currentPrice) / regularPrice) * 100) : 0;
   const savingsAmount = hasDiscount ? regularPrice - currentPrice : 0;
 
-  // Primary gallery list
-  const galleryImages = media.length > 0
-    ? media.filter(m => m.media_type === 'image' || !m.media_type)
-    : [{ id: 'primary', media_url: product.hero_image || product.thumbnail || 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=1200&q=80', caption: product.title }];
-
+  // Build Media Gallery
+  const galleryImages = [];
+  if (product.hero_image) galleryImages.push({ media_url: product.hero_image, caption: product.title });
+  if (product.thumbnail && product.thumbnail !== product.hero_image) {
+    galleryImages.push({ media_url: product.thumbnail, caption: product.title });
+  }
+  media.forEach(m => {
+    if (m && m.media_url && !galleryImages.some(g => g.media_url === m.media_url)) {
+      galleryImages.push(m);
+    }
+  });
+  if (galleryImages.length === 0) {
+    galleryImages.push({
+      media_url: 'https://images.unsplash.com/photo-1551288049-bebda4e38f71?auto=format&fit=crop&w=1200&q=80',
+      caption: product.title
+    });
+  }
   const currentGalleryImg = galleryImages[selectedGalleryIndex] || galleryImages[0];
 
-  // Handlers
-  const handleBuyNow = () => {
-    if (isPreviewMode) {
-      addToast('Live Preview Mode: Purchase flow simulated', 'info');
-      return;
-    }
-    addToCart(product, selectedLicense);
-    if (onNavigate) onNavigate('checkout');
+  // CTA Action Handlers
+  const handleAddToCart = () => {
+    addToCart({
+      id: product.id,
+      title: product.title,
+      price: currentPrice,
+      regular_price: regularPrice,
+      image: product.thumbnail || product.hero_image,
+      slug: product.slug,
+      license_name: selectedLicense?.license_name || selectedLicense?.name || 'Standard License',
+      license_id: selectedLicense?.id || null
+    });
+    addToast(`Added "${product.title}" to cart`, 'success');
   };
 
-  const handleAddToCart = () => {
-    if (isPreviewMode) {
-      addToast('Live Preview Mode: Added to simulated cart', 'info');
-      return;
+  const handleBuyNow = () => {
+    addToCart({
+      id: product.id,
+      title: product.title,
+      price: currentPrice,
+      regular_price: regularPrice,
+      image: product.thumbnail || product.hero_image,
+      slug: product.slug,
+      license_name: selectedLicense?.license_name || selectedLicense?.name || 'Standard License',
+      license_id: selectedLicense?.id || null
+    });
+    if (onNavigate) {
+      onNavigate('checkout');
     }
-    addToCart(product, selectedLicense);
-    addToast(`${product.title} added to cart!`, 'success');
   };
 
   const openLightbox = (url, caption = '') => {
@@ -338,10 +434,10 @@ export function DynamicProductPage({ slug, productData: initialData, onNavigate,
   };
 
   // ----------------------------------------------------
-  // CANONICAL SECTION RENDERERS (1 to 20)
+  // CANONICAL SECTION RENDERERS
   // ----------------------------------------------------
 
-  // 01. Breadcrumb
+  // 00. Breadcrumb
   const renderBreadcrumb = () => (
     <nav aria-label="Breadcrumb" className="pdp-breadcrumbs">
       <div className="pdp-container">
@@ -360,7 +456,7 @@ export function DynamicProductPage({ slug, productData: initialData, onNavigate,
               onClick={() => onNavigate && onNavigate('products', { category: product.category_slug || product.category_name })}
               className="pdp-breadcrumb-btn"
             >
-              {product.category_name || 'Software & Digital Products'}
+              {product.category_name || 'Digital Products'}
             </button>
           </li>
           <li className="pdp-breadcrumb-separator">/</li>
@@ -372,13 +468,13 @@ export function DynamicProductPage({ slug, productData: initialData, onNavigate,
     </nav>
   );
 
-  // 02. Product Hero
+  // 01. SECTION 01 — HERO
   const renderHero = () => {
     const heroHighlights = [
       product.category_name || 'Instant Digital Delivery',
       'Commercial Production License',
       'Clean Modular Architecture',
-      'Continuous Lifetime Updates'
+      'Lifetime Updates & Direct Support'
     ];
 
     return (
@@ -397,6 +493,13 @@ export function DynamicProductPage({ slug, productData: initialData, onNavigate,
                 )}
               </div>
 
+              {/* Eyebrow / Tagline */}
+              {product.eyebrow && (
+                <div style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--primary)', letterSpacing: '0.06em', textTransform: 'uppercase' }}>
+                  {product.eyebrow}
+                </div>
+              )}
+
               {/* Title & Subtitle */}
               <div>
                 <h1 className="pdp-title">
@@ -411,7 +514,7 @@ export function DynamicProductPage({ slug, productData: initialData, onNavigate,
 
               {/* Description */}
               <p className="pdp-description">
-                {product.short_description || product.full_description?.slice(0, 190)}
+                {product.short_description || product.full_description?.slice(0, 220)}
               </p>
 
               {/* Feature Highlights */}
@@ -461,7 +564,7 @@ export function DynamicProductPage({ slug, productData: initialData, onNavigate,
                     <div style={{ display: 'grid', gridTemplateColumns: licenses.length > 1 ? `repeat(${licenses.length}, 1fr)` : '1fr', gap: '0.6rem' }}>
                       {licenses.map(lic => {
                         const isSel = selectedLicense?.id === lic.id || (!selectedLicense && lic.id === licenses[0]?.id);
-                        const licName = lic.license_name || lic.name || 'Standard Commercial License';
+                        const licName = lic.license_name || lic.name || 'Standard License';
                         const hasLicDiscount = lic.regular_price && lic.regular_price > lic.price;
                         const licDiscountPct = hasLicDiscount ? Math.round(((lic.regular_price - lic.price) / lic.regular_price) * 100) : 0;
 
@@ -547,7 +650,7 @@ export function DynamicProductPage({ slug, productData: initialData, onNavigate,
                     style={{ width: '100%', gap: '0.6rem' }}
                   >
                     <Zap size={18} fill="currentColor" />
-                    <span>BUY NOW</span>
+                    <span>{product.cta_text || 'BUY NOW'}</span>
                   </button>
                   <button
                     onClick={handleAddToCart}
@@ -555,9 +658,42 @@ export function DynamicProductPage({ slug, productData: initialData, onNavigate,
                     style={{ width: '100%', gap: '0.6rem' }}
                   >
                     <ShoppingBag size={18} />
-                    <span>ADD TO CART</span>
+                    <span>{product.secondary_cta_text || 'ADD TO CART'}</span>
                   </button>
                 </div>
+
+                {/* Optional Hero Quick Action Links */}
+                {(product.demo_url || product.video_url) && (
+                  <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', paddingTop: '0.5rem', borderTop: '1px solid var(--border-subtle)' }}>
+                    {product.demo_url && (
+                      <a
+                        href={product.demo_url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="btn btn-outline btn-sm"
+                        style={{ flex: '1 1 auto', justifyContent: 'center' }}
+                      >
+                        <ExternalLink size={13} />
+                        Live Demo Preview
+                      </a>
+                    )}
+                    {product.video_url && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const videoEl = document.getElementById('section-video');
+                          if (videoEl) videoEl.scrollIntoView({ behavior: 'smooth' });
+                          else setIsVideoModalOpen(true);
+                        }}
+                        className="btn btn-outline btn-sm"
+                        style={{ flex: '1 1 auto', justifyContent: 'center' }}
+                      >
+                        <Play size={13} />
+                        Watch Video Demo
+                      </button>
+                    )}
+                  </div>
+                )}
 
                 {/* Trust Indicators */}
                 <div className="pdp-trust-bar">
@@ -571,7 +707,7 @@ export function DynamicProductPage({ slug, productData: initialData, onNavigate,
                   </span>
                   <span className="pdp-trust-item">
                     <ShieldCheck size={14} style={{ color: 'var(--accent-emerald)' }} />
-                    Commercial License
+                    Commercial Rights
                   </span>
                 </div>
               </div>
@@ -645,147 +781,109 @@ export function DynamicProductPage({ slug, productData: initialData, onNavigate,
     );
   };
 
-  // 03. Product Gallery
-  const renderGallery = () => {
+  // 02. SECTION 02 — PRODUCT DEMO VIDEO
+  const renderVideo = () => {
+    let videoSec = getSectionData('video');
+    const rawUrl = videoSec?.url || product.video_url;
+    if (!rawUrl) return null;
+
+    const parsed = parseVideoUrl(rawUrl);
+    if (!parsed) return null;
+
+    const videoTitle = videoSec?.title || product.video_title || 'See the Product in Action';
+    const videoDesc = videoSec?.description || product.video_description || 'Watch the comprehensive walkthrough to explore interface, flow, and backend capabilities.';
+    const videoPoster = videoSec?.thumbnail || product.video_thumbnail || product.hero_image;
+
     return (
-      <section className="pdp-section">
+      <section id="section-video" className="pdp-section">
         <div className="pdp-container">
-          <div className="pdp-gallery-header">
-            <div>
-              <h2 style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--text-primary)' }}>Product Gallery</h2>
-              <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Explore interfaces, layouts, and responsive views.</p>
-            </div>
-            <button
-              onClick={() => openLightbox(currentGalleryImg.media_url, currentGalleryImg.caption)}
-              className="btn btn-outline btn-sm"
-            >
-              <Maximize2 size={13} />
-              Fullscreen
-            </button>
+          <div className="pdp-section-header">
+            <span className="pdp-kicker">Interactive Showcase</span>
+            <h2 className="pdp-section-title">{videoTitle}</h2>
+            <p className="pdp-section-subtitle">{videoDesc}</p>
           </div>
 
-          {/* Primary Viewport */}
-          <div className="pdp-gallery-main">
-            <img
-              src={currentGalleryImg.media_url}
-              alt={currentGalleryImg.caption || product.title}
-              className="pdp-gallery-img"
-              onClick={() => openLightbox(currentGalleryImg.media_url, currentGalleryImg.caption)}
-            />
-
-            {galleryImages.length > 1 && (
-              <>
-                <button
-                  onClick={() => setSelectedGalleryIndex(prev => (prev === 0 ? galleryImages.length - 1 : prev - 1))}
-                  className="pdp-gallery-nav-btn pdp-gallery-nav-prev"
-                  aria-label="Previous image"
-                >
-                  <ChevronLeft size={20} />
-                </button>
-                <button
-                  onClick={() => setSelectedGalleryIndex(prev => (prev === galleryImages.length - 1 ? 0 : prev + 1))}
-                  className="pdp-gallery-nav-btn pdp-gallery-nav-next"
-                  aria-label="Next image"
-                >
-                  <ChevronRight size={20} />
-                </button>
-              </>
+          <div style={{
+            maxWidth: '1080px',
+            margin: '0 auto',
+            borderRadius: 'var(--radius-xl)',
+            overflow: 'hidden',
+            border: '1px solid var(--border-medium)',
+            background: '#060913',
+            aspectRatio: '16/9',
+            boxShadow: 'var(--shadow-xl)',
+            position: 'relative'
+          }}>
+            {parsed.provider === 'youtube' || parsed.provider === 'vimeo' || parsed.provider === 'iframe' ? (
+              <iframe
+                src={parsed.embedUrl}
+                title={videoTitle}
+                style={{ width: '100%', height: '100%', border: 0 }}
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                allowFullScreen
+                loading="lazy"
+              />
+            ) : (
+              <video
+                controls
+                poster={videoPoster}
+                preload="metadata"
+                style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+              >
+                <source src={parsed.src} type="video/mp4" />
+                Your browser does not support the video tag.
+              </video>
             )}
-
-            <div className="pdp-gallery-counter">
-              {selectedGalleryIndex + 1} / {galleryImages.length}
-            </div>
-          </div>
-
-          {/* Thumbnails */}
-          {galleryImages.length > 1 && (
-            <div className="pdp-thumbnails-strip">
-              {galleryImages.map((img, idx) => (
-                <button
-                  key={img.id || idx}
-                  onClick={() => setSelectedGalleryIndex(idx)}
-                  className={`pdp-thumb-btn ${selectedGalleryIndex === idx ? 'active' : ''}`}
-                >
-                  <img
-                    src={img.media_url}
-                    alt=""
-                    onError={(e) => {
-                      e.currentTarget.onerror = null;
-                      e.currentTarget.src = 'https://images.unsplash.com/photo-1551288049-bebda4e38f71?auto=format&fit=crop&w=400&q=80';
-                    }}
-                  />
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-      </section>
-    );
-  };
-
-  // 04. Highlights Grid
-  const renderHighlights = () => {
-    let raw = getSectionData('highlights');
-    if (typeof raw === 'string') {
-      try { raw = JSON.parse(raw); } catch (e) {}
-    }
-    const defaultHighlights = [
-      { icon: 'Zap', title: 'Ready to Deploy', description: 'Immediate production setup with clean scaffolding.' },
-      { icon: 'ShieldCheck', title: 'Commercial License', description: 'Safe for commercial and client deployments.' },
-      { icon: 'Layers', title: 'Modular Architecture', description: 'Clean extensible code built to scale.' },
-      { icon: 'RefreshCw', title: 'Lifetime Updates', description: 'Continuous improvements and bug fixes.' }
-    ];
-    const highlights = Array.isArray(raw) ? raw : defaultHighlights;
-
-    if (!highlights || !highlights.length) return null;
-
-    return (
-      <section className="pdp-section">
-        <div className="pdp-container">
-          <div className="pdp-grid-4">
-            {highlights.map((hl, idx) => (
-              <div key={idx} className="pdp-card">
-                <div className="pdp-card-icon">
-                  <DynamicIcon name={hl.icon || 'Zap'} size={20} />
-                </div>
-                <h3 className="pdp-card-title">{hl.title}</h3>
-                <p className="pdp-card-text">{hl.description}</p>
-              </div>
-            ))}
           </div>
         </div>
       </section>
     );
   };
 
-  // 05. Product Overview
+  // 03. SECTION 03 — WHAT IS THIS PRODUCT? (OVERVIEW)
   const renderOverview = () => {
     let overviewContent = getSectionData('overview');
     if (typeof overviewContent === 'string') {
       try { overviewContent = JSON.parse(overviewContent); } catch (e) {}
     }
+
+    const title = overviewContent?.title || `What is ${product.title}?`;
+    const subtitle = overviewContent?.subtitle || 'A complete, production-grade foundation engineered for rapid deployment.';
+    const description = overviewContent?.description || product.full_description || product.short_description;
+
     const rawSpecs = overviewContent?.specs;
-    const specsList = Array.isArray(rawSpecs) ? rawSpecs : [
+    const specsList = Array.isArray(rawSpecs) && rawSpecs.length > 0 ? rawSpecs : [
       { label: 'Category', value: product.category_name || 'Software Application' },
       { label: 'Delivery', value: 'Instant Download & Access' },
-      { label: 'License', value: 'Commercial Single Project' },
-      { label: 'File Type', value: 'Full Source Code ZIP' }
+      { label: 'License', value: selectedLicense?.license_name || 'Commercial Single Project' },
+      { label: 'File Bundle', value: 'Complete Source Code + Docs' }
     ];
-
-    const description = overviewContent?.description || product.full_description || product.short_description;
 
     return (
       <section className="pdp-section">
         <div className="pdp-container">
           <div className="pdp-overview-grid">
-            {/* LEFT: About This Product */}
+            {/* LEFT: Rich text about the product */}
             <div>
-              <h2 style={{ fontSize: '1.85rem', fontWeight: 800, color: 'var(--text-primary)', marginBottom: '1.25rem' }}>
-                About This Product
+              <span className="pdp-kicker">Platform Overview</span>
+              <h2 style={{ fontSize: '2rem', fontWeight: 800, color: 'var(--text-primary)', marginTop: '0.25rem', marginBottom: '1.25rem' }}>
+                {title}
               </h2>
-              <div style={{ color: 'var(--text-secondary)', fontSize: '0.975rem', lineHeight: 1.7, whiteSpace: 'pre-line' }}>
+              <p style={{ fontSize: '1rem', color: 'var(--primary)', fontWeight: 600, marginBottom: '1.25rem' }}>
+                {subtitle}
+              </p>
+              <div style={{ color: 'var(--text-secondary)', fontSize: '0.975rem', lineHeight: 1.75, whiteSpace: 'pre-line' }}>
                 {description}
               </div>
+
+              {overviewContent?.cta_text && (
+                <div style={{ marginTop: '1.5rem' }}>
+                  <button onClick={handleBuyNow} className="btn btn-primary btn-md">
+                    <span>{overviewContent.cta_text}</span>
+                    <ArrowRight size={16} />
+                  </button>
+                </div>
+              )}
             </div>
 
             {/* RIGHT: Quick Specifications Card */}
@@ -810,32 +908,45 @@ export function DynamicProductPage({ slug, productData: initialData, onNavigate,
     );
   };
 
-  // 06. Key Features
-  const renderFeatures = () => {
-    let raw = getSectionData('features');
+  // 04. SECTION 04 — COMPLETE PRODUCT ECOSYSTEM
+  const renderEcosystem = () => {
+    let raw = getSectionData('ecosystem');
     if (typeof raw === 'string') {
       try { raw = JSON.parse(raw); } catch (e) {}
     }
-    const featList = Array.isArray(raw) ? raw : (Array.isArray(features) ? features : []);
-    if (!featList || !featList.length) return null;
+    const items = Array.isArray(raw) ? raw : [];
+    if (!items || items.length === 0) return null;
 
     return (
       <section className="pdp-section">
         <div className="pdp-container">
           <div className="pdp-section-header">
-            <span className="pdp-kicker">Built For Scale</span>
-            <h2 className="pdp-section-title">Key Features</h2>
-            <p className="pdp-section-subtitle">Carefully engineered capabilities included out of the box.</p>
+            <span className="pdp-kicker">Unified Architecture</span>
+            <h2 className="pdp-section-title">Complete Product Ecosystem</h2>
+            <p className="pdp-section-subtitle">Every piece of software needed to run your entire operation seamlessly.</p>
           </div>
 
-          <div className="pdp-grid-3">
-            {featList.map((f, idx) => (
-              <div key={idx} className="pdp-card">
-                <div className="pdp-card-icon">
-                  <DynamicIcon name={f.icon || 'CheckCircle'} size={20} />
+          <div className="pdp-ecosystem-grid">
+            {items.map((item, idx) => (
+              <div key={idx} className="pdp-ecosystem-card">
+                <div className="pdp-ecosystem-icon">
+                  <DynamicIcon name={item.icon || 'Layers'} size={24} />
                 </div>
-                <h3 className="pdp-card-title">{f.title}</h3>
-                <p className="pdp-card-text">{f.description}</p>
+                <h3 className="pdp-ecosystem-title">{item.title}</h3>
+                <p className="pdp-ecosystem-desc">{item.description}</p>
+                {item.link && (
+                  <a href={item.link} target="_blank" rel="noreferrer" className="pdp-ecosystem-link">
+                    Explore component <ExternalLink size={12} />
+                  </a>
+                )}
+                {item.screenshot && (
+                  <img
+                    src={item.screenshot}
+                    alt={item.title}
+                    onClick={() => openLightbox(item.screenshot, item.title)}
+                    style={{ width: '100%', height: '140px', objectFit: 'cover', borderRadius: 'var(--radius-sm)', marginTop: '0.75rem', cursor: 'pointer', border: '1px solid var(--border-subtle)' }}
+                  />
+                )}
               </div>
             ))}
           </div>
@@ -844,22 +955,70 @@ export function DynamicProductPage({ slug, productData: initialData, onNavigate,
     );
   };
 
-  // 07. Feature Showcase (Alternating visual rows)
-  const renderShowcase = () => {
-    let raw = getSectionData('showcase');
+  // 05. SECTION 05 — PRODUCT DEMO / LIVE PREVIEW STRIP
+  const renderDemo = () => {
+    const demoLinks = [
+      { label: 'Live Demo', url: product.live_demo_url || product.demo_url, icon: ExternalLink },
+      { label: 'Try Customer App', url: product.customer_demo_url, icon: Smartphone },
+      { label: 'View Partner Panel', url: product.partner_demo_url, icon: Briefcase },
+      { label: 'Open Admin Demo', url: product.admin_demo_url, icon: Layout },
+      { label: 'Website Demo', url: product.web_demo_url, icon: Globe },
+      { label: 'Documentation', url: product.docs_url || product.doc_url, icon: FileCode },
+      { label: 'Watch Video Walkthrough', url: product.video_url, icon: Play, isVideo: true }
+    ].filter(d => !!d.url && typeof d.url === 'string' && d.url.trim() !== '');
+
+    if (demoLinks.length === 0) return null;
+
+    return (
+      <section className="pdp-section" style={{ paddingTop: '1rem', paddingBottom: '1rem' }}>
+        <div className="pdp-container">
+          <div className="pdp-demo-strip">
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+              <Sparkles size={18} color="var(--primary)" />
+              <span style={{ fontSize: '0.85rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-primary)' }}>
+                Experience Live Previews:
+              </span>
+            </div>
+
+            <div className="pdp-demo-links">
+              {demoLinks.map((demo, idx) => {
+                const IconComponent = demo.icon;
+                return (
+                  <a
+                    key={idx}
+                    href={demo.url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="pdp-demo-btn"
+                  >
+                    <IconComponent size={14} />
+                    <span>{demo.label}</span>
+                  </a>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      </section>
+    );
+  };
+
+  // 06. SECTION 06 — CUSTOMER / USER EXPERIENCE
+  const renderCustomerExperience = () => {
+    let raw = getSectionData('customer_experience') || getSectionData('showcase');
     if (typeof raw === 'string') {
       try { raw = JSON.parse(raw); } catch (e) {}
     }
     const showcaseList = Array.isArray(raw) ? raw : [];
-    if (!showcaseList || !showcaseList.length) return null;
+    if (!showcaseList || showcaseList.length === 0) return null;
 
     return (
       <section className="pdp-section">
         <div className="pdp-container">
           <div className="pdp-section-header">
-            <span className="pdp-kicker">Deep Dive</span>
-            <h2 className="pdp-section-title">Feature Showcase</h2>
-            <p className="pdp-section-subtitle">See how every module functions in action.</p>
+            <span className="pdp-kicker">User Flow</span>
+            <h2 className="pdp-section-title">Customer & User Experience</h2>
+            <p className="pdp-section-subtitle">Intuitive, frictionless design engineered to maximize user engagement and conversions.</p>
           </div>
 
           <div>
@@ -867,18 +1026,15 @@ export function DynamicProductPage({ slug, productData: initialData, onNavigate,
               const isReversed = item.alignment === 'right' || idx % 2 === 1;
 
               return (
-                <div
-                  key={idx}
-                  className={`pdp-showcase-row ${isReversed ? 'reversed' : ''}`}
-                >
+                <div key={idx} className={`pdp-showcase-row ${isReversed ? 'reversed' : ''}`}>
                   {/* Screenshot Frame */}
                   <div
-                    onClick={() => openLightbox(item.image, item.title)}
+                    onClick={() => item.image && openLightbox(item.image, item.title)}
                     className="pdp-showcase-frame"
                     style={{ order: isReversed ? 2 : 1 }}
                   >
                     <img
-                      src={item.image}
+                      src={item.image || 'https://images.unsplash.com/photo-1551288049-bebda4e38f71?auto=format&fit=crop&w=1200&q=80'}
                       alt={item.title}
                       onError={(e) => {
                         e.currentTarget.onerror = null;
@@ -931,47 +1087,119 @@ export function DynamicProductPage({ slug, productData: initialData, onNavigate,
     );
   };
 
-  // 08. Screenshots Grid
-  const renderScreenshots = () => {
-    let raw = getSectionData('screenshots');
+  // 07. SECTION 07 — PARTNER / PROVIDER EXPERIENCE
+  const renderPartnerExperience = () => {
+    let raw = getSectionData('partner_experience');
     if (typeof raw === 'string') {
       try { raw = JSON.parse(raw); } catch (e) {}
     }
-    const screenshots = Array.isArray(raw) ? raw : [];
-    if (!screenshots || !screenshots.length) return null;
+    const partnerList = Array.isArray(raw) ? raw : [];
+    if (!partnerList || partnerList.length === 0) return null;
 
     return (
       <section className="pdp-section">
         <div className="pdp-container">
           <div className="pdp-section-header">
-            <span className="pdp-kicker">Interface Previews</span>
-            <h2 className="pdp-section-title">Explore the Product</h2>
-            <p className="pdp-section-subtitle">Take a closer look at the interface and functionality.</p>
+            <span className="pdp-kicker">Provider Workflow</span>
+            <h2 className="pdp-section-title">Partner & Provider Experience</h2>
+            <p className="pdp-section-subtitle">Dedicated tools and interfaces empowering partners to fulfill services efficiently.</p>
+          </div>
+
+          <div>
+            {partnerList.map((item, idx) => {
+              const isReversed = item.alignment === 'right' || idx % 2 === 1;
+
+              return (
+                <div key={idx} className={`pdp-showcase-row ${isReversed ? 'reversed' : ''}`}>
+                  <div
+                    onClick={() => item.image && openLightbox(item.image, item.title)}
+                    className="pdp-showcase-frame"
+                    style={{ order: isReversed ? 2 : 1 }}
+                  >
+                    <img
+                      src={item.image || 'https://images.unsplash.com/photo-1551288049-bebda4e38f71?auto=format&fit=crop&w=1200&q=80'}
+                      alt={item.title}
+                    />
+                  </div>
+
+                  <div style={{ order: isReversed ? 1 : 2, display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                    <div style={{
+                      display: 'inline-flex',
+                      alignSelf: 'flex-start',
+                      padding: '0.2rem 0.6rem',
+                      borderRadius: 'var(--radius-sm)',
+                      fontSize: '0.75rem',
+                      fontWeight: 800,
+                      background: 'rgba(16, 185, 129, 0.12)',
+                      color: 'var(--accent-emerald)',
+                      border: '1px solid rgba(16, 185, 129, 0.25)'
+                    }}>
+                      PROVIDER MODULE {idx + 1}
+                    </div>
+                    <h3 style={{ fontSize: '1.6rem', fontWeight: 800, color: 'var(--text-primary)', lineHeight: 1.25 }}>
+                      {item.title}
+                    </h3>
+                    <p style={{ color: 'var(--text-secondary)', fontSize: '0.925rem', lineHeight: 1.6 }}>
+                      {item.description}
+                    </p>
+
+                    {Array.isArray(item.bullet_points) && item.bullet_points.length > 0 && (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem', marginTop: '0.5rem' }}>
+                        {item.bullet_points.map((bp, bIdx) => (
+                          <div key={bIdx} style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
+                            <div className="pdp-bullet-icon">
+                              <Check size={11} strokeWidth={3} />
+                            </div>
+                            <span>{bp}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </section>
+    );
+  };
+
+  // 08. SECTION 08 — ADMIN PANEL / DASHBOARD SHOWCASE
+  const renderAdminExperience = () => {
+    let raw = getSectionData('admin_experience');
+    if (typeof raw === 'string') {
+      try { raw = JSON.parse(raw); } catch (e) {}
+    }
+    const adminList = Array.isArray(raw) ? raw : [];
+    if (!adminList || adminList.length === 0) return null;
+
+    return (
+      <section className="pdp-section">
+        <div className="pdp-container">
+          <div className="pdp-section-header">
+            <span className="pdp-kicker">Mission Control</span>
+            <h2 className="pdp-section-title">Admin Dashboard & Operations</h2>
+            <p className="pdp-section-subtitle">Real-time metrics, order routing, user management, and business configuration.</p>
           </div>
 
           <div className="pdp-grid-3">
-            {screenshots.map((s, idx) => (
-              <div
-                key={idx}
-                onClick={() => openLightbox(s.url, s.caption)}
-                className="pdp-card"
-                style={{ padding: '0.5rem', cursor: 'pointer', overflow: 'hidden' }}
-              >
-                <div style={{ aspectRatio: '16/10', borderRadius: 'var(--radius-md)', overflow: 'hidden', background: '#000' }}>
-                  <img
-                    src={s.url}
-                    alt={s.caption || `Screenshot ${idx + 1}`}
-                    onError={(e) => {
-                      e.currentTarget.onerror = null;
-                      e.currentTarget.src = 'https://images.unsplash.com/photo-1551288049-bebda4e38f71?auto=format&fit=crop&w=1000&q=80';
-                    }}
-                    style={{ width: '100%', height: '100%', objectFit: 'cover', transition: 'transform 0.3s ease' }}
-                  />
-                </div>
-                {s.caption && (
-                  <div style={{ padding: '0.75rem 0.5rem 0.25rem', textAlign: 'center', fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)' }}>
-                    {s.caption}
+            {adminList.map((item, idx) => (
+              <div key={idx} className="pdp-card" style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                {item.image && (
+                  <div
+                    onClick={() => openLightbox(item.image, item.title)}
+                    style={{ aspectRatio: '16/10', borderRadius: 'var(--radius-md)', overflow: 'hidden', background: '#000', cursor: 'pointer' }}
+                  >
+                    <img src={item.image} alt={item.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                   </div>
+                )}
+                <h3 className="pdp-card-title" style={{ marginTop: '0.5rem' }}>{item.title}</h3>
+                <p className="pdp-card-text">{item.description}</p>
+                {item.link && (
+                  <a href={item.link} target="_blank" rel="noreferrer" style={{ fontSize: '0.8rem', color: 'var(--primary)', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                    View admin demo <ExternalLink size={12} />
+                  </a>
                 )}
               </div>
             ))}
@@ -981,39 +1209,35 @@ export function DynamicProductPage({ slug, productData: initialData, onNavigate,
     );
   };
 
-  // 09. What's Included
-  const renderIncluded = () => {
-    let raw = getSectionData('included');
+  // 09. SECTION 09 — KEY FEATURES
+  const renderFeatures = () => {
+    let raw = getSectionData('features');
     if (typeof raw === 'string') {
       try { raw = JSON.parse(raw); } catch (e) {}
     }
-    const defaultItems = [
-      { title: 'Full Clean Source Code', description: 'Unencrypted codebase ready for customization.', icon: 'FileCode' },
-      { title: 'Setup Documentation', description: 'Comprehensive guides with setup steps.', icon: 'Package' },
-      { title: 'Admin Dashboard', description: 'Complete backend panel for system control.', icon: 'Layers' },
-      { title: 'Commercial License', description: 'Authorized for client or business use.', icon: 'ShieldCheck' }
-    ];
-    const items = Array.isArray(raw) ? raw : defaultItems;
+    const featList = Array.isArray(raw) && raw.length > 0 ? raw : (Array.isArray(features) ? features : []);
+    if (!featList || featList.length === 0) return null;
 
     return (
       <section className="pdp-section">
         <div className="pdp-container">
           <div className="pdp-section-header">
-            <span className="pdp-kicker">Deliverables</span>
-            <h2 className="pdp-section-title">What's Included</h2>
-            <p className="pdp-section-subtitle">Everything delivered straight into your customer account.</p>
+            <span className="pdp-kicker">Capabilities</span>
+            <h2 className="pdp-section-title">Key Features</h2>
+            <p className="pdp-section-subtitle">Carefully engineered capabilities included out of the box.</p>
           </div>
 
           <div className="pdp-grid-3">
-            {items.map((it, idx) => (
-              <div key={idx} className="pdp-card" style={{ display: 'flex', alignItems: 'flex-start', gap: '1rem' }}>
-                <div className="pdp-bullet-icon" style={{ marginTop: '3px' }}>
-                  <Check size={14} strokeWidth={3} />
+            {featList.map((f, idx) => (
+              <div key={idx} className="pdp-card">
+                <div className="pdp-card-icon">
+                  <DynamicIcon name={f.icon || 'CheckCircle'} size={20} />
                 </div>
-                <div>
-                  <h3 style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '0.25rem' }}>{it.title}</h3>
-                  <p style={{ fontSize: '0.825rem', color: 'var(--text-secondary)', lineHeight: 1.5 }}>{it.description}</p>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', marginBottom: '0.5rem' }}>
+                  <h3 className="pdp-card-title" style={{ marginBottom: 0 }}>{f.title}</h3>
+                  {f.badge && <Badge variant={f.badge}>{f.badge}</Badge>}
                 </div>
+                <p className="pdp-card-text">{f.description}</p>
               </div>
             ))}
           </div>
@@ -1022,44 +1246,34 @@ export function DynamicProductPage({ slug, productData: initialData, onNavigate,
     );
   };
 
-  // 10. How It Works
+  // 10. SECTION 10 — HOW IT WORKS
   const renderHowItWorks = () => {
     let raw = getSectionData('how_it_works');
     if (typeof raw === 'string') {
       try { raw = JSON.parse(raw); } catch (e) {}
     }
     const defaultSteps = [
-      { step: '01', title: 'Choose Product', description: 'Review features and choose your license tier.', icon: 'ShoppingBag' },
-      { step: '02', title: 'Complete Payment', description: 'Encrypted, instant checkout with direct confirmation.', icon: 'Lock' },
-      { step: '03', title: 'Receive Access', description: 'Get download files and documentation immediately.', icon: 'DownloadCloud' },
-      { step: '04', title: 'Deploy & Launch', description: 'Follow quickstart instructions to go live.', icon: 'Zap' }
+      { step: '01', title: 'Choose Product', description: 'Review specifications and select your preferred license tier.', icon: 'ShoppingBag' },
+      { step: '02', title: 'Instant Checkout', description: 'Encrypted 256-bit checkout with immediate access confirmation.', icon: 'Lock' },
+      { step: '03', title: 'Download Bundle', description: 'Access clean unencrypted source code and documentation.', icon: 'DownloadCloud' },
+      { step: '04', title: 'Deploy & Launch', description: 'Follow step-by-step documentation to configure and go live.', icon: 'Zap' }
     ];
-    const steps = Array.isArray(raw) ? raw : defaultSteps;
+    const steps = Array.isArray(raw) && raw.length > 0 ? raw : defaultSteps;
 
     return (
       <section className="pdp-section">
         <div className="pdp-container">
           <div className="pdp-section-header">
-            <span className="pdp-kicker">Process</span>
+            <span className="pdp-kicker">Deployment Flow</span>
             <h2 className="pdp-section-title">How It Works</h2>
-            <p className="pdp-section-subtitle">From purchase to live deployment in simple steps.</p>
+            <p className="pdp-section-subtitle">From purchase to production in clear, structured steps.</p>
           </div>
 
-          <div className="pdp-grid-4">
+          <div className="pdp-timeline-grid">
             {steps.map((st, idx) => (
-              <div key={idx} className="pdp-card" style={{ textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.75rem' }}>
-                <span style={{
-                  padding: '0.2rem 0.7rem',
-                  borderRadius: 'var(--radius-full)',
-                  fontSize: '0.75rem',
-                  fontWeight: 800,
-                  background: 'rgba(99, 102, 241, 0.12)',
-                  color: 'var(--primary)',
-                  border: '1px solid rgba(99, 102, 241, 0.3)'
-                }}>
-                  {st.step || `0${idx + 1}`}
-                </span>
-                <h3 style={{ fontSize: '1.05rem', fontWeight: 700, color: 'var(--text-primary)' }}>{st.title}</h3>
+              <div key={idx} className="pdp-timeline-step">
+                <span className="pdp-timeline-num">{st.step || `0${idx + 1}`}</span>
+                <h3 style={{ fontSize: '1.05rem', fontWeight: 700, color: 'var(--text-primary)', marginTop: '0.25rem' }}>{st.title}</h3>
                 <p style={{ fontSize: '0.825rem', color: 'var(--text-secondary)', lineHeight: 1.5 }}>{st.description}</p>
               </div>
             ))}
@@ -1069,27 +1283,153 @@ export function DynamicProductPage({ slug, productData: initialData, onNavigate,
     );
   };
 
-  // 11. Technical Specifications
+  // 11. SECTION 11 — WHAT'S INCLUDED (Grouped checklist)
+  const renderIncluded = () => {
+    let raw = getSectionData('included');
+    if (typeof raw === 'string') {
+      try { raw = JSON.parse(raw); } catch (e) {}
+    }
+
+    // Default categorized groups if none provided
+    const defaultGroups = [
+      {
+        group_title: 'Mobile Applications',
+        icon: 'Smartphone',
+        items: [
+          'Full native or Flutter/React Native source code',
+          'Android production build and project files',
+          'iOS Xcode workspace and configuration',
+          'Push notifications integration ready'
+        ]
+      },
+      {
+        group_title: 'Web & Portals',
+        icon: 'Monitor',
+        items: [
+          'Responsive customer-facing web application',
+          'Complete Admin Panel with analytical dashboard',
+          'Role-based access control and user management',
+          'SEO optimized meta tags and structured schema'
+        ]
+      },
+      {
+        group_title: 'Backend & APIs',
+        icon: 'Server',
+        items: [
+          'RESTful API server with modular controllers',
+          'Database schemas, seeds, and migrations',
+          'JWT authentication & payment webhook listeners',
+          'Comprehensive Postman collection & API docs'
+        ]
+      }
+    ];
+
+    const groups = Array.isArray(raw) && raw.length > 0 ? raw : defaultGroups;
+
+    return (
+      <section className="pdp-section">
+        <div className="pdp-container">
+          <div className="pdp-section-header">
+            <span className="pdp-kicker">Deliverables Package</span>
+            <h2 className="pdp-section-title">What's Included in Your Download</h2>
+            <p className="pdp-section-subtitle">A transparent breakdown of every component, repository, and asset delivered.</p>
+          </div>
+
+          <div className="pdp-included-groups">
+            {groups.map((grp, idx) => {
+              const itemsList = Array.isArray(grp.items) ? grp.items : [];
+              return (
+                <div key={idx} className="pdp-included-group-card">
+                  <div className="pdp-included-group-header">
+                    <DynamicIcon name={grp.icon || 'Package'} size={20} />
+                    <span>{grp.group_title || grp.title || `Package ${idx + 1}`}</span>
+                  </div>
+
+                  {grp.description && (
+                    <p style={{ fontSize: '0.825rem', color: 'var(--text-muted)', marginBottom: '1rem', lineHeight: 1.5 }}>
+                      {grp.description}
+                    </p>
+                  )}
+
+                  <div className="pdp-included-list">
+                    {itemsList.map((item, iIdx) => {
+                      const itemTitle = typeof item === 'string' ? item : (item.title || item.name);
+                      return (
+                        <div key={iIdx} className="pdp-included-item">
+                          <div className="pdp-included-icon">
+                            <Check size={12} strokeWidth={3} />
+                          </div>
+                          <span>{itemTitle}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </section>
+    );
+  };
+
+  // 12. SECTION 12 — SOURCE CODE STRUCTURE
+  const renderSourceCode = () => {
+    let raw = getSectionData('source_code');
+    if (typeof raw === 'string') {
+      try { raw = JSON.parse(raw); } catch (e) {}
+    }
+    const modules = Array.isArray(raw) ? raw : [];
+    if (!modules || modules.length === 0) return null;
+
+    return (
+      <section className="pdp-section">
+        <div className="pdp-container">
+          <div className="pdp-section-header">
+            <span className="pdp-kicker">Architecture</span>
+            <h2 className="pdp-section-title">Source Code Structure</h2>
+            <p className="pdp-section-subtitle">Well-organized, clean code directories designed for quick onboarding and customization.</p>
+          </div>
+
+          <div className="pdp-code-tree">
+            <div className="pdp-code-tree-header">
+              <FolderTree size={18} />
+              <span>{product.title} Codebase Repository</span>
+            </div>
+            {modules.map((m, idx) => (
+              <div key={idx} style={{ padding: '4px 0' }}>
+                <span style={{ color: 'var(--primary)', fontWeight: 700 }}>├── {m.name || m.module_name || m.title}</span>
+                {m.description && <span style={{ color: 'var(--text-muted)', marginLeft: '1rem' }}>— {m.description}</span>}
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+    );
+  };
+
+  // 13. SECTION 13 — TECHNOLOGY STACK / SPECIFICATIONS
   const renderSpecs = () => {
     let raw = getSectionData('specs');
     if (typeof raw === 'string') {
       try { raw = JSON.parse(raw); } catch (e) {}
     }
-    let specs = Array.isArray(raw) ? raw : [];
+    let specs = Array.isArray(raw) && raw.length > 0 ? raw : [];
     if (!specs.length && typeof product.technical_specs === 'string') {
       try { specs = JSON.parse(product.technical_specs); } catch (e) {}
     } else if (!specs.length && Array.isArray(product.technical_specs)) {
       specs = product.technical_specs;
     }
-    if (!Array.isArray(specs) || !specs.length) return null;
+
+    if (!Array.isArray(specs) || specs.length === 0) return null;
 
     return (
       <section className="pdp-section">
         <div className="pdp-container">
           <div className="pdp-section-header">
             <span className="pdp-kicker">Engineering</span>
-            <h2 className="pdp-section-title">Technical Specifications</h2>
-            <p className="pdp-section-subtitle">System compatibility, frameworks, and requirements.</p>
+            <h2 className="pdp-section-title">Technology Stack & Specifications</h2>
+            <p className="pdp-section-subtitle">Frameworks, database engines, SDKs, and version compatibilities.</p>
           </div>
 
           <div className="pdp-table-wrap">
@@ -1109,32 +1449,40 @@ export function DynamicProductPage({ slug, productData: initialData, onNavigate,
     );
   };
 
-  // 12. Supported Platforms
-  const renderPlatforms = () => {
-    let raw = getSectionData('platforms');
+  // 14. SECTION 14 — REQUIREMENTS
+  const renderRequirements = () => {
+    let raw = getSectionData('requirements');
     if (typeof raw === 'string') {
       try { raw = JSON.parse(raw); } catch (e) {}
     }
-    const platforms = Array.isArray(raw) ? raw : [];
-    if (!platforms || !platforms.length) return null;
+    const requirements = Array.isArray(raw) ? raw : [];
+    if (!requirements || requirements.length === 0) return null;
 
     return (
       <section className="pdp-section">
         <div className="pdp-container">
           <div className="pdp-section-header">
-            <span className="pdp-kicker">Compatibility</span>
-            <h2 className="pdp-section-title">Supported Platforms</h2>
-            <p className="pdp-section-subtitle">Built to integrate with your existing technology stack.</p>
+            <span className="pdp-kicker">Prerequisites</span>
+            <h2 className="pdp-section-title">What You Need to Get Started</h2>
+            <p className="pdp-section-subtitle">Required third-party accounts, hosting infrastructure, and environment specifications.</p>
           </div>
 
-          <div className="pdp-grid-4">
-            {platforms.map((pl, idx) => (
-              <div key={idx} className="pdp-card" style={{ textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                <div className="pdp-card-icon">
-                  <DynamicIcon name={pl.icon || 'Globe'} size={22} />
+          <div className="pdp-grid-3">
+            {requirements.map((req, idx) => (
+              <div key={idx} className="pdp-card" style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <DynamicIcon name={req.icon || 'ShieldCheck'} size={20} style={{ color: 'var(--primary)' }} />
+                  <span className={`pdp-pill-badge ${req.is_required !== false && req.required !== false ? 'pdp-pill-required' : 'pdp-pill-optional'}`}>
+                    {req.is_required !== false && req.required !== false ? 'Required' : 'Optional'}
+                  </span>
                 </div>
-                <h3 className="pdp-card-title" style={{ fontSize: '0.95rem' }}>{pl.name}</h3>
-                <p className="pdp-card-text" style={{ fontSize: '0.8rem' }}>{pl.description}</p>
+                <h3 className="pdp-card-title" style={{ marginTop: '0.25rem', marginBottom: 0 }}>{req.title}</h3>
+                <p className="pdp-card-text">{req.description}</p>
+                {req.link && (
+                  <a href={req.link} target="_blank" rel="noreferrer" style={{ fontSize: '0.8rem', color: 'var(--primary)', marginTop: 'auto', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                    View account info <ExternalLink size={12} />
+                  </a>
+                )}
               </div>
             ))}
           </div>
@@ -1143,21 +1491,89 @@ export function DynamicProductPage({ slug, productData: initialData, onNavigate,
     );
   };
 
-  // 13. Use Cases
+  // 15. SECTION 15 — CUSTOMIZATION ("MAKE IT YOURS")
+  const renderCustomization = () => {
+    let raw = getSectionData('customization');
+    if (typeof raw === 'string') {
+      try { raw = JSON.parse(raw); } catch (e) {}
+    }
+    const items = Array.isArray(raw) ? raw : [];
+    if (!items || items.length === 0) return null;
+
+    return (
+      <section className="pdp-section">
+        <div className="pdp-container">
+          <div className="pdp-section-header">
+            <span className="pdp-kicker">White Label Ready</span>
+            <h2 className="pdp-section-title">Make It Yours</h2>
+            <p className="pdp-section-subtitle">Complete flexibility to personalize branding, features, logic, and integrations.</p>
+          </div>
+
+          <div className="pdp-grid-4">
+            {items.map((c, idx) => (
+              <div key={idx} className="pdp-card">
+                <div className="pdp-card-icon">
+                  <DynamicIcon name={c.icon || 'Sliders'} size={20} />
+                </div>
+                <h3 className="pdp-card-title">{c.title}</h3>
+                <p className="pdp-card-text">{c.description}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+    );
+  };
+
+  // 16. SECTION 16 — WHO IS THIS FOR?
+  const renderWhoIsItFor = () => {
+    let raw = getSectionData('who_is_it_for');
+    if (typeof raw === 'string') {
+      try { raw = JSON.parse(raw); } catch (e) {}
+    }
+    const audience = Array.isArray(raw) ? raw : [];
+    if (!audience || audience.length === 0) return null;
+
+    return (
+      <section className="pdp-section">
+        <div className="pdp-container">
+          <div className="pdp-section-header">
+            <span className="pdp-kicker">Target Audience</span>
+            <h2 className="pdp-section-title">Who Is This Product For?</h2>
+            <p className="pdp-section-subtitle">Engineered to deliver high ROI across various technical and business profiles.</p>
+          </div>
+
+          <div className="pdp-grid-4">
+            {audience.map((aud, idx) => (
+              <div key={idx} className="pdp-card" style={{ textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                <div className="pdp-card-icon">
+                  <DynamicIcon name={aud.icon || 'Users'} size={22} />
+                </div>
+                <h3 className="pdp-card-title">{aud.title}</h3>
+                <p className="pdp-card-text">{aud.description}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+    );
+  };
+
+  // 17. SECTION 17 — USE CASES
   const renderUseCases = () => {
     let raw = getSectionData('use_cases');
     if (typeof raw === 'string') {
       try { raw = JSON.parse(raw); } catch (e) {}
     }
     const useCases = Array.isArray(raw) ? raw : [];
-    if (!useCases || !useCases.length) return null;
+    if (!useCases || useCases.length === 0) return null;
 
     return (
       <section className="pdp-section">
         <div className="pdp-container">
           <div className="pdp-section-header">
             <span className="pdp-kicker">Application</span>
-            <h2 className="pdp-section-title">Built for Different Models</h2>
+            <h2 className="pdp-section-title">Built for Multiple Business Models</h2>
             <p className="pdp-section-subtitle">Tailored deployment scenarios across various industry niches.</p>
           </div>
 
@@ -1177,40 +1593,219 @@ export function DynamicProductPage({ slug, productData: initialData, onNavigate,
     );
   };
 
-  // 14. Video Tour
-  const renderVideo = () => {
-    const videoData = getSectionData('video') || (product.video_url ? { url: product.video_url, title: 'Product Walkthrough', description: 'See the solution in action.' } : null);
-    if (!videoData || !videoData.url) return null;
+  // 18. SECTION 18 — WHY THIS PRODUCT / WHY NOT BUILD FROM SCRATCH
+  const renderComparison = () => {
+    let raw = getSectionData('comparison');
+    if (typeof raw === 'string') {
+      try { raw = JSON.parse(raw); } catch (e) {}
+    }
+    const rows = Array.isArray(raw) ? raw : [];
+    if (!rows || rows.length === 0) return null;
 
     return (
       <section className="pdp-section">
         <div className="pdp-container">
           <div className="pdp-section-header">
-            <span className="pdp-kicker">Live Demo</span>
-            <h2 className="pdp-section-title">See It In Action</h2>
-            <p className="pdp-section-subtitle">{videoData.description || 'Watch the detailed walkthrough.'}</p>
+            <span className="pdp-kicker">Value Comparison</span>
+            <h2 className="pdp-section-title">Why Start With This Product?</h2>
+            <p className="pdp-section-subtitle">Compare starting with our production code versus developing from scratch.</p>
           </div>
 
-          <div style={{
-            borderRadius: 'var(--radius-xl)',
-            overflow: 'hidden',
-            border: '1px solid var(--border-medium)',
-            background: '#060913',
-            aspectRatio: '16/9',
-            boxShadow: 'var(--shadow-lg)'
-          }}>
-            {videoData.url.includes('youtube.com') || videoData.url.includes('youtu.be') ? (
-              <iframe
-                src={videoData.url.replace('watch?v=', 'embed/')}
-                title={videoData.title || 'Video Tour'}
-                style={{ width: '100%', height: '100%', border: 0 }}
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                allowFullScreen
-              />
+          <div className="pdp-comparison-table-wrap">
+            <table className="pdp-comparison-table">
+              <thead>
+                <tr>
+                  <th style={{ width: '38%' }}>Evaluation Metric</th>
+                  <th className="highlight-col" style={{ width: '31%' }}>{product.title} (Ready to Deploy)</th>
+                  <th style={{ width: '31%' }}>Custom Build From Zero</th>
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((r, idx) => (
+                  <tr key={idx}>
+                    <td style={{ fontWeight: 700, color: 'var(--text-primary)' }}>{r.feature || r.label}</td>
+                    <td className="highlight-col">
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: '#10b981' }}>
+                        <CheckCircle size={15} />
+                        <span>{r.product_value || r.ours || 'Included Out of Box'}</span>
+                      </div>
+                    </td>
+                    <td>
+                      <span style={{ color: 'var(--text-muted)' }}>{r.scratch_value || r.theirs || 'Build & Test Yourself'}</span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+    );
+  };
+
+  // 19. SECTION 19 — AFTER PURCHASE
+  const renderAfterPurchase = () => {
+    let raw = getSectionData('after_purchase');
+    if (typeof raw === 'string') {
+      try { raw = JSON.parse(raw); } catch (e) {}
+    }
+    const defaultSteps = [
+      { step: '01', title: 'Complete Purchase', description: 'Immediate receipt with private download link and license key.' },
+      { step: '02', title: 'Download Source Code', description: 'Access GitHub repo or direct ZIP archive with clean files.' },
+      { step: '03', title: 'Follow Documentation', description: 'Step-by-step setup guide for local environment and server.' },
+      { step: '04', title: 'Launch to Production', description: 'Deploy to cloud servers or app stores with commercial rights.' }
+    ];
+    const steps = Array.isArray(raw) && raw.length > 0 ? raw : defaultSteps;
+
+    return (
+      <section className="pdp-section">
+        <div className="pdp-container">
+          <div className="pdp-section-header">
+            <span className="pdp-kicker">Onboarding Experience</span>
+            <h2 className="pdp-section-title">What Happens After You Buy?</h2>
+            <p className="pdp-section-subtitle">Instant fulfillment with everything needed to immediately begin development.</p>
+          </div>
+
+          <div className="pdp-timeline-grid">
+            {steps.map((st, idx) => (
+              <div key={idx} className="pdp-timeline-step">
+                <span className="pdp-timeline-num">{st.step || `0${idx + 1}`}</span>
+                <h3 style={{ fontSize: '1.05rem', fontWeight: 700, color: 'var(--text-primary)', marginTop: '0.25rem' }}>{st.title}</h3>
+                <p style={{ fontSize: '0.825rem', color: 'var(--text-secondary)', lineHeight: 1.5 }}>{st.description}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+    );
+  };
+
+  // 20. SECTION 20 — PRICING & LICENSES
+  const renderPricing = () => {
+    return (
+      <section id="section-pricing" className="pdp-section">
+        <div className="pdp-container">
+          <div className="pdp-section-header">
+            <span className="pdp-kicker">Simple Transparent Pricing</span>
+            <h2 className="pdp-section-title">Choose Your License Plan</h2>
+            <p className="pdp-section-subtitle">No recurring subscriptions or hidden royalties. Full ownership for your project.</p>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: licenses.length > 1 ? `repeat(${licenses.length}, minmax(280px, 1fr))` : 'minmax(320px, 500px)', gap: '1.5rem', justifyContent: 'center', maxWidth: '1000px', margin: '0 auto' }}>
+            {licenses && licenses.length > 0 ? (
+              licenses.map(lic => {
+                const isSel = selectedLicense?.id === lic.id;
+                const licName = lic.license_name || lic.name || 'Commercial License';
+                const hasLicDiscount = lic.regular_price && lic.regular_price > lic.price;
+                const licDiscountPct = hasLicDiscount ? Math.round(((lic.regular_price - lic.price) / lic.regular_price) * 100) : 0;
+                const featuresList = Array.isArray(lic.features) ? lic.features : [
+                  'Full Unencrypted Source Code',
+                  'Commercial Deployment Rights',
+                  'Lifetime Code Updates',
+                  'Direct Technical Support',
+                  'Comprehensive Documentation'
+                ];
+
+                return (
+                  <div
+                    key={lic.id || licName}
+                    className="pdp-card"
+                    style={{
+                      border: isSel ? '2px solid var(--primary)' : '1px solid var(--border-medium)',
+                      background: isSel ? 'linear-gradient(180deg, rgba(99, 102, 241, 0.08) 0%, var(--bg-surface) 100%)' : 'var(--bg-surface)',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      justifyContent: 'space-between',
+                      padding: '2rem',
+                      position: 'relative'
+                    }}
+                  >
+                    {isSel && (
+                      <div style={{ position: 'absolute', top: '-12px', left: '50%', transform: 'translateX(-50%)', background: 'var(--primary)', color: '#fff', fontSize: '0.72rem', fontWeight: 800, padding: '3px 12px', borderRadius: '9999px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                        Selected Option
+                      </div>
+                    )}
+
+                    <div>
+                      <h3 style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--text-primary)', marginBottom: '0.5rem' }}>{licName}</h3>
+                      <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', minHeight: '38px', marginBottom: '1.5rem' }}>
+                        {lic.description || 'Standard production license with commercial client permissions.'}
+                      </p>
+
+                      <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.75rem', marginBottom: '1.5rem' }}>
+                        <span style={{ fontSize: '2.5rem', fontWeight: 800, color: '#fff' }}>
+                          {formatCurrency(lic.price, currency)}
+                        </span>
+                        {hasLicDiscount && (
+                          <>
+                            <span style={{ fontSize: '1.1rem', color: 'var(--text-muted)', textDecoration: 'line-through' }}>
+                              {formatCurrency(lic.regular_price, currency)}
+                            </span>
+                            <span className="pdp-save-badge">
+                              {licDiscountPct}% OFF
+                            </span>
+                          </>
+                        )}
+                      </div>
+
+                      <div style={{ borderTop: '1px solid var(--border-subtle)', paddingTop: '1.25rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                        {featuresList.map((f, fIdx) => (
+                          <div key={fIdx} style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
+                            <CheckCircle size={16} color="var(--accent-emerald)" />
+                            <span>{f}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div style={{ marginTop: '2rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                      <button
+                        onClick={() => {
+                          setSelectedLicense(lic);
+                          handleBuyNow();
+                        }}
+                        className="btn btn-primary btn-lg"
+                        style={{ width: '100%', gap: '0.5rem' }}
+                      >
+                        <Zap size={18} fill="currentColor" />
+                        <span>BUY THIS LICENSE</span>
+                      </button>
+                      <button
+                        onClick={() => {
+                          setSelectedLicense(lic);
+                          handleAddToCart();
+                        }}
+                        className="btn btn-secondary btn-md"
+                        style={{ width: '100%' }}
+                      >
+                        Add to Cart
+                      </button>
+                    </div>
+                  </div>
+                );
+              })
             ) : (
-              <video controls poster={videoData.thumbnail} style={{ width: '100%', height: '100%', objectFit: 'cover' }}>
-                <source src={videoData.url} type="video/mp4" />
-              </video>
+              <div className="pdp-card" style={{ padding: '2.5rem', textAlign: 'center', maxWidth: '500px', margin: '0 auto' }}>
+                <h3 style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--text-primary)', marginBottom: '0.5rem' }}>{product.title}</h3>
+                <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'center', gap: '0.75rem', margin: '1.5rem 0' }}>
+                  <span style={{ fontSize: '2.5rem', fontWeight: 800, color: '#fff' }}>
+                    {formatCurrency(currentPrice, currency)}
+                  </span>
+                  {hasDiscount && (
+                    <span style={{ fontSize: '1.1rem', color: 'var(--text-muted)', textDecoration: 'line-through' }}>
+                      {formatCurrency(regularPrice, currency)}
+                    </span>
+                  )}
+                </div>
+                <div style={{ display: 'flex', gap: '1rem', marginTop: '1.5rem' }}>
+                  <button onClick={handleBuyNow} className="btn btn-primary btn-lg" style={{ flex: 1 }}>
+                    <Zap size={18} fill="currentColor" /> BUY NOW
+                  </button>
+                  <button onClick={handleAddToCart} className="btn btn-secondary btn-lg" style={{ flex: 1 }}>
+                    Add to Cart
+                  </button>
+                </div>
+              </div>
             )}
           </div>
         </div>
@@ -1218,69 +1813,71 @@ export function DynamicProductPage({ slug, productData: initialData, onNavigate,
     );
   };
 
-  // 15. Pricing CTA Section
-  const renderPricing = () => {
+  // 21. SECTION 21 — LICENSE TERMS & PERMISSIONS
+  const renderLicense = () => {
+    const licData = getSectionData('license') || getSectionData('license_delivery') || {
+      license_type: selectedLicense?.license_name || 'Commercial Single Project License',
+      delivery_method: 'Instant Digital Download',
+      access: 'Lifetime access with continuous updates',
+      support: 'Direct developer assistance',
+      can_customize: 'Yes — full source code modification permitted.',
+      can_deploy: 'Yes — personal or single client commercial deployment.',
+      can_rebrand: 'Yes — 100% white label branding allowed.',
+      can_resell: 'No — redistributing raw source code is prohibited.'
+    };
+
     return (
       <section className="pdp-section">
         <div className="pdp-container">
-          <div className="pdp-conversion-banner">
-            <span className="pdp-kicker">Instant Access</span>
-            <h2 className="pdp-section-title" style={{ marginTop: '0.25rem' }}>
-              Ready to Get Started?
-            </h2>
-            <p style={{ color: 'var(--text-secondary)', maxWidth: '640px', margin: '0.75rem auto 1.5rem', fontSize: '1rem' }}>
-              Get {product.title} today with lifetime updates and standard commercial license.
-            </p>
-
-            <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'center', gap: '0.75rem', marginBottom: '2rem' }}>
-              <span style={{ fontSize: 'clamp(2.5rem, 4vw, 3.25rem)', fontWeight: 800, color: '#fff' }}>
-                {formatCurrency(currentPrice, currency)}
-              </span>
-              {hasDiscount && (
-                <span style={{ fontSize: '1.25rem', color: 'var(--text-muted)', textDecoration: 'line-through' }}>
-                  {formatCurrency(regularPrice, currency)}
-                </span>
-              )}
+          <div className="pdp-card" style={{ padding: '2.5rem', display: 'flex', flexDirection: 'column', gap: '1.75rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+              <div className="pdp-card-icon" style={{ marginBottom: 0 }}>
+                <ShieldCheck size={24} />
+              </div>
+              <div>
+                <h2 style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--text-primary)' }}>License & Legal Permissions</h2>
+                <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Understand exactly what rights and freedoms are included with your purchase.</p>
+              </div>
             </div>
 
-            <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center', flexWrap: 'wrap', maxWidth: '460px', margin: '0 auto' }}>
-              <button
-                onClick={handleBuyNow}
-                className="btn btn-primary btn-lg"
-                style={{ flex: '1 1 200px', gap: '0.5rem' }}
-              >
-                <Zap size={18} fill="currentColor" />
-                <span>BUY NOW</span>
-              </button>
-              <button
-                onClick={handleAddToCart}
-                className="btn btn-secondary btn-lg"
-                style={{ flex: '1 1 200px', gap: '0.5rem' }}
-              >
-                <ShoppingBag size={18} />
-                <span>ADD TO CART</span>
-              </button>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1rem' }}>
+              <div style={{ padding: '1.25rem', background: 'var(--bg-surface-elevated)', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-subtle)' }}>
+                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase' }}>Can I Customize Code?</div>
+                <div style={{ fontSize: '0.95rem', fontWeight: 700, color: '#10b981', marginTop: '0.35rem' }}>✓ Allowed — 100% Full Access</div>
+              </div>
+              <div style={{ padding: '1.25rem', background: 'var(--bg-surface-elevated)', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-subtle)' }}>
+                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase' }}>Commercial Deployment?</div>
+                <div style={{ fontSize: '0.95rem', fontWeight: 700, color: '#10b981', marginTop: '0.35rem' }}>✓ Allowed — Client & Business</div>
+              </div>
+              <div style={{ padding: '1.25rem', background: 'var(--bg-surface-elevated)', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-subtle)' }}>
+                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase' }}>White Label Branding?</div>
+                <div style={{ fontSize: '0.95rem', fontWeight: 700, color: '#10b981', marginTop: '0.35rem' }}>✓ Allowed — Remove All Brand Tags</div>
+              </div>
+              <div style={{ padding: '1.25rem', background: 'var(--bg-surface-elevated)', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-subtle)' }}>
+                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase' }}>Raw Code Reselling?</div>
+                <div style={{ fontSize: '0.95rem', fontWeight: 700, color: '#f43f5e', marginTop: '0.35rem' }}>✕ Prohibited — Cannot Resell Source</div>
+              </div>
             </div>
 
-            <div className="pdp-trust-bar" style={{ justifyContent: 'center', gap: '2rem', marginTop: '2.5rem' }}>
-              <span className="pdp-trust-item"><Lock size={14} style={{ color: 'var(--accent-emerald)' }} /> Secure Payment</span>
-              <span className="pdp-trust-item"><DownloadCloud size={14} style={{ color: 'var(--primary)' }} /> Instant Access</span>
-              <span className="pdp-trust-item"><ShieldCheck size={14} style={{ color: 'var(--accent-emerald)' }} /> Commercial Rights</span>
-            </div>
+            {licData.disclaimer && (
+              <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', borderTop: '1px solid var(--border-subtle)', paddingTop: '1.25rem', lineHeight: 1.6 }}>
+                {licData.disclaimer}
+              </p>
+            )}
           </div>
         </div>
       </section>
     );
   };
 
-  // 16. Customer Testimonials
+  // 22. SECTION 22 — TESTIMONIALS
   const renderTestimonials = () => {
     let raw = (testimonials && testimonials.length > 0) ? testimonials : getSectionData('testimonials');
     if (typeof raw === 'string') {
       try { raw = JSON.parse(raw); } catch (e) {}
     }
     const testList = Array.isArray(raw) ? raw : [];
-    if (!testList || !testList.length) return null;
+    if (!testList || testList.length === 0) return null;
 
     return (
       <section className="pdp-section">
@@ -1325,22 +1922,60 @@ export function DynamicProductPage({ slug, productData: initialData, onNavigate,
     );
   };
 
-  // 17. FAQ Accordion
+  // 23. SECTION 23 — REVIEWS / RATINGS
+  const renderReviews = () => {
+    const rawRating = product.average_rating || 5.0;
+    const totalReviews = product.review_count || (testimonials ? testimonials.length : 12);
+
+    return (
+      <section className="pdp-section">
+        <div className="pdp-container">
+          <div className="pdp-card" style={{ padding: '2rem 2.5rem' }}>
+            <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: '1.5rem' }}>
+              <div>
+                <span className="pdp-kicker">Product Ratings</span>
+                <h3 style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--text-primary)', marginTop: '0.25rem' }}>
+                  Verified Buyer Reviews
+                </h3>
+                <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginTop: '0.25rem' }}>
+                  Based on verified orders and customer reviews.
+                </p>
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem' }}>
+                <div style={{ fontSize: '3rem', fontWeight: 900, color: '#fff', lineHeight: 1 }}>
+                  {Number(rawRating).toFixed(1)}
+                </div>
+                <div>
+                  <StarRating rating={Math.round(rawRating)} />
+                  <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '4px' }}>
+                    {totalReviews} verified ratings
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+    );
+  };
+
+  // 24. SECTION 24 — FAQ ACCORDION
   const renderFaq = () => {
     let raw = getSectionData('faq');
     if (typeof raw === 'string') {
       try { raw = JSON.parse(raw); } catch (e) {}
     }
-    const faqList = Array.isArray(raw) ? raw : (Array.isArray(faqs) ? faqs : []);
-    if (!faqList || !faqList.length) return null;
+    const faqList = Array.isArray(raw) && raw.length > 0 ? raw : (Array.isArray(faqs) ? faqs : []);
+    if (!faqList || faqList.length === 0) return null;
 
     return (
       <section className="pdp-section">
         <div className="pdp-container">
           <div className="pdp-section-header">
-            <span className="pdp-kicker">Support</span>
+            <span className="pdp-kicker">Got Questions?</span>
             <h2 className="pdp-section-title">Frequently Asked Questions</h2>
-            <p className="pdp-section-subtitle">Have a question before purchasing? Find quick answers below.</p>
+            <p className="pdp-section-subtitle">Everything you need to know about files, licensing, delivery, and customization.</p>
           </div>
 
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem', marginBottom: '1rem', fontSize: '0.8rem', fontWeight: 600, color: 'var(--primary)' }}>
@@ -1375,143 +2010,12 @@ export function DynamicProductPage({ slug, productData: initialData, onNavigate,
     );
   };
 
-  // 18. License & Delivery Information
-  const renderLicenseDelivery = () => {
-    const licData = getSectionData('license_delivery') || {
-      license_type: 'Commercial Project License',
-      delivery_method: 'Instant Digital Download',
-      access: 'Lifetime access with unlimited downloads',
-      support: 'Standard technical assistance included',
-      disclaimer: 'Product is independently developed for professional deployment.'
-    };
-
-    return (
-      <section className="pdp-section">
-        <div className="pdp-container">
-          <div className="pdp-card" style={{ padding: '2rem 2.5rem', display: 'flex', flexDirection: 'column', gap: '1.75rem' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-              <div className="pdp-card-icon" style={{ marginBottom: 0 }}>
-                <ShieldCheck size={22} />
-              </div>
-              <div>
-                <h2 style={{ fontSize: '1.35rem', fontWeight: 800, color: 'var(--text-primary)' }}>License & Delivery Information</h2>
-                <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Clear terms and instant delivery specifications.</p>
-              </div>
-            </div>
-
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1.25rem' }}>
-              <div className="pdp-license-box" style={{ padding: '1.25rem', background: 'var(--bg-surface-elevated)', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-subtle)' }}>
-                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600 }}>License Type</div>
-                <div style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--text-primary)', marginTop: '0.35rem' }}>{licData.license_type}</div>
-              </div>
-              <div className="pdp-license-box" style={{ padding: '1.25rem', background: 'var(--bg-surface-elevated)', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-subtle)' }}>
-                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600 }}>Delivery Method</div>
-                <div style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--text-primary)', marginTop: '0.35rem' }}>{licData.delivery_method}</div>
-              </div>
-              <div className="pdp-license-box" style={{ padding: '1.25rem', background: 'var(--bg-surface-elevated)', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-subtle)' }}>
-                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600 }}>Access Period</div>
-                <div style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--text-primary)', marginTop: '0.35rem' }}>{licData.access}</div>
-              </div>
-              <div className="pdp-license-box" style={{ padding: '1.25rem', background: 'var(--bg-surface-elevated)', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-subtle)' }}>
-                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600 }}>Support</div>
-                <div style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--text-primary)', marginTop: '0.35rem' }}>{licData.support}</div>
-              </div>
-            </div>
-
-            {licData.disclaimer && (
-              <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', borderTop: '1px solid var(--border-subtle)', paddingTop: '1.25rem', lineHeight: 1.6 }}>
-                {licData.disclaimer}
-              </p>
-            )}
-          </div>
-        </div>
-      </section>
-    );
-  };
-
-  // 19. Related Products
-  const renderRelated = () => {
-    if (!related || related.length === 0) return null;
-
-    return (
-      <section className="pdp-section">
-        <div className="pdp-container">
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
-            <div>
-              <span className="pdp-kicker">Recommended</span>
-              <h2 style={{ fontSize: '1.6rem', fontWeight: 800, color: 'var(--text-primary)', marginTop: '0.25rem' }}>You May Also Like</h2>
-            </div>
-            <button
-              onClick={() => onNavigate && onNavigate('products')}
-              className="btn btn-outline btn-sm"
-            >
-              View Catalog <ArrowRight size={14} />
-            </button>
-          </div>
-
-          <div className="pdp-grid-4">
-            {related.slice(0, 4).map(prod => {
-              const effectivePrice = prod.sale_price !== null && prod.sale_price !== undefined ? prod.sale_price : prod.regular_price;
-              const hasDisc = prod.regular_price > effectivePrice;
-
-              return (
-                <div
-                  key={prod.id}
-                  onClick={() => onNavigate && onNavigate('product-detail', { slug: prod.slug })}
-                  className="pdp-card"
-                  style={{ cursor: 'pointer', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', padding: '0.85rem' }}
-                >
-                  <div>
-                    <div style={{ aspectRatio: '16/10', borderRadius: 'var(--radius-md)', overflow: 'hidden', background: '#000', position: 'relative', marginBottom: '0.75rem' }}>
-                      <img
-                        src={prod.thumbnail || prod.hero_image || 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=800&q=80'}
-                        alt={prod.title}
-                        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                      />
-                      {prod.badge && (
-                        <div style={{ position: 'absolute', top: '0.5rem', left: '0.5rem' }}>
-                          <Badge variant={prod.badge}>{prod.badge}</Badge>
-                        </div>
-                      )}
-                    </div>
-                    <span style={{ fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--primary)', letterSpacing: '0.04em' }}>
-                      {prod.category_name || 'Software'}
-                    </span>
-                    <h3 style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--text-primary)', marginTop: '0.25rem', lineHeight: 1.35, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
-                      {prod.title}
-                    </h3>
-                  </div>
-
-                  <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', paddingTop: '0.75rem', marginTop: '0.75rem', borderTop: '1px solid var(--border-subtle)' }}>
-                    <div>
-                      <span style={{ fontSize: '0.95rem', fontWeight: 800, color: 'var(--text-primary)' }}>
-                        {formatCurrency(effectivePrice, currency)}
-                      </span>
-                      {hasDisc && (
-                        <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textDecoration: 'line-through', marginLeft: '0.5rem' }}>
-                          {formatCurrency(prod.regular_price, currency)}
-                        </span>
-                      )}
-                    </div>
-                    <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--primary)' }}>
-                      View →
-                    </span>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      </section>
-    );
-  };
-
-  // 20. Final Conversion CTA
+  // 25. SECTION 25 — FINAL CTA
   const renderFinalCta = () => {
     const finalData = getSectionData('final_cta') || {
-      heading: 'Ready to Launch Your Next Project?',
-      subheading: `Get ${product.title} today and build faster.`,
-      cta_text: 'GET THIS PRODUCT'
+      heading: 'Ready to Launch Your Solution?',
+      subheading: `Get ${product.title} today with full unencrypted source code and standard commercial deployment license.`,
+      cta_text: product.cta_text || 'BUY NOW'
     };
 
     return (
@@ -1521,25 +2025,135 @@ export function DynamicProductPage({ slug, productData: initialData, onNavigate,
             <h2 style={{ fontSize: 'clamp(1.8rem, 3.5vw, 2.75rem)', fontWeight: 800, color: '#fff', letterSpacing: '-0.02em', marginBottom: '0.75rem' }}>
               {finalData.heading}
             </h2>
-            <p style={{ color: 'var(--text-secondary)', fontSize: '1rem', maxWidth: '540px', margin: '0 auto 2rem' }}>
+            <p style={{ color: 'var(--text-secondary)', fontSize: '1rem', maxWidth: '600px', margin: '0 auto 2rem' }}>
               {finalData.subheading}
             </p>
 
-            <button
-              onClick={handleBuyNow}
-              className="btn btn-primary btn-lg"
-              style={{ gap: '0.6rem', padding: '1rem 2.5rem', fontSize: '1.05rem' }}
-            >
-              <span>{finalData.cta_text || 'GET THIS PRODUCT'}</span>
-              <ArrowRight size={18} />
-            </button>
+            <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center', flexWrap: 'wrap', maxWidth: '460px', margin: '0 auto' }}>
+              <button
+                onClick={handleBuyNow}
+                className="btn btn-primary btn-lg"
+                style={{ flex: '1 1 200px', gap: '0.6rem' }}
+              >
+                <Zap size={18} fill="currentColor" />
+                <span>{finalData.cta_text || 'BUY NOW'}</span>
+              </button>
+              <button
+                onClick={handleAddToCart}
+                className="btn btn-secondary btn-lg"
+                style={{ flex: '1 1 200px', gap: '0.6rem' }}
+              >
+                <ShoppingBag size={18} />
+                <span>ADD TO CART</span>
+              </button>
+            </div>
 
             <div className="pdp-trust-bar" style={{ justifyContent: 'center', gap: '2rem', marginTop: '2.5rem' }}>
               <span className="pdp-trust-item"><Lock size={14} style={{ color: 'var(--accent-emerald)' }} /> Secure Checkout</span>
               <span className="pdp-trust-item"><DownloadCloud size={14} style={{ color: 'var(--primary)' }} /> Instant File Delivery</span>
-              <span className="pdp-trust-item"><ShieldCheck size={14} style={{ color: 'var(--accent-emerald)' }} /> Professional Support</span>
+              <span className="pdp-trust-item"><ShieldCheck size={14} style={{ color: 'var(--accent-emerald)' }} /> Commercial Rights</span>
             </div>
           </div>
+        </div>
+      </section>
+    );
+  };
+
+  // 26. SECTION 26 — CONTACT / SUPPORT
+  const renderSupport = () => {
+    const supportData = getSectionData('support') || {
+      email: 'support@rollixia.com',
+      whatsapp: '+1 (800) 555-ROLL',
+      docs_url: product.docs_url || product.doc_url,
+      description: 'Have a pre-sale question or need custom architecture assistance? Our engineering team is ready to help.'
+    };
+
+    return (
+      <section className="pdp-section">
+        <div className="pdp-container">
+          <div className="pdp-card" style={{ padding: '2.5rem', textAlign: 'center' }}>
+            <div style={{ maxWidth: '640px', margin: '0 auto' }}>
+              <span className="pdp-kicker">Dedicated Assistance</span>
+              <h2 style={{ fontSize: '1.75rem', fontWeight: 800, color: 'var(--text-primary)', marginTop: '0.25rem', marginBottom: '0.75rem' }}>
+                Questions Before Purchasing?
+              </h2>
+              <p style={{ color: 'var(--text-secondary)', fontSize: '0.95rem', marginBottom: '2rem' }}>
+                {supportData.description}
+              </p>
+
+              <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center', flexWrap: 'wrap' }}>
+                {supportData.email && (
+                  <a href={`mailto:${supportData.email}`} className="btn btn-outline btn-md">
+                    <Mail size={16} />
+                    <span>Email Support</span>
+                  </a>
+                )}
+                {supportData.whatsapp && (
+                  <a href={`https://wa.me/${supportData.whatsapp.replace(/[^0-9]/g, '')}`} target="_blank" rel="noreferrer" className="btn btn-outline btn-md">
+                    <MessageSquare size={16} />
+                    <span>WhatsApp Chat</span>
+                  </a>
+                )}
+                {supportData.docs_url && (
+                  <a href={supportData.docs_url} target="_blank" rel="noreferrer" className="btn btn-outline btn-md">
+                    <FileCode size={16} />
+                    <span>Browse Documentation</span>
+                  </a>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+    );
+  };
+
+  // 27. CUSTOM SECTION RENDERER
+  const renderCustomSection = (sec) => {
+    if (!sec) return null;
+    let content = sec.content;
+    if (typeof content === 'string') {
+      try { content = JSON.parse(content); } catch (e) {}
+    }
+    content = content || {};
+
+    const title = sec.title || content.title || 'Custom Section';
+    const eyebrow = content.eyebrow || 'Information';
+    const desc = content.description || content.text || '';
+    const image = content.image || content.media_url;
+    const ctaText = content.cta_text;
+    const ctaUrl = content.cta_url;
+
+    return (
+      <section key={sec.id || sec.section_type} className="pdp-section">
+        <div className="pdp-container">
+          <div className="pdp-section-header">
+            {eyebrow && <span className="pdp-kicker">{eyebrow}</span>}
+            <h2 className="pdp-section-title">{title}</h2>
+            {desc && <p className="pdp-section-subtitle">{desc}</p>}
+          </div>
+
+          {image && (
+            <div style={{ maxWidth: '900px', margin: '1.5rem auto 0', borderRadius: 'var(--radius-lg)', overflow: 'hidden', border: '1px solid var(--border-medium)' }}>
+              <img src={image} alt={title} style={{ width: '100%', height: 'auto', display: 'block' }} />
+            </div>
+          )}
+
+          {ctaText && (
+            <div style={{ textAlign: 'center', marginTop: '2rem' }}>
+              {ctaUrl ? (
+                <a href={ctaUrl} target="_blank" rel="noreferrer" className="btn btn-primary btn-md">
+                  <span>{ctaText}</span>
+                  <ArrowRight size={16} />
+                </a>
+              ) : (
+                <button onClick={handleBuyNow} className="btn btn-primary btn-md">
+                  <span>{ctaText}</span>
+                  <ArrowRight size={16} />
+                </button>
+              )}
+            </div>
+          )}
         </div>
       </section>
     );
@@ -1549,64 +2163,102 @@ export function DynamicProductPage({ slug, productData: initialData, onNavigate,
   const sectionRendererMap = {
     breadcrumb: renderBreadcrumb,
     hero: renderHero,
-    gallery: renderGallery,
-    highlights: renderHighlights,
-    overview: renderOverview,
-    features: renderFeatures,
-    showcase: renderShowcase,
-    screenshots: renderScreenshots,
-    included: renderIncluded,
-    how_it_works: renderHowItWorks,
-    specs: renderSpecs,
-    platforms: renderPlatforms,
-    use_cases: renderUseCases,
     video: renderVideo,
+    overview: renderOverview,
+    ecosystem: renderEcosystem,
+    demo: renderDemo,
+    customer_experience: renderCustomerExperience,
+    partner_experience: renderPartnerExperience,
+    admin_experience: renderAdminExperience,
+    features: renderFeatures,
+    how_it_works: renderHowItWorks,
+    included: renderIncluded,
+    source_code: renderSourceCode,
+    specs: renderSpecs,
+    requirements: renderRequirements,
+    customization: renderCustomization,
+    who_is_it_for: renderWhoIsItFor,
+    use_cases: renderUseCases,
+    comparison: renderComparison,
+    after_purchase: renderAfterPurchase,
     pricing: renderPricing,
+    license: renderLicense,
     testimonials: renderTestimonials,
+    reviews: renderReviews,
     faq: renderFaq,
-    license_delivery: renderLicenseDelivery,
-    related: renderRelated,
-    final_cta: renderFinalCta
+    final_cta: renderFinalCta,
+    support: renderSupport,
+
+    // Backward compatibility aliases
+    highlights: () => null,
+    showcase: renderCustomerExperience,
+    screenshots: () => null,
+    license_delivery: renderLicense,
+    platforms: () => null,
+    related: () => null
   };
 
   // Canonical ordering fallback if dbSections is empty
   const defaultCanonicalTypes = [
-    'breadcrumb', 'hero', 'gallery', 'highlights', 'overview', 'features',
-    'showcase', 'screenshots', 'included', 'how_it_works', 'specs', 'platforms',
-    'use_cases', 'video', 'pricing', 'testimonials', 'faq', 'license_delivery',
-    'related', 'final_cta'
+    'breadcrumb',
+    'hero',
+    'video',
+    'overview',
+    'ecosystem',
+    'demo',
+    'customer_experience',
+    'partner_experience',
+    'admin_experience',
+    'features',
+    'how_it_works',
+    'included',
+    'source_code',
+    'specs',
+    'requirements',
+    'customization',
+    'who_is_it_for',
+    'use_cases',
+    'comparison',
+    'after_purchase',
+    'pricing',
+    'license',
+    'testimonials',
+    'reviews',
+    'faq',
+    'final_cta',
+    'support'
   ];
 
+  // Compile active sections from database or fall back to canonical order
   let orderedSections = [];
   if (Array.isArray(dbSections) && dbSections.length > 0) {
-    const customTypes = dbSections
+    const visibleSections = dbSections
       .filter(s => s && (s.is_visible === undefined || s.is_visible === 1 || s.is_visible === true))
-      .map(s => s.section_type || s.type)
-      .filter(Boolean);
+      .sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0));
 
-    const combined = ['breadcrumb', 'hero'];
-    if (!customTypes.includes('gallery')) combined.push('gallery');
-
-    customTypes.forEach(t => {
-      if (!combined.includes(t)) combined.push(t);
-    });
-
-    ['overview', 'features', 'pricing', 'faq', 'license_delivery', 'related', 'final_cta'].forEach(t => {
-      if (!combined.includes(t)) combined.push(t);
-    });
-
-    orderedSections = combined;
+    orderedSections = visibleSections;
   } else {
-    orderedSections = defaultCanonicalTypes;
+    orderedSections = defaultCanonicalTypes.map((type, idx) => ({
+      section_type: type,
+      is_visible: 1,
+      sort_order: idx + 1
+    }));
   }
 
   return (
     <article className="pdp-page">
-      {/* 20 Canonical Dynamic Sections in Configured Order */}
-      {orderedSections.map((secType, idx) => {
+      {/* Dynamic Sections in Admin Configured Order */}
+      {orderedSections.map((sec, idx) => {
+        const secType = sec.section_type || sec.type;
+        if (!secType) return null;
+
+        if (secType === 'custom' || secType.startsWith('custom_') || sec.is_custom) {
+          return <React.Fragment key={`custom-${sec.id || idx}`}>{renderCustomSection(sec)}</React.Fragment>;
+        }
+
         const renderer = sectionRendererMap[secType];
         if (!renderer) return null;
-        return <React.Fragment key={`${secType}-${idx}`}>{renderer()}</React.Fragment>;
+        return <React.Fragment key={`${secType}-${sec.id || idx}`}>{renderer()}</React.Fragment>;
       })}
 
       {/* Sticky Bottom Purchase Bar */}

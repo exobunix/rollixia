@@ -36,8 +36,14 @@ export function AdminProductsPage({ onAddNew, onPreviewProduct, onEditProduct })
     if (searchQuery.trim()) params.append('q', searchQuery.trim());
 
     apiRequest(`/api/admin/products?${params.toString()}`)
-      .then(res => setProducts(res.products || []))
-      .catch(err => console.error(err))
+      .then(res => {
+        const list = Array.isArray(res?.products) ? res.products : (Array.isArray(res) ? res : []);
+        setProducts(list);
+      })
+      .catch(err => {
+        console.error(err);
+        setProducts([]);
+      })
       .finally(() => setLoading(false));
   };
 
@@ -109,6 +115,8 @@ export function AdminProductsPage({ onAddNew, onPreviewProduct, onEditProduct })
     );
   };
 
+  const safeProducts = Array.isArray(products) ? products : [];
+
   return (
     <div style={{ padding: '2rem' }}>
       {/* Header & Add Button */}
@@ -137,31 +145,24 @@ export function AdminProductsPage({ onAddNew, onPreviewProduct, onEditProduct })
         marginBottom: '1.5rem',
         padding: '1rem',
         background: 'var(--bg-surface)',
-        border: '1px solid var(--border-subtle)',
-        borderRadius: 'var(--radius-lg)'
+        borderRadius: '12px',
+        border: '1px solid var(--border-subtle)'
       }}>
         {/* Search */}
-        <div style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: '8px',
-          background: 'var(--bg-surface-elevated)',
-          padding: '0.5rem 0.85rem',
-          borderRadius: 'var(--radius-md)',
-          minWidth: '240px'
-        }}>
-          <Search size={16} color="var(--text-muted)" />
+        <div style={{ position: 'relative', minWidth: '260px', flex: 1 }}>
+          <Search size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
           <input
             type="text"
             placeholder="Search by title or SKU..."
             value={searchQuery}
-            onChange={e => setSearchQuery(e.target.value)}
-            style={{ background: 'transparent', border: 'none', outline: 'none', color: '#fff', fontSize: '0.85rem' }}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="input"
+            style={{ paddingLeft: '36px', width: '100%' }}
           />
         </div>
 
-        {/* Status Pills & Collections */}
-        <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+        {/* Status Filters */}
+        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
           {[
             { id: 'all', label: 'All Products' },
             { id: 'published', label: 'Published' },
@@ -204,7 +205,7 @@ export function AdminProductsPage({ onAddNew, onPreviewProduct, onEditProduct })
               <th style={{ padding: '10px' }}>
                 <input
                   type="checkbox"
-                  checked={selectedIds.length > 0 && selectedIds.length === products.length}
+                  checked={selectedIds.length > 0 && selectedIds.length === safeProducts.length}
                   onChange={toggleSelectAll}
                 />
               </th>
@@ -225,14 +226,14 @@ export function AdminProductsPage({ onAddNew, onPreviewProduct, onEditProduct })
                   Loading catalog products...
                 </td>
               </tr>
-            ) : products.length === 0 ? (
+            ) : safeProducts.length === 0 ? (
               <tr>
                 <td colSpan={9} style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-muted)' }}>
                   No products found.
                 </td>
               </tr>
             ) : (
-              products.map(p => {
+              safeProducts.map(p => {
                 const effectivePrice = p.sale_price !== null && p.sale_price !== undefined ? p.sale_price : p.regular_price;
                 const totalRevenue = (p.sales_count || 0) * effectivePrice;
 

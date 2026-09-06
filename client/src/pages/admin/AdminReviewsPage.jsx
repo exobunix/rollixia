@@ -16,8 +16,11 @@ export function AdminReviewsPage() {
     if (statusFilter !== 'all') params.append('status', statusFilter);
 
     apiRequest(`/api/admin/reviews?${params.toString()}`)
-      .then(res => setReviews(res))
-      .catch(err => console.error(err))
+      .then(res => setReviews(Array.isArray(res) ? res : (Array.isArray(res?.reviews) ? res.reviews : [])))
+      .catch(err => {
+        console.error(err);
+        setReviews([]);
+      })
       .finally(() => setLoading(false));
   };
 
@@ -62,6 +65,8 @@ export function AdminReviewsPage() {
     }
   };
 
+  const safeReviews = Array.isArray(reviews) ? reviews : [];
+
   return (
     <div style={{ padding: '2rem' }}>
       <div style={{ marginBottom: '2rem' }}>
@@ -105,10 +110,10 @@ export function AdminReviewsPage() {
           <tbody>
             {loading ? (
               <tr><td colSpan={6} style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-muted)' }}>Loading reviews...</td></tr>
-            ) : reviews.length === 0 ? (
+            ) : safeReviews.length === 0 ? (
               <tr><td colSpan={6} style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-muted)' }}>No reviews in moderation queue.</td></tr>
             ) : (
-              reviews.map(r => (
+              safeReviews.map(r => (
                 <tr key={r.id} style={{ borderBottom: '1px solid var(--border-subtle)' }}>
                   <td style={{ padding: '12px 10px', fontWeight: 600, color: 'var(--text-primary)', maxWidth: '180px' }}>
                     {r.product_title}

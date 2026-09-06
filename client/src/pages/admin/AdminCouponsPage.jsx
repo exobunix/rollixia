@@ -21,8 +21,11 @@ export function AdminCouponsPage() {
   const loadCoupons = () => {
     setLoading(true);
     apiRequest('/api/admin/coupons')
-      .then(res => setCoupons(res))
-      .catch(err => console.error(err))
+      .then(res => setCoupons(Array.isArray(res) ? res : (Array.isArray(res?.coupons) ? res.coupons : [])))
+      .catch(err => {
+        console.error(err);
+        setCoupons([]);
+      })
       .finally(() => setLoading(false));
   };
 
@@ -64,6 +67,8 @@ export function AdminCouponsPage() {
     }
   };
 
+  const safeCoupons = Array.isArray(coupons) ? coupons : [];
+
   return (
     <div style={{ padding: '2rem' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
@@ -72,12 +77,12 @@ export function AdminCouponsPage() {
             Promotional Coupons & Deals
           </h1>
           <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>
-            Create discount codes, set minimum order conditions, and view redemption usage stats.
+            Create discount codes, flash sales, and cart-level promotional incentives.
           </p>
         </div>
 
         <button onClick={() => setIsCreateOpen(true)} className="btn btn-primary">
-          <Plus size={18} /> + Create Coupon
+          <Plus size={18} /> Create Coupon
         </button>
       </div>
 
@@ -87,9 +92,9 @@ export function AdminCouponsPage() {
           <thead>
             <tr style={{ borderBottom: '1px solid var(--border-subtle)', color: 'var(--text-muted)' }}>
               <th style={{ padding: '10px' }}>Coupon Code</th>
-              <th style={{ padding: '10px' }}>Discount Value</th>
+              <th style={{ padding: '10px' }}>Discount</th>
               <th style={{ padding: '10px' }}>Min Order</th>
-              <th style={{ padding: '10px' }}>Redemptions</th>
+              <th style={{ padding: '10px' }}>Usage / Limit</th>
               <th style={{ padding: '10px' }}>Status</th>
               <th style={{ padding: '10px', textAlign: 'right' }}>Actions</th>
             </tr>
@@ -97,10 +102,10 @@ export function AdminCouponsPage() {
           <tbody>
             {loading ? (
               <tr><td colSpan={6} style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-muted)' }}>Loading coupons...</td></tr>
-            ) : coupons.length === 0 ? (
+            ) : safeCoupons.length === 0 ? (
               <tr><td colSpan={6} style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-muted)' }}>No promotional coupons configured.</td></tr>
             ) : (
-              coupons.map(c => (
+              safeCoupons.map(c => (
                 <tr key={c.id} style={{ borderBottom: '1px solid var(--border-subtle)' }}>
                   <td style={{ padding: '12px 10px', fontWeight: 800, color: 'var(--primary)' }}>
                     <span style={{ padding: '4px 8px', background: 'var(--primary-light)', borderRadius: '4px' }}>

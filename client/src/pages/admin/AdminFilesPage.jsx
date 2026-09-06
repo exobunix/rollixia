@@ -38,9 +38,10 @@ export function AdminFilesPage() {
     try {
       setLoading(true);
       const data = await apiRequest('/api/admin/files');
-      setFiles(data || []);
+      setFiles(Array.isArray(data) ? data : (Array.isArray(data?.files) ? data.files : []));
     } catch (err) {
       addToast('Failed to load digital files', 'error');
+      setFiles([]);
     } finally {
       setLoading(false);
     }
@@ -49,13 +50,14 @@ export function AdminFilesPage() {
   const fetchProducts = async () => {
     try {
       const data = await apiRequest('/api/admin/products');
-      const prodList = data.products || data || [];
+      const prodList = Array.isArray(data?.products) ? data.products : (Array.isArray(data) ? data : []);
       setProducts(prodList);
       if (prodList.length > 0 && !selectedProductId) {
         setSelectedProductId(prodList[0].id);
       }
     } catch (err) {
       console.error(err);
+      setProducts([]);
     }
   };
 
@@ -138,10 +140,11 @@ export function AdminFilesPage() {
     }
   };
 
-  const filteredFiles = files.filter(f =>
-    (f.file_name && f.file_name.toLowerCase().includes(searchQuery.toLowerCase())) ||
-    (f.product_title && f.product_title.toLowerCase().includes(searchQuery.toLowerCase())) ||
-    (f.version && f.version.toLowerCase().includes(searchQuery.toLowerCase()))
+  const safeFiles = Array.isArray(files) ? files : [];
+  const filteredFiles = safeFiles.filter(f =>
+    (f && f.file_name && f.file_name.toLowerCase().includes(searchQuery.toLowerCase())) ||
+    (f && f.product_title && f.product_title.toLowerCase().includes(searchQuery.toLowerCase())) ||
+    (f && f.version && f.version.toLowerCase().includes(searchQuery.toLowerCase()))
   );
 
   return (

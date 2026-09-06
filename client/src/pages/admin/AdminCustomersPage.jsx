@@ -16,8 +16,11 @@ export function AdminCustomersPage() {
     if (searchQuery.trim()) params.append('q', searchQuery.trim());
 
     apiRequest(`/api/admin/customers?${params.toString()}`)
-      .then(res => setCustomers(res))
-      .catch(err => console.error(err))
+      .then(res => setCustomers(Array.isArray(res) ? res : (Array.isArray(res?.customers) ? res.customers : [])))
+      .catch(err => {
+        console.error(err);
+        setCustomers([]);
+      })
       .finally(() => setLoading(false));
   };
 
@@ -39,6 +42,8 @@ export function AdminCustomersPage() {
     }
   };
 
+  const safeCustomers = Array.isArray(customers) ? customers : [];
+
   return (
     <div style={{ padding: '2rem' }}>
       <div style={{ marginBottom: '2rem' }}>
@@ -56,7 +61,7 @@ export function AdminCustomersPage() {
         gap: '8px',
         background: 'var(--bg-surface)',
         padding: '0.75rem 1rem',
-        borderRadius: 'var(--radius-md)',
+        borderRadius: '12px',
         border: '1px solid var(--border-subtle)',
         maxWidth: '380px',
         marginBottom: '1.5rem'
@@ -87,10 +92,10 @@ export function AdminCustomersPage() {
           <tbody>
             {loading ? (
               <tr><td colSpan={7} style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-muted)' }}>Loading customer accounts...</td></tr>
-            ) : customers.length === 0 ? (
+            ) : safeCustomers.length === 0 ? (
               <tr><td colSpan={7} style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-muted)' }}>No customers found.</td></tr>
             ) : (
-              customers.map(c => (
+              safeCustomers.map(c => (
                 <tr key={c.id} style={{ borderBottom: '1px solid var(--border-subtle)' }}>
                   <td style={{ padding: '12px 10px' }}>
                     <strong style={{ color: 'var(--text-primary)', display: 'block' }}>{c.full_name}</strong>

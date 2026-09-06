@@ -1,4 +1,5 @@
 import { FALLBACK_CATEGORIES, FALLBACK_PRODUCTS } from './fallbackCatalog.js';
+import { handleAdminFallbackRoute } from './adminFallbackService.js';
 
 export { FALLBACK_CATEGORIES, FALLBACK_PRODUCTS };
 
@@ -406,6 +407,12 @@ export function handleFallbackRoute(endpoint, options = {}, requestBody = null) 
   const clean = endpoint.replace(/^\/?api\/?/, '').split('?')[0].replace(/\/+$/, '');
   const queryStr = endpoint.includes('?') ? endpoint.substring(endpoint.indexOf('?')) : '';
   const method = (options.method || 'GET').toUpperCase();
+
+  // Route directly to Admin Fallback Service if route starts with admin
+  if (clean.startsWith('admin')) {
+    const adminRes = handleAdminFallbackRoute(clean, method, options, requestBody, queryStr);
+    if (adminRes !== null) return adminRes;
+  }
 
   // POST Handlers
   if (method === 'POST') {

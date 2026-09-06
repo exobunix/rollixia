@@ -23,9 +23,10 @@ export function AdminCategoriesPage() {
     try {
       setLoading(true);
       const data = await apiRequest('/api/categories');
-      setCategories(data || []);
+      setCategories(Array.isArray(data) ? data : (Array.isArray(data?.categories) ? data.categories : []));
     } catch (err) {
       addToast('Failed to load categories', 'error');
+      setCategories([]);
     } finally {
       setLoading(false);
     }
@@ -144,7 +145,7 @@ export function AdminCategoriesPage() {
           <div style={{ gridColumn: '1 / -1', padding: '3rem', textAlign: 'center', color: 'var(--text-muted)' }}>
             Loading taxonomy...
           </div>
-        ) : categories.map((cat) => (
+        ) : (Array.isArray(categories) ? categories : []).map((cat) => (
           <div
             key={cat.id}
             className="glass-card"

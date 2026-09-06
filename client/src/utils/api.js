@@ -1,6 +1,16 @@
 import { handleFallbackRoute } from '../data/catalogFallbackService.js';
 
-const API_BASE_URL = (import.meta.env.VITE_API_URL || '').replace(/\/+$/, '');
+const rawApiUrl = (import.meta.env.VITE_API_URL || '').replace(/\/+$/, '');
+
+function getEffectiveApiBase() {
+  if (typeof window !== 'undefined') {
+    const isProdHost = window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1';
+    if (isProdHost && (rawApiUrl.includes('localhost') || rawApiUrl.includes('127.0.0.1'))) {
+      return ''; // Ignore localhost on production domain
+    }
+  }
+  return rawApiUrl;
+}
 
 let isApiOffline = false;
 let lastOfflineCheck = 0;
@@ -38,7 +48,8 @@ export async function apiRequest(endpoint, options = {}) {
 
   // If we recently detected the serverless endpoint is offline or returning 405 on this domain,
   // return fallback immediately to avoid repeated 405 errors in the browser console
-  const isRelative = !API_BASE_URL || (typeof window !== 'undefined' && API_BASE_URL.startsWith(window.location.origin));
+  const apiBase = getEffectiveApiBase();
+  const isRelative = !apiBase || (typeof window !== 'undefined' && apiBase.startsWith(window.location.origin));
   if (isApiOffline && isRelative && hasFallback !== null) {
     if (Date.now() - lastOfflineCheck > 60000) {
       isApiOffline = false; // Periodically re-test backend health
@@ -52,7 +63,7 @@ export async function apiRequest(endpoint, options = {}) {
   if (!url.startsWith('http')) {
     const cleanEndpoint = url.startsWith('/') ? url : `/${url}`;
     const path = cleanEndpoint.startsWith('/api') ? cleanEndpoint : `/api${cleanEndpoint}`;
-    url = API_BASE_URL ? `${API_BASE_URL}${path}` : path;
+    url = apiBase ? `${apiBase}${path}` : path;
   }
 
   try {
@@ -83,22 +94,18 @@ export async function apiRequest(endpoint, options = {}) {
     );
 
     if (!response.ok || isHtmlResponse) {
-      if (response.status === 405 || isHtmlResponse || response.status === 404) {
-        isApiOffline = true;
-        lastOfflineCheck = Date.now();
-      }
+      isApiOffline = true;
+      lastOfflineCheck = Date.now();
 
       if (hasFallback !== null) {
         return hasFallback;
       }
 
-      if (!response.ok) {
-        const errorMsg = (data && data.error) || (typeof data === 'string' && !isHtmlResponse ? data : 'Request failed');
-        const err = new Error(errorMsg);
-        err.status = response.status;
-        err.data = data;
-        throw err;
-      }
+      const errorMsg = (data && data.error) || (isHtmlResponse ? 'API endpoint returned HTML index document (service offline or unrouted)' : (typeof data === 'string' ? data : 'Request failed'));
+      const err = new Error(errorMsg);
+      err.status = isHtmlResponse ? 503 : response.status;
+      err.data = data;
+      throw err;
     }
 
     // Success response - mark online

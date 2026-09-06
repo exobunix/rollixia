@@ -18,8 +18,14 @@ export function AdminOrdersPage() {
     if (searchQuery.trim()) params.append('q', searchQuery.trim());
 
     apiRequest(`/api/admin/orders?${params.toString()}`)
-      .then(res => setOrders(res.orders || []))
-      .catch(err => console.error(err))
+      .then(res => {
+        const list = Array.isArray(res?.orders) ? res.orders : (Array.isArray(res) ? res : []);
+        setOrders(list);
+      })
+      .catch(err => {
+        console.error(err);
+        setOrders([]);
+      })
       .finally(() => setLoading(false));
   };
 
@@ -67,6 +73,8 @@ export function AdminOrdersPage() {
     }
   };
 
+  const safeOrders = Array.isArray(orders) ? orders : [];
+
   return (
     <div style={{ padding: '2rem' }}>
       <div style={{ marginBottom: '2rem' }}>
@@ -74,54 +82,51 @@ export function AdminOrdersPage() {
           Order Management & Audits
         </h1>
         <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>
-          Inspect verified transactions, process refunds, and govern customer download permissions.
+          Review customer purchase history, manage tokenized deliverables, and process refunds.
         </p>
       </div>
 
-      {/* Search Bar */}
       <div style={{
         display: 'flex',
         alignItems: 'center',
         gap: '8px',
+        marginBottom: '1.5rem',
         background: 'var(--bg-surface)',
         padding: '0.75rem 1rem',
-        borderRadius: 'var(--radius-md)',
+        borderRadius: '12px',
         border: '1px solid var(--border-subtle)',
-        maxWidth: '380px',
-        marginBottom: '1.5rem'
+        maxWidth: '400px'
       }}>
         <Search size={16} color="var(--text-muted)" />
         <input
           type="text"
-          placeholder="Search by Order #, email, or txn ID..."
+          placeholder="Search by Order #, Customer, or Email..."
           value={searchQuery}
-          onChange={e => setSearchQuery(e.target.value)}
-          style={{ background: 'transparent', border: 'none', outline: 'none', color: '#fff', fontSize: '0.85rem', width: '100%' }}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          style={{ background: 'transparent', border: 'none', outline: 'none', color: '#fff', fontSize: '0.875rem', width: '100%' }}
         />
       </div>
 
-      {/* Orders Table */}
       <div className="glass-card" style={{ padding: '1rem', overflowX: 'auto' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.875rem', textAlign: 'left' }}>
           <thead>
             <tr style={{ borderBottom: '1px solid var(--border-subtle)', color: 'var(--text-muted)' }}>
-              <th style={{ padding: '10px' }}>Order Reference</th>
+              <th style={{ padding: '10px' }}>Order #</th>
               <th style={{ padding: '10px' }}>Customer</th>
               <th style={{ padding: '10px' }}>Items</th>
-              <th style={{ padding: '10px' }}>Amount</th>
-              <th style={{ padding: '10px' }}>Payment Status</th>
-              <th style={{ padding: '10px' }}>Downloads Tracked</th>
+              <th style={{ padding: '10px' }}>Total Amount</th>
+              <th style={{ padding: '10px' }}>Status</th>
               <th style={{ padding: '10px' }}>Date</th>
-              <th style={{ padding: '10px', textAlign: 'right' }}>Action</th>
+              <th style={{ padding: '10px', textAlign: 'right' }}>Actions</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
               <tr><td colSpan={8} style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-muted)' }}>Loading orders...</td></tr>
-            ) : orders.length === 0 ? (
+            ) : safeOrders.length === 0 ? (
               <tr><td colSpan={8} style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-muted)' }}>No orders match criteria.</td></tr>
             ) : (
-              orders.map(o => (
+              safeOrders.map(o => (
                 <tr key={o.id} style={{ borderBottom: '1px solid var(--border-subtle)' }}>
                   <td style={{ padding: '12px 10px', fontWeight: 800, color: 'var(--primary)' }}>
                     {o.order_number}

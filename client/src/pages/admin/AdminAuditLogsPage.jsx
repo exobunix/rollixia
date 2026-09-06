@@ -14,9 +14,10 @@ export function AdminAuditLogsPage() {
     try {
       setLoading(true);
       const data = await apiRequest('/api/admin/logs');
-      setLogs(data || []);
+      setLogs(Array.isArray(data) ? data : (Array.isArray(data?.logs) ? data.logs : []));
     } catch (err) {
       addToast('Failed to load audit trail', 'error');
+      setLogs([]);
     } finally {
       setLoading(false);
     }
@@ -26,11 +27,12 @@ export function AdminAuditLogsPage() {
     fetchLogs();
   }, []);
 
-  const filteredLogs = logs.filter(log =>
-    (log.action && log.action.toLowerCase().includes(searchQuery.toLowerCase())) ||
-    (log.admin_name && log.admin_name.toLowerCase().includes(searchQuery.toLowerCase())) ||
-    (log.entity_type && log.entity_type.toLowerCase().includes(searchQuery.toLowerCase())) ||
-    (log.details && log.details.toLowerCase().includes(searchQuery.toLowerCase()))
+  const safeLogs = Array.isArray(logs) ? logs : [];
+  const filteredLogs = safeLogs.filter(log =>
+    (log && log.action && log.action.toLowerCase().includes(searchQuery.toLowerCase())) ||
+    (log && log.admin_name && log.admin_name.toLowerCase().includes(searchQuery.toLowerCase())) ||
+    (log && log.entity_type && log.entity_type.toLowerCase().includes(searchQuery.toLowerCase())) ||
+    (log && log.details && log.details.toLowerCase().includes(searchQuery.toLowerCase()))
   );
 
   const getActionBadgeStyle = (action = '') => {

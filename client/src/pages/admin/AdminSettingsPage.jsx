@@ -33,7 +33,7 @@ export function AdminSettingsPage() {
       try {
         setLoading(true);
         const data = await apiRequest('/api/admin/settings');
-        if (data && Object.keys(data).length > 0) {
+        if (data && typeof data === 'object' && !Array.isArray(data) && Object.keys(data).length > 0) {
           setSettings(prev => ({ ...prev, ...data }));
         }
       } catch (err) {

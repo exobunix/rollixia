@@ -357,6 +357,7 @@ export function App() {
       <Header
         onNavigate={navigate}
         onOpenSearch={() => setIsSearchOpen(true)}
+        currentRoute={currentRoute}
       />
 
       {/* Main Content Pages */}

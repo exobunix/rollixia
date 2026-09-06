@@ -24,9 +24,9 @@ import { useCurrency } from '../../context/CurrencyContext';
 import { useTheme } from '../../context/ThemeContext';
 import { apiRequest } from '../../utils/api';
 import { FALLBACK_CATEGORIES } from '../../data/catalogFallbackService.js';
+import GlowingNavDock from './GlowingNavDock';
 
-
-export function Header({ onNavigate, onOpenSearch }) {
+export function Header({ onNavigate, onOpenSearch, currentRoute }) {
   const { user, logout } = useAuth();
   const { count: cartCount, setIsCartOpen } = useCart();
   const { currency, toggleCurrency } = useCurrency();
@@ -80,113 +80,12 @@ export function Header({ onNavigate, onOpenSearch }) {
           onClick={() => onNavigate('home')}
         />
 
-        {/* Desktop Navigation Links */}
-        <nav style={{ display: 'none', alignItems: 'center', gap: '1.75rem' }} className="desktop-nav">
-          <button
-            onClick={() => onNavigate('products')}
-            style={{ background: 'transparent', border: 'none', fontWeight: 600, fontSize: '0.925rem', color: 'var(--text-secondary)', cursor: 'pointer' }}
-          >
-            All Products
-          </button>
-
-          {/* Categories Dropdown */}
-          <div style={{ position: 'relative' }}>
-            <button
-              onClick={() => setIsCatMenuOpen(!isCatMenuOpen)}
-              onBlur={() => setTimeout(() => setIsCatMenuOpen(false), 200)}
-              style={{
-                background: 'transparent',
-                border: 'none',
-                fontWeight: 600,
-                fontSize: '0.925rem',
-                color: 'var(--text-secondary)',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '4px'
-              }}
-            >
-              Categories <ChevronDown size={15} />
-            </button>
-
-            {isCatMenuOpen && (
-              <div style={{
-                position: 'absolute',
-                top: '100%',
-                left: '-20px',
-                marginTop: '12px',
-                width: '260px',
-                background: 'var(--bg-surface)',
-                border: '1px solid var(--border-medium)',
-                borderRadius: 'var(--radius-lg)',
-                padding: '8px',
-                boxShadow: 'var(--shadow-lg)',
-                zIndex: 200,
-                animation: 'scaleIn 0.15s ease-out'
-              }}>
-                {categories.map(c => (
-                  <div
-                    key={c.id}
-                    onClick={() => {
-                      setIsCatMenuOpen(false);
-                      onNavigate('products', { category: c.slug });
-                    }}
-                    style={{
-                      padding: '8px 12px',
-                      borderRadius: 'var(--radius-md)',
-                      cursor: 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      fontSize: '0.875rem',
-                      color: 'var(--text-primary)',
-                      transition: 'background var(--transition-fast)'
-                    }}
-                    onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-surface-elevated)'}
-                    onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
-                  >
-                    <span>{c.name}</span>
-                    <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{c.product_count}</span>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-
-          <button
-            onClick={() => onNavigate('products', { badge: 'TRENDING' })}
-            style={{
-              background: 'transparent',
-              border: 'none',
-              fontWeight: 600,
-              fontSize: '0.925rem',
-              color: 'var(--text-secondary)',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '5px'
-            }}
-          >
-            <Flame size={16} color="#f43f5e" /> Deals
-          </button>
-
-          <button
-            onClick={() => onNavigate('products', { badge: 'FREE' })}
-            style={{
-              background: 'transparent',
-              border: 'none',
-              fontWeight: 600,
-              fontSize: '0.925rem',
-              color: 'var(--text-secondary)',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '5px'
-            }}
-          >
-            <Gift size={16} color="#10b981" /> Freebies
-          </button>
-        </nav>
+        {/* Desktop Glowing Sliding Light Capsule Navigation Dock */}
+        <GlowingNavDock
+          onNavigate={onNavigate}
+          currentRoute={currentRoute}
+          categories={categories}
+        />
 
         {/* Action Controls (Search, Currency, Wishlist, Cart, Profile) */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem' }}>

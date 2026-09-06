@@ -353,6 +353,55 @@ export function simulateGetOrder(orderNumber) {
   };
 }
 
+export function simulateGetMyOrders() {
+  try {
+    const existing = JSON.parse(localStorage.getItem('rollixia_orders') || '[]');
+    if (Array.isArray(existing) && existing.length > 0) {
+      return existing.map(item => ({
+        id: item.order?.id || Date.now(),
+        order_number: item.order?.order_number || 'ORD-ROX-001',
+        total_amount: item.order?.total_amount || 0,
+        currency: item.order?.currency || 'INR',
+        payment_status: item.order?.payment_status || 'paid',
+        order_status: item.order?.order_status || 'completed',
+        created_at: item.order?.created_at || new Date().toISOString(),
+        items: Array.isArray(item.items) ? item.items : []
+      }));
+    }
+  } catch (e) {}
+  return [];
+}
+
+export function simulateGetMyDownloads() {
+  try {
+    const existing = JSON.parse(localStorage.getItem('rollixia_orders') || '[]');
+    if (Array.isArray(existing) && existing.length > 0) {
+      const allDownloads = [];
+      existing.forEach(entry => {
+        const orderDate = entry.order?.created_at || new Date().toISOString();
+        if (Array.isArray(entry.downloads)) {
+          entry.downloads.forEach(dl => {
+            allDownloads.push({
+              download_id: dl.id || Date.now(),
+              product_title: dl.product_title || 'Digital Product',
+              product_slug: dl.file_name?.split('-v')[0] || 'product',
+              license_name: 'Commercial License',
+              purchased_version: dl.version || '1.0.0',
+              latest_version: dl.version || '1.0.0',
+              purchase_date: orderDate,
+              downloads_remaining: 10,
+              token: dl.token || `DL_TOKEN_${Date.now()}`,
+              has_update: false
+            });
+          });
+        }
+      });
+      return allDownloads;
+    }
+  } catch (e) {}
+  return [];
+}
+
 export function handleFallbackRoute(endpoint, options = {}, requestBody = null) {
   const clean = endpoint.replace(/^\/?api\/?/, '').split('?')[0].replace(/\/+$/, '');
   const queryStr = endpoint.includes('?') ? endpoint.substring(endpoint.indexOf('?')) : '';
@@ -469,6 +518,18 @@ export function handleFallbackRoute(endpoint, options = {}, requestBody = null) 
     const product = getFallbackProductBySlug(raw);
     if (product) return product;
   }
+  if (clean === 'orders/my-orders') {
+    return simulateGetMyOrders();
+  }
+  if (clean === 'downloads/my-downloads') {
+    return simulateGetMyDownloads();
+  }
+  if (clean === 'support/tickets' || clean.startsWith('support/tickets')) {
+    return [];
+  }
+  if (clean === 'cart' || clean === 'wishlist') {
+    return [];
+  }
   if (clean.startsWith('orders/')) {
     const orderNum = clean.replace(/^orders\//, '');
     return simulateGetOrder(orderNum);
@@ -478,9 +539,6 @@ export function handleFallbackRoute(endpoint, options = {}, requestBody = null) 
   }
   if (clean === 'payments/paytm/config') {
     return FALLBACK_PAYTM_CONFIG;
-  }
-  if (clean === 'cart' || clean === 'wishlist') {
-    return [];
   }
 
   return null;

@@ -58,10 +58,16 @@ export function CustomerDashboardPage({ initialTab = 'orders', onNavigate }) {
       apiRequest('/api/wishlist').catch(() => []),
       apiRequest('/api/support/tickets').catch(() => [])
     ]).then(([ordersData, downloadsData, wishlistData, ticketsData]) => {
-      setOrders(ordersData);
-      setDownloads(downloadsData);
-      setWishlist(wishlistData);
-      setTickets(ticketsData);
+      setOrders(Array.isArray(ordersData) ? ordersData : (ordersData?.orders || []));
+      setDownloads(Array.isArray(downloadsData) ? downloadsData : (downloadsData?.downloads || []));
+      setWishlist(Array.isArray(wishlistData) ? wishlistData : (wishlistData?.items || []));
+      setTickets(Array.isArray(ticketsData) ? ticketsData : (ticketsData?.tickets || []));
+    }).catch(err => {
+      console.warn('Dashboard data load fallback:', err);
+      setOrders([]);
+      setDownloads([]);
+      setWishlist([]);
+      setTickets([]);
     }).finally(() => setLoading(false));
   }, [user]);
 
@@ -131,6 +137,11 @@ export function CustomerDashboardPage({ initialTab = 'orders', onNavigate }) {
 
   if (!user) return null;
 
+  const safeOrders = Array.isArray(orders) ? orders : [];
+  const safeDownloads = Array.isArray(downloads) ? downloads : [];
+  const safeWishlist = Array.isArray(wishlist) ? wishlist : [];
+  const safeTickets = Array.isArray(tickets) ? tickets : [];
+
   return (
     <div style={{ padding: '3rem 0 6rem 0' }}>
       <div className="container">
@@ -162,15 +173,15 @@ export function CustomerDashboardPage({ initialTab = 'orders', onNavigate }) {
           {/* Quick stats pills */}
           <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
             <div style={{ padding: '10px 18px', background: 'var(--bg-surface-elevated)', borderRadius: 'var(--radius-md)', textAlign: 'center' }}>
-              <p style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--text-primary)' }}>{orders.length}</p>
+              <p style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--text-primary)' }}>{safeOrders.length}</p>
               <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Orders</p>
             </div>
             <div style={{ padding: '10px 18px', background: 'var(--bg-surface-elevated)', borderRadius: 'var(--radius-md)', textAlign: 'center' }}>
-              <p style={{ fontSize: '1.25rem', fontWeight: 800, color: '#10b981' }}>{downloads.length}</p>
+              <p style={{ fontSize: '1.25rem', fontWeight: 800, color: '#10b981' }}>{safeDownloads.length}</p>
               <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Downloads</p>
             </div>
             <div style={{ padding: '10px 18px', background: 'var(--bg-surface-elevated)', borderRadius: 'var(--radius-md)', textAlign: 'center' }}>
-              <p style={{ fontSize: '1.25rem', fontWeight: 800, color: '#ec4899' }}>{wishlist.length}</p>
+              <p style={{ fontSize: '1.25rem', fontWeight: 800, color: '#ec4899' }}>{safeWishlist.length}</p>
               <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Wishlist</p>
             </div>
           </div>
@@ -185,11 +196,11 @@ export function CustomerDashboardPage({ initialTab = 'orders', onNavigate }) {
           overflowX: 'auto'
         }}>
           {[
-            { id: 'downloads', label: `My Downloads (${downloads.length})`, icon: <DownloadCloud size={16} /> },
-            { id: 'orders', label: `My Orders (${orders.length})`, icon: <ShoppingBag size={16} /> },
-            { id: 'wishlist', label: `Wishlist (${wishlist.length})`, icon: <Heart size={16} /> },
+            { id: 'downloads', label: `My Downloads (${safeDownloads.length})`, icon: <DownloadCloud size={16} /> },
+            { id: 'orders', label: `My Orders (${safeOrders.length})`, icon: <ShoppingBag size={16} /> },
+            { id: 'wishlist', label: `Wishlist (${safeWishlist.length})`, icon: <Heart size={16} /> },
             { id: 'profile', label: 'Profile & Security', icon: <User size={16} /> },
-            { id: 'support', label: `Support Tickets (${tickets.length})`, icon: <LifeBuoy size={16} /> }
+            { id: 'support', label: `Support Tickets (${safeTickets.length})`, icon: <LifeBuoy size={16} /> }
           ].map(tab => (
             <button
               key={tab.id}
@@ -224,7 +235,7 @@ export function CustomerDashboardPage({ initialTab = 'orders', onNavigate }) {
             {/* 1. MY DOWNLOADS */}
             {activeTab === 'downloads' && (
               <div>
-                {downloads.length === 0 ? (
+                {safeDownloads.length === 0 ? (
                   <div className="glass-card" style={{ padding: '3.5rem', textAlign: 'center' }}>
                     <DownloadCloud size={40} color="var(--text-muted)" style={{ margin: '0 auto 1rem auto' }} />
                     <h3 style={{ fontSize: '1.2rem', fontWeight: 700, marginBottom: '0.5rem' }}>No Downloads Available Yet</h3>
@@ -235,7 +246,7 @@ export function CustomerDashboardPage({ initialTab = 'orders', onNavigate }) {
                   </div>
                 ) : (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-                    {downloads.map(dl => (
+                    {safeDownloads.map(dl => (
                       <div
                         key={dl.download_id}
                         className="glass-card"
@@ -343,7 +354,7 @@ export function CustomerDashboardPage({ initialTab = 'orders', onNavigate }) {
             {/* 2. MY ORDERS */}
             {activeTab === 'orders' && (
               <div>
-                {orders.length === 0 ? (
+                {safeOrders.length === 0 ? (
                   <div className="glass-card" style={{ padding: '3.5rem', textAlign: 'center' }}>
                     <ShoppingBag size={40} color="var(--text-muted)" style={{ margin: '0 auto 1rem auto' }} />
                     <h3 style={{ fontSize: '1.2rem', fontWeight: 700, marginBottom: '0.5rem' }}>No Orders Yet</h3>
@@ -354,7 +365,7 @@ export function CustomerDashboardPage({ initialTab = 'orders', onNavigate }) {
                   </div>
                 ) : (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-                    {orders.map(o => (
+                    {safeOrders.map(o => (
                       <div key={o.id} className="glass-card" style={{ padding: '1.75rem' }}>
                         <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem', gap: '1rem' }}>
                           <div>
@@ -383,7 +394,7 @@ export function CustomerDashboardPage({ initialTab = 'orders', onNavigate }) {
 
                         {/* Items */}
                         <div style={{ borderTop: '1px solid var(--border-subtle)', paddingTop: '1rem', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                          {o.items?.map(it => (
+                          {(Array.isArray(o?.items) ? o.items : []).map(it => (
                             <div key={it.id} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9rem' }}>
                               <span>{it.product_title} <em style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>({it.license_name})</em></span>
                               <span style={{ fontWeight: 600 }}>{formatCurrency(it.price, currency)}</span>
@@ -400,7 +411,7 @@ export function CustomerDashboardPage({ initialTab = 'orders', onNavigate }) {
             {/* 3. WISHLIST */}
             {activeTab === 'wishlist' && (
               <div>
-                {wishlist.length === 0 ? (
+                {safeWishlist.length === 0 ? (
                   <div className="glass-card" style={{ padding: '3.5rem', textAlign: 'center' }}>
                     <Heart size={40} color="var(--text-muted)" style={{ margin: '0 auto 1rem auto' }} />
                     <h3 style={{ fontSize: '1.2rem', fontWeight: 700, marginBottom: '0.5rem' }}>Your Wishlist is Empty</h3>
@@ -411,7 +422,7 @@ export function CustomerDashboardPage({ initialTab = 'orders', onNavigate }) {
                   </div>
                 ) : (
                   <div className="grid-products">
-                    {wishlist.map(p => (
+                    {safeWishlist.map(p => (
                       <div key={p.id} className="glass-card" style={{ padding: '1.25rem', display: 'flex', flexDirection: 'column' }}>
                         <img
                           src={p.thumbnail}
@@ -547,11 +558,11 @@ export function CustomerDashboardPage({ initialTab = 'orders', onNavigate }) {
                   <h3 style={{ fontSize: '1.2rem', fontWeight: 800, marginBottom: '1.25rem', color: 'var(--text-primary)' }}>
                     Ticket History
                   </h3>
-                  {tickets.length === 0 ? (
+                  {safeTickets.length === 0 ? (
                     <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>No support tickets filed yet.</p>
                   ) : (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                      {tickets.map(t => (
+                      {safeTickets.map(t => (
                         <div
                           key={t.id}
                           onClick={() => setSelectedTicket(t)}

@@ -48,10 +48,14 @@ export default function GlowingNavDock({ onNavigate, currentRoute = {}, categori
   }, [currentRoute]);
 
   // Target tab to highlight with the glowing light (hover overrides active)
-  const targetTabId = hoveredTabId || activeTabId || 'home';
+  const targetTabId = hoveredTabId || activeTabId;
 
   // Smoothly position the light ring to the target tab
   const updateLightPosition = (tabId) => {
+    if (!tabId) {
+      setRingStyle(prev => ({ ...prev, opacity: 0 }));
+      return;
+    }
     const el = tabsRef.current[tabId];
     if (el) {
       setRingStyle({
@@ -94,6 +98,34 @@ export default function GlowingNavDock({ onNavigate, currentRoute = {}, categori
     setHoveredTabId(tabId);
   };
 
+  // Drag the light along the bar support
+  const isDraggingRef = useRef(false);
+
+  const handlePointerDown = (e) => {
+    isDraggingRef.current = true;
+  };
+
+  const handlePointerMove = (e) => {
+    if (!isDraggingRef.current) return;
+    const clientX = e.clientX;
+    for (const tab of navTabs) {
+      const el = tabsRef.current[tab.id];
+      if (el) {
+        const rect = el.getBoundingClientRect();
+        if (clientX >= rect.left && clientX <= rect.right) {
+          setHoveredTabId(tab.id);
+          break;
+        }
+      }
+    }
+  };
+
+  const handlePointerUp = () => {
+    if (isDraggingRef.current) {
+      isDraggingRef.current = false;
+    }
+  };
+
   const handleTabClick = (tab) => {
     if (tab.isDropdown) {
       setIsCatOpen(!isCatOpen);
@@ -118,6 +150,9 @@ export default function GlowingNavDock({ onNavigate, currentRoute = {}, categori
       <nav
         ref={dockRef}
         className="glowing-nav-dock desktop-nav"
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        onPointerUp={handlePointerUp}
         onMouseLeave={() => {
           setHoveredTabId(null);
         }}

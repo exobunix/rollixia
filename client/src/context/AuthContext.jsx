@@ -4,8 +4,15 @@ import { apiRequest } from '../utils/api';
 const AuthContext = createContext();
 
 export function AuthProvider({ children }) {
-  const [user, setUser] = useState(null);
   const [token, setToken] = useState(() => localStorage.getItem('digitalstore_token'));
+  const [user, setUser] = useState(() => {
+    try {
+      const saved = localStorage.getItem('digitalstore_user');
+      return saved ? JSON.parse(saved) : null;
+    } catch (e) {
+      return null;
+    }
+  });
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -17,12 +24,19 @@ export function AuthProvider({ children }) {
       }
       try {
         const data = await apiRequest('/api/auth/me');
-        setUser(data.user);
+        if (data && data.user) {
+          setUser(data.user);
+          localStorage.setItem('digitalstore_user', JSON.stringify(data.user));
+        }
       } catch (err) {
-        console.error('Session expired or invalid token:', err);
-        localStorage.removeItem('digitalstore_token');
-        setToken(null);
-        setUser(null);
+        console.warn('Session check failed or offline fallback:', err);
+        // Only clear if explicitly unauthorized 401 from a live server
+        if (err.status === 401 && !localStorage.getItem('digitalstore_user')) {
+          localStorage.removeItem('digitalstore_token');
+          localStorage.removeItem('digitalstore_user');
+          setToken(null);
+          setUser(null);
+        }
       } finally {
         setLoading(false);
       }
@@ -36,6 +50,7 @@ export function AuthProvider({ children }) {
       body: JSON.stringify({ email, password })
     });
     localStorage.setItem('digitalstore_token', data.token);
+    localStorage.setItem('digitalstore_user', JSON.stringify(data.user));
     setToken(data.token);
     setUser(data.user);
     return data.user;
@@ -47,6 +62,7 @@ export function AuthProvider({ children }) {
       body: JSON.stringify({ email, password, full_name })
     });
     localStorage.setItem('digitalstore_token', data.token);
+    localStorage.setItem('digitalstore_user', JSON.stringify(data.user));
     setToken(data.token);
     setUser(data.user);
     return data.user;
@@ -54,6 +70,7 @@ export function AuthProvider({ children }) {
 
   const logout = () => {
     localStorage.removeItem('digitalstore_token');
+    localStorage.removeItem('digitalstore_user');
     setToken(null);
     setUser(null);
   };

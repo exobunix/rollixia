@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ShieldCheck, Lock, CheckCircle2, ArrowRight, CreditCard, User, Mail, LogIn, UserPlus, AlertCircle } from 'lucide-react';
+import { ShieldCheck, Lock, CheckCircle2, CreditCard, LogIn, UserPlus, AlertCircle } from 'lucide-react';
 import { useCart } from '../../context/CartContext';
 import { useAuth } from '../../context/AuthContext';
 import { useCurrency } from '../../context/CurrencyContext';
@@ -33,7 +33,7 @@ export function CheckoutPage({ onNavigate }) {
   const { currency } = useCurrency();
   const { addToast } = useToast();
 
-  // Auth gate inline states (if user is not logged in)
+  // Auth gate inline states (when customer is not logged in)
   const [authMode, setAuthMode] = useState('login'); // 'login' | 'register'
   const [authEmail, setAuthEmail] = useState('');
   const [authPassword, setAuthPassword] = useState('');
@@ -57,30 +57,62 @@ export function CheckoutPage({ onNavigate }) {
     }
   }, [user]);
 
-  // Inline sign-in / registration handler
+  // Seamless, smart inline sign-in / registration handler
   const handleInlineAuth = async (e) => {
-    e.preventDefault();
+    if (e && e.preventDefault) e.preventDefault();
     setAuthError('');
     setAuthLoading(true);
 
+    const email = authEmail.trim();
+    const password = authPassword;
+
+    if (!email || !password) {
+      const msg = 'Please enter both your email address and password.';
+      setAuthError(msg);
+      addToast(msg, 'error');
+      setAuthLoading(false);
+      return;
+    }
+
     try {
       if (authMode === 'login') {
-        if (!authEmail.trim() || !authPassword) {
-          throw new Error('Please enter both your email address and password.');
+        try {
+          const loggedUser = await login(email, password);
+          addToast(`Welcome back, ${loggedUser.full_name || 'Customer'}!`, 'success');
+          setCustomerName(loggedUser.full_name || '');
+          setCustomerEmail(loggedUser.email || '');
+          return;
+        } catch (loginErr) {
+          console.warn('Sign-in attempt, checking if auto-registration needed:', loginErr);
+          const errMsg = (loginErr.message || '').toLowerCase();
+          // If login failed because user does not exist in DB yet, seamlessly register them!
+          if (
+            errMsg.includes('not') ||
+            errMsg.includes('invalid') ||
+            errMsg.includes('exist') ||
+            errMsg.includes('found') ||
+            errMsg.includes('401')
+          ) {
+            try {
+              const fallbackName = authFullName.trim() || email.split('@')[0].replace(/[._-]/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+              const registeredUser = await register(email, password, fallbackName);
+              addToast(`Welcome to Rollixia, ${registeredUser.full_name}! Account created.`, 'success');
+              setCustomerName(registeredUser.full_name || '');
+              setCustomerEmail(registeredUser.email || '');
+              return;
+            } catch (regErr) {
+              if ((regErr.message || '').toLowerCase().includes('already')) {
+                throw new Error('Incorrect password for this email. Please check your password or try again.');
+              }
+              throw regErr;
+            }
+          }
+          throw loginErr;
         }
-        const loggedUser = await login(authEmail.trim(), authPassword);
-        addToast(`Welcome back, ${loggedUser.full_name || 'Customer'}!`, 'success');
-        setCustomerName(loggedUser.full_name || '');
-        setCustomerEmail(loggedUser.email || '');
       } else {
-        if (!authFullName.trim() || !authEmail.trim() || !authPassword) {
-          throw new Error('Please enter your full name, email, and password.');
-        }
-        if (authPassword.length < 6) {
-          throw new Error('Password must be at least 6 characters.');
-        }
-        const registeredUser = await register(authEmail.trim(), authPassword, authFullName.trim());
-        addToast(`Account created! Welcome, ${registeredUser.full_name}!`, 'success');
+        const fallbackName = authFullName.trim() || email.split('@')[0].replace(/[._-]/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+        const registeredUser = await register(email, password, fallbackName);
+        addToast(`Account created! Welcome to Rollixia, ${registeredUser.full_name}!`, 'success');
         setCustomerName(registeredUser.full_name || '');
         setCustomerEmail(registeredUser.email || '');
       }
@@ -289,241 +321,244 @@ export function CheckoutPage({ onNavigate }) {
           Instant tokenized digital delivery right after payment confirmation.
         </p>
 
-        <form onSubmit={handleCheckoutSubmit}>
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
-            gap: '3rem',
-            alignItems: 'start'
-          }}>
-            {/* Left: Customer Information & Payment Methods */}
-            <div>
-              {/* 1. Account Authentication Gate */}
-              <div id="checkout-auth-gate" style={{ marginBottom: '1.5rem' }}>
-                {user ? (
-                  <div className="glass-card" style={{
-                    padding: '1.5rem',
-                    borderRadius: 'var(--radius-lg)',
-                    border: '1px solid rgba(16, 185, 129, 0.35)',
-                    background: 'rgba(16, 185, 129, 0.05)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    gap: '12px'
-                  }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                      <div style={{
-                        width: '42px',
-                        height: '42px',
-                        borderRadius: '50%',
-                        background: 'rgba(16, 185, 129, 0.15)',
-                        border: '1px solid rgba(16, 185, 129, 0.4)',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        color: '#10b981',
-                        flexShrink: 0
-                      }}>
-                        <CheckCircle2 size={22} />
-                      </div>
-                      <div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                          <span style={{ fontWeight: 800, color: 'var(--text-primary)', fontSize: '0.95rem' }}>
-                            Signed In as {user.full_name || 'Customer'}
-                          </span>
-                          <span style={{
-                            fontSize: '0.675rem',
-                            fontWeight: 800,
-                            padding: '2px 8px',
-                            borderRadius: '4px',
-                            background: 'rgba(16, 185, 129, 0.2)',
-                            color: '#10b981',
-                            border: '1px solid rgba(16, 185, 129, 0.4)'
-                          }}>
-                            VERIFIED ACCOUNT
-                          </span>
-                        </div>
-                        <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', margin: '2px 0 0 0' }}>
-                          {user.email} • Your purchases will be securely stored in your personal vault.
-                        </p>
-                      </div>
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
+          gap: '3rem',
+          alignItems: 'start'
+        }}>
+          {/* Left: Authentication & Checkout Form */}
+          <div>
+            {/* 1. Account Authentication Gate */}
+            <div id="checkout-auth-gate" style={{ marginBottom: '1.5rem' }}>
+              {user ? (
+                <div className="glass-card" style={{
+                  padding: '1.5rem',
+                  borderRadius: 'var(--radius-lg)',
+                  border: '1px solid rgba(16, 185, 129, 0.35)',
+                  background: 'rgba(16, 185, 129, 0.05)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: '12px'
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                    <div style={{
+                      width: '42px',
+                      height: '42px',
+                      borderRadius: '50%',
+                      background: 'rgba(16, 185, 129, 0.15)',
+                      border: '1px solid rgba(16, 185, 129, 0.4)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      color: '#10b981',
+                      flexShrink: 0
+                    }}>
+                      <CheckCircle2 size={22} />
                     </div>
+                    <div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <span style={{ fontWeight: 800, color: 'var(--text-primary)', fontSize: '0.95rem' }}>
+                          Signed In as {user.full_name || 'Customer'}
+                        </span>
+                        <span style={{
+                          fontSize: '0.675rem',
+                          fontWeight: 800,
+                          padding: '2px 8px',
+                          borderRadius: '4px',
+                          background: 'rgba(16, 185, 129, 0.2)',
+                          color: '#10b981',
+                          border: '1px solid rgba(16, 185, 129, 0.4)'
+                        }}>
+                          VERIFIED ACCOUNT
+                        </span>
+                      </div>
+                      <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', margin: '2px 0 0 0' }}>
+                        {user.email} • Your purchases will be securely stored in your personal vault.
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => onNavigate('login')}
+                    className="btn btn-ghost btn-sm"
+                    style={{ fontSize: '0.8rem', whiteSpace: 'nowrap' }}
+                  >
+                    Switch Account
+                  </button>
+                </div>
+              ) : (
+                <div className="glass-card" style={{
+                  padding: '1.75rem',
+                  borderRadius: 'var(--radius-xl)',
+                  border: '1px solid rgba(99, 102, 241, 0.35)',
+                  background: 'rgba(99, 102, 241, 0.04)',
+                  boxShadow: '0 8px 30px rgba(99, 102, 241, 0.1)'
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '0.75rem' }}>
+                    <div style={{
+                      width: '36px',
+                      height: '36px',
+                      borderRadius: '8px',
+                      background: 'rgba(99, 102, 241, 0.2)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      color: '#6366f1'
+                    }}>
+                      <Lock size={18} />
+                    </div>
+                    <div>
+                      <h3 style={{ fontSize: '1.1rem', fontWeight: 800, color: 'var(--text-primary)', margin: 0 }}>
+                        1. Account Required to Checkout
+                      </h3>
+                      <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', margin: 0 }}>
+                        Please enter your email and password to log in or instantly create your account.
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Auth Mode Tabs */}
+                  <div style={{
+                    display: 'flex',
+                    background: 'var(--bg-surface-elevated)',
+                    borderRadius: 'var(--radius-md)',
+                    padding: '4px',
+                    marginBottom: '1.25rem',
+                    border: '1px solid var(--border-subtle)'
+                  }}>
                     <button
                       type="button"
-                      onClick={() => onNavigate('login')}
-                      className="btn btn-ghost btn-sm"
-                      style={{ fontSize: '0.8rem', whiteSpace: 'nowrap' }}
-                    >
-                      Switch Account
-                    </button>
-                  </div>
-                ) : (
-                  <div className="glass-card" style={{
-                    padding: '1.75rem',
-                    borderRadius: 'var(--radius-xl)',
-                    border: '1px solid rgba(99, 102, 241, 0.35)',
-                    background: 'rgba(99, 102, 241, 0.04)',
-                    boxShadow: '0 8px 30px rgba(99, 102, 241, 0.1)'
-                  }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '0.75rem' }}>
-                      <div style={{
-                        width: '36px',
-                        height: '36px',
-                        borderRadius: '8px',
-                        background: 'rgba(99, 102, 241, 0.2)',
+                      onClick={() => { setAuthMode('login'); setAuthError(''); }}
+                      style={{
+                        flex: 1,
+                        padding: '8px',
+                        border: 'none',
+                        borderRadius: 'var(--radius-sm)',
+                        background: authMode === 'login' ? 'var(--primary)' : 'transparent',
+                        color: authMode === 'login' ? '#ffffff' : 'var(--text-secondary)',
+                        fontWeight: 700,
+                        fontSize: '0.85rem',
+                        cursor: 'pointer',
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
-                        color: '#6366f1'
-                      }}>
-                        <Lock size={18} />
-                      </div>
-                      <div>
-                        <h3 style={{ fontSize: '1.1rem', fontWeight: 800, color: 'var(--text-primary)', margin: 0 }}>
-                          1. Account Required to Checkout
-                        </h3>
-                        <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', margin: 0 }}>
-                          Please log in or create an account to receive your digital licenses and downloads.
-                        </p>
-                      </div>
-                    </div>
-
-                    {/* Auth Mode Tabs */}
-                    <div style={{
-                      display: 'flex',
-                      background: 'var(--bg-surface-elevated)',
-                      borderRadius: 'var(--radius-md)',
-                      padding: '4px',
-                      marginBottom: '1.25rem',
-                      border: '1px solid var(--border-subtle)'
-                    }}>
-                      <button
-                        type="button"
-                        onClick={() => { setAuthMode('login'); setAuthError(''); }}
-                        style={{
-                          flex: 1,
-                          padding: '8px',
-                          border: 'none',
-                          borderRadius: 'var(--radius-sm)',
-                          background: authMode === 'login' ? 'var(--primary)' : 'transparent',
-                          color: authMode === 'login' ? '#ffffff' : 'var(--text-secondary)',
-                          fontWeight: 700,
-                          fontSize: '0.85rem',
-                          cursor: 'pointer',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          gap: '6px',
-                          transition: 'all var(--transition-fast)'
-                        }}
-                      >
-                        <LogIn size={15} /> Sign In
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => { setAuthMode('register'); setAuthError(''); }}
-                        style={{
-                          flex: 1,
-                          padding: '8px',
-                          border: 'none',
-                          borderRadius: 'var(--radius-sm)',
-                          background: authMode === 'register' ? 'var(--primary)' : 'transparent',
-                          color: authMode === 'register' ? '#ffffff' : 'var(--text-secondary)',
-                          fontWeight: 700,
-                          fontSize: '0.85rem',
-                          cursor: 'pointer',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          gap: '6px',
-                          transition: 'all var(--transition-fast)'
-                        }}
-                      >
-                        <UserPlus size={15} /> Create Account
-                      </button>
-                    </div>
-
-                    {authError && (
-                      <div style={{
-                        padding: '10px 14px',
-                        background: 'rgba(239, 68, 68, 0.1)',
-                        border: '1px solid rgba(239, 68, 68, 0.3)',
-                        borderRadius: 'var(--radius-md)',
-                        marginBottom: '1rem',
-                        fontSize: '0.825rem',
-                        color: '#ef4444',
+                        gap: '6px',
+                        transition: 'all var(--transition-fast)'
+                      }}
+                    >
+                      <LogIn size={15} /> Sign In
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => { setAuthMode('register'); setAuthError(''); }}
+                      style={{
+                        flex: 1,
+                        padding: '8px',
+                        border: 'none',
+                        borderRadius: 'var(--radius-sm)',
+                        background: authMode === 'register' ? 'var(--primary)' : 'transparent',
+                        color: authMode === 'register' ? '#ffffff' : 'var(--text-secondary)',
+                        fontWeight: 700,
+                        fontSize: '0.85rem',
+                        cursor: 'pointer',
                         display: 'flex',
                         alignItems: 'center',
-                        gap: '8px'
-                      }}>
-                        <AlertCircle size={16} />
-                        <span>{authError}</span>
+                        justifyContent: 'center',
+                        gap: '6px',
+                        transition: 'all var(--transition-fast)'
+                      }}
+                    >
+                      <UserPlus size={15} /> Create Account
+                    </button>
+                  </div>
+
+                  {authError && (
+                    <div style={{
+                      padding: '10px 14px',
+                      background: 'rgba(239, 68, 68, 0.1)',
+                      border: '1px solid rgba(239, 68, 68, 0.3)',
+                      borderRadius: 'var(--radius-md)',
+                      marginBottom: '1rem',
+                      fontSize: '0.825rem',
+                      color: '#ef4444',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px'
+                    }}>
+                      <AlertCircle size={16} />
+                      <span>{authError}</span>
+                    </div>
+                  )}
+
+                  {/* Independent Auth Form */}
+                  <form onSubmit={handleInlineAuth} style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                    {authMode === 'register' && (
+                      <div>
+                        <label className="form-label" style={{ fontSize: '0.8rem' }}>Full Name</label>
+                        <input
+                          type="text"
+                          className="form-input"
+                          placeholder="Alex Morgan"
+                          value={authFullName}
+                          onChange={e => setAuthFullName(e.target.value)}
+                          style={{ fontSize: '0.85rem' }}
+                        />
                       </div>
                     )}
 
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                      {authMode === 'register' && (
-                        <div>
-                          <label className="form-label" style={{ fontSize: '0.8rem' }}>Full Name</label>
-                          <input
-                            type="text"
-                            className="form-input"
-                            placeholder="Alex Morgan"
-                            value={authFullName}
-                            onChange={e => setAuthFullName(e.target.value)}
-                            style={{ fontSize: '0.85rem' }}
-                          />
-                        </div>
-                      )}
+                    <div>
+                      <label className="form-label" style={{ fontSize: '0.8rem' }}>Email Address</label>
+                      <input
+                        type="email"
+                        required
+                        className="form-input"
+                        placeholder="alex@company.com"
+                        value={authEmail}
+                        onChange={e => setAuthEmail(e.target.value)}
+                        style={{ fontSize: '0.85rem' }}
+                      />
+                    </div>
 
-                      <div>
-                        <label className="form-label" style={{ fontSize: '0.8rem' }}>Email Address</label>
-                        <input
-                          type="email"
-                          className="form-input"
-                          placeholder="alex@company.com"
-                          value={authEmail}
-                          onChange={e => setAuthEmail(e.target.value)}
-                          style={{ fontSize: '0.85rem' }}
-                        />
-                      </div>
+                    <div>
+                      <label className="form-label" style={{ fontSize: '0.8rem' }}>Password</label>
+                      <input
+                        type="password"
+                        required
+                        className="form-input"
+                        placeholder="••••••••"
+                        value={authPassword}
+                        onChange={e => setAuthPassword(e.target.value)}
+                        style={{ fontSize: '0.85rem' }}
+                      />
+                    </div>
 
-                      <div>
-                        <label className="form-label" style={{ fontSize: '0.8rem' }}>Password</label>
-                        <input
-                          type="password"
-                          className="form-input"
-                          placeholder="••••••••"
-                          value={authPassword}
-                          onChange={e => setAuthPassword(e.target.value)}
-                          style={{ fontSize: '0.85rem' }}
-                        />
-                      </div>
+                    <button
+                      type="submit"
+                      disabled={authLoading}
+                      className="btn btn-primary"
+                      style={{ width: '100%', marginTop: '0.5rem', fontWeight: 700 }}
+                    >
+                      {authLoading ? 'Verifying Account...' : authMode === 'login' ? 'Sign In & Unlock Checkout' : 'Create Account & Continue'}
+                    </button>
 
+                    <div style={{ display: 'flex', justifyContent: 'center', marginTop: '6px' }}>
                       <button
                         type="button"
-                        onClick={handleInlineAuth}
-                        disabled={authLoading}
-                        className="btn btn-primary"
-                        style={{ width: '100%', marginTop: '0.5rem', fontWeight: 700 }}
+                        onClick={() => onNavigate(authMode === 'login' ? 'login' : 'register')}
+                        style={{ background: 'none', border: 'none', color: 'var(--primary)', cursor: 'pointer', fontSize: '0.8rem', textDecoration: 'underline' }}
                       >
-                        {authLoading ? 'Verifying...' : authMode === 'login' ? 'Sign In & Unlock Checkout' : 'Create Account & Continue'}
+                        Or open full {authMode === 'login' ? 'sign-in' : 'registration'} page
                       </button>
-
-                      <div style={{ display: 'flex', justifyContent: 'center', marginTop: '6px' }}>
-                        <button
-                          type="button"
-                          onClick={() => onNavigate(authMode === 'login' ? 'login' : 'register')}
-                          style={{ background: 'none', border: 'none', color: 'var(--primary)', cursor: 'pointer', fontSize: '0.8rem', textDecoration: 'underline' }}
-                        >
-                          Or open full {authMode === 'login' ? 'sign-in' : 'registration'} page
-                        </button>
-                      </div>
                     </div>
-                  </div>
-                )}
-              </div>
+                  </form>
+                </div>
+              )}
+            </div>
 
+            {/* Main Checkout Form for Contact & Payment */}
+            <form id="checkout-form" onSubmit={handleCheckoutSubmit}>
               {/* 2. Customer Digital Delivery Contact */}
               <div className="glass-card" style={{ padding: '2rem', marginBottom: '1.5rem' }}>
                 <h3 style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--text-primary)', marginBottom: '1.25rem' }}>
@@ -690,104 +725,110 @@ export function CheckoutPage({ onNavigate }) {
                   </label>
                 </div>
               </div>
-            </div>
+            </form>
+          </div>
 
-            {/* Right: Order Summary */}
-            <div className="glass-card" style={{ padding: '2rem', position: 'sticky', top: '100px' }}>
-              <h3 style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--text-primary)', marginBottom: '1.25rem' }}>
-                Order Summary
-              </h3>
+          {/* Right: Order Summary */}
+          <div className="glass-card" style={{ padding: '2rem', position: 'sticky', top: '100px' }}>
+            <h3 style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--text-primary)', marginBottom: '1.25rem' }}>
+              Order Summary
+            </h3>
 
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '1.5rem', maxHeight: '240px', overflowY: 'auto' }}>
-                {items.map((item, idx) => (
-                  <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', gap: '10px', fontSize: '0.9rem' }}>
-                    <div>
-                      <p style={{ fontWeight: 700, color: 'var(--text-primary)' }}>{item.title}</p>
-                      <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{item.licenseName}</span>
-                    </div>
-                    <span style={{ fontWeight: 700, color: '#10b981' }}>
-                      {formatCurrency(item.price, currency)}
-                    </span>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '1.5rem', maxHeight: '240px', overflowY: 'auto' }}>
+              {items.map((item, idx) => (
+                <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', gap: '10px', fontSize: '0.9rem' }}>
+                  <div>
+                    <p style={{ fontWeight: 700, color: 'var(--text-primary)' }}>{item.title}</p>
+                    <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{item.licenseName}</span>
                   </div>
-                ))}
-              </div>
-
-              {/* Pricing breakdown */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', paddingTop: '1rem', borderTop: '1px solid var(--border-subtle)', fontSize: '0.9rem', marginBottom: '1.5rem' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--text-secondary)' }}>
-                  <span>Subtotal</span>
-                  <span>{formatCurrency(cartTotals.subtotal, currency)}</span>
-                </div>
-                {cartTotals.discount > 0 && (
-                  <div style={{ display: 'flex', justifyContent: 'space-between', color: '#10b981', fontWeight: 600 }}>
-                    <span>Discount ({cartTotals.coupon?.code})</span>
-                    <span>-{formatCurrency(cartTotals.discount, currency)}</span>
-                  </div>
-                )}
-                <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--text-secondary)' }}>
-                  <span>Tax (18% GST)</span>
-                  <span>{formatCurrency(cartTotals.tax, currency)}</span>
-                </div>
-                <div style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  paddingTop: '10px',
-                  borderTop: '1px solid var(--border-subtle)',
-                  fontSize: '1.35rem',
-                  fontWeight: 800,
-                  color: 'var(--text-primary)'
-                }}>
-                  <span>Final Total</span>
-                  <span style={{ color: '#10b981' }}>
-                    {formatCurrency(cartTotals.total, currency)}
+                  <span style={{ fontWeight: 700, color: '#10b981' }}>
+                    {formatCurrency(item.price, currency)}
                   </span>
                 </div>
+              ))}
+            </div>
+
+            {/* Pricing breakdown */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', paddingTop: '1rem', borderTop: '1px solid var(--border-subtle)', fontSize: '0.9rem', marginBottom: '1.5rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--text-secondary)' }}>
+                <span>Subtotal</span>
+                <span>{formatCurrency(cartTotals.subtotal, currency)}</span>
               </div>
-
-              {/* Primary Action Button */}
-              {user ? (
-                <button
-                  type="submit"
-                  className="btn btn-success btn-lg"
-                  disabled={isProcessing}
-                  style={{ width: '100%', fontWeight: 700 }}
-                >
-                  {isProcessing ? 'Connecting to Razorpay...' : (
-                    <>
-                      <CreditCard size={18} /> Pay {formatCurrency(cartTotals.total, currency)} with Razorpay
-                    </>
-                  )}
-                </button>
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => {
-                    addToast('Please sign in or create an account to proceed with payment', 'error');
-                    const authElem = document.getElementById('checkout-auth-gate');
-                    if (authElem) authElem.scrollIntoView({ behavior: 'smooth' });
-                  }}
-                  className="btn btn-primary btn-lg"
-                  style={{ width: '100%', fontWeight: 700 }}
-                >
-                  <Lock size={18} /> Sign In to Proceed with Checkout
-                </button>
+              {cartTotals.discount > 0 && (
+                <div style={{ display: 'flex', justifyContent: 'space-between', color: '#10b981', fontWeight: 600 }}>
+                  <span>Discount ({cartTotals.coupon?.code})</span>
+                  <span>-{formatCurrency(cartTotals.discount, currency)}</span>
+                </div>
               )}
-
+              <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--text-secondary)' }}>
+                <span>Tax (18% GST)</span>
+                <span>{formatCurrency(cartTotals.tax, currency)}</span>
+              </div>
               <div style={{
                 display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '8px',
-                fontSize: '0.8rem',
-                color: 'var(--text-muted)',
-                marginTop: '1.25rem'
+                justifyContent: 'space-between',
+                paddingTop: '10px',
+                borderTop: '1px solid var(--border-subtle)',
+                fontSize: '1.35rem',
+                fontWeight: 800,
+                color: 'var(--text-primary)'
               }}>
-                <ShieldCheck size={16} color="#10b981" />
-                <span>Verified Razorpay Gateway & Instant Download Vault</span>
+                <span>Final Total</span>
+                <span style={{ color: '#10b981' }}>
+                  {formatCurrency(cartTotals.total, currency)}
+                </span>
               </div>
             </div>
+
+            {/* Primary Action Button */}
+            {user ? (
+              <button
+                type="submit"
+                form="checkout-form"
+                className="btn btn-success btn-lg"
+                disabled={isProcessing}
+                style={{ width: '100%', fontWeight: 700 }}
+              >
+                {isProcessing ? 'Connecting to Razorpay...' : (
+                  <>
+                    <CreditCard size={18} /> Pay {formatCurrency(cartTotals.total, currency)} with Razorpay
+                  </>
+                )}
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={(e) => {
+                  if (authEmail.trim() && authPassword) {
+                    handleInlineAuth(e);
+                  } else {
+                    addToast('Please enter your email and password to sign in or create an account', 'info');
+                    const authElem = document.getElementById('checkout-auth-gate');
+                    if (authElem) authElem.scrollIntoView({ behavior: 'smooth' });
+                  }
+                }}
+                disabled={authLoading}
+                className="btn btn-primary btn-lg"
+                style={{ width: '100%', fontWeight: 700 }}
+              >
+                <Lock size={18} /> {authLoading ? 'Signing In...' : 'Sign In to Proceed with Checkout'}
+              </button>
+            )}
+
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '8px',
+              fontSize: '0.8rem',
+              color: 'var(--text-muted)',
+              marginTop: '1.25rem'
+            }}>
+              <ShieldCheck size={16} color="#10b981" />
+              <span>Verified Razorpay Gateway & Instant Download Vault</span>
+            </div>
           </div>
-        </form>
+        </div>
       </div>
     </div>
   );

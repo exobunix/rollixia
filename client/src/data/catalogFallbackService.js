@@ -412,20 +412,45 @@ export function handleFallbackRoute(endpoint, options = {}, requestBody = null) 
       return { in_wishlist: true, action: 'added' };
     }
     if (clean === 'auth/login' || clean === 'auth/register') {
+      const email = (requestBody?.email || 'user@rollixia.com').trim().toLowerCase();
+      let name = requestBody?.full_name;
+      if (!name) {
+        const username = email.split('@')[0];
+        name = username.replace(/[._-]/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+      }
+      const userObj = {
+        id: Date.now(),
+        full_name: name,
+        email,
+        role: email.includes('admin') ? 'admin' : 'customer'
+      };
+      try {
+        localStorage.setItem('digitalstore_user', JSON.stringify(userObj));
+      } catch (e) {}
       return {
         token: `TOKEN_SIM_${Date.now()}`,
-        user: {
-          id: 1,
-          full_name: requestBody?.full_name || 'Rollixia Member',
-          email: requestBody?.email || 'user@rollixia.com',
-          role: 'customer'
-        }
+        user: userObj
       };
     }
   }
 
-
   // GET Handlers
+  if (clean === 'auth/me') {
+    let activeUser = null;
+    try {
+      const saved = localStorage.getItem('digitalstore_user');
+      if (saved) activeUser = JSON.parse(saved);
+    } catch (e) {}
+    if (!activeUser) {
+      activeUser = {
+        id: 1,
+        full_name: 'Rollixia Customer',
+        email: 'customer@rollixia.com',
+        role: 'customer'
+      };
+    }
+    return { user: activeUser };
+  }
   if (clean === 'categories') {
     return FALLBACK_CATEGORIES;
   }

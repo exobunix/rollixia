@@ -184,106 +184,121 @@
 /* Categories Popover Menu */
 .glowing-cat-popover {
   position: absolute;
-  top: calc(100% + 14px);
+  top: calc(100% + 10px);
   left: 50%;
-  transform: translateX(-50%) translateY(8px);
-  width: 270px;
-  background: rgba(15, 23, 42, 0.92);
+  transform: translateX(-50%);
+  width: min(290px, 92vw);
+  background: rgba(15, 23, 42, 0.94);
   backdrop-filter: blur(28px);
   -webkit-backdrop-filter: blur(28px);
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  border-radius: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 18px;
   padding: 8px;
   box-shadow:
-    0 20px 40px -10px rgba(0, 0, 0, 0.5),
-    0 0 30px rgba(251, 191, 36, 0.15),
-    inset 0 1px 1px rgba(255, 255, 255, 0.15);
-  z-index: 200;
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity 0.2s ease, transform 0.2s cubic-bezier(0.2, 0, 0.2, 1);
+    0 24px 50px -10px rgba(0, 0, 0, 0.7),
+    0 0 30px rgba(251, 191, 36, 0.2),
+    inset 0 1px 1px rgba(255, 255, 255, 0.2);
+  z-index: 999999 !important;
+  pointer-events: auto !important;
+  opacity: 1;
+  animation: catPopoverDrop 0.22s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes catPopoverDrop {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
 }
 
 [data-theme="light"] .glowing-cat-popover {
-  background: rgba(255, 255, 255, 0.95);
-  border-color: rgba(203, 213, 225, 0.8);
+  background: rgba(255, 255, 255, 0.96);
+  border-color: rgba(203, 213, 225, 0.9);
   box-shadow:
-    0 20px 40px -10px rgba(15, 23, 42, 0.15),
-    0 0 25px rgba(251, 191, 36, 0.15);
-}
-
-.glowing-cat-popover.is-open {
-  opacity: 1;
-  pointer-events: auto;
-  transform: translateX(-50%) translateY(0);
+    0 20px 45px -8px rgba(15, 23, 42, 0.16),
+    0 0 25px rgba(251, 191, 36, 0.18);
 }
 
 .glowing-cat-item {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 9px 14px;
-  border-radius: 12px;
-  font-size: 0.86rem;
+  padding: 8px 12px;
+  border-radius: 10px;
+  font-size: 0.84rem;
   color: #cbd5e1;
   cursor: pointer;
-  transition: all 0.18s ease;
+  transition: all 0.16s ease;
+  user-select: none;
 }
 
 [data-theme="light"] .glowing-cat-item {
   color: #334155;
 }
 
-.glowing-cat-item:hover {
-  background: rgba(251, 191, 36, 0.14);
+.glowing-cat-item:hover,
+.glowing-cat-item:active {
+  background: rgba(251, 191, 36, 0.16);
   color: #fbbf24;
   transform: translateX(4px);
 }
 
-[data-theme="light"] .glowing-cat-item:hover {
+[data-theme="light"] .glowing-cat-item:hover,
+[data-theme="light"] .glowing-cat-item:active {
   background: rgba(245, 158, 11, 0.12);
   color: #d97706;
 }
 
 .glowing-cat-count {
-  font-size: 0.74rem;
+  font-size: 0.72rem;
   font-weight: 700;
   padding: 2px 7px;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.1);
   color: #94a3b8;
 }
 
 /* ----------------------------------------------------
-   RESPONSIVE DESKTOP & TABLET ADAPTATIONS
+   RESPONSIVE DESKTOP, TABLET & MOBILE SIZING
+   "in tablet and mobile make size of menu bit less which looks perfect"
    ---------------------------------------------------- */
 .glowing-nav-tab-label-short {
   display: none;
 }
 
-@media (max-width: 1280px) {
+/* Desktop Medium / Laptop */
+@media (max-width: 1280px) and (min-width: 1150px) {
   .glowing-nav-dock {
-    padding: 4px 5px;
+    padding: 4px 6px;
     gap: 2px;
   }
 
   .glowing-nav-tab {
-    padding: 7px 12px;
-    font-size: 0.83rem;
-    gap: 5px;
+    padding: 7px 13px;
+    font-size: 0.84rem;
+    gap: 6px;
   }
 }
 
-@media (max-width: 1150px) {
+/* Tablet screens (< 1150px): Sleek compact capsule */
+@media (max-width: 1149px) {
   .glowing-nav-dock {
-    padding: 3px 4px;
-    gap: 1px;
+    padding: 3px 5px;
+    gap: 2px;
+    box-shadow:
+      0 8px 24px -3px rgba(0, 0, 0, 0.35),
+      inset 0 1px 1px rgba(255, 255, 255, 0.18);
   }
 
   .glowing-nav-tab {
-    padding: 6px 9px;
-    font-size: 0.79rem;
-    gap: 4px;
+    padding: 5px 10px;
+    font-size: 0.78rem;
+    gap: 5px;
+    font-weight: 600;
   }
 
   .glowing-nav-tab-label-full {
@@ -293,94 +308,52 @@
   .glowing-nav-tab-label-short {
     display: inline !important;
   }
+
+  .glowing-floor-beam {
+    height: 8px;
+    bottom: -10px;
+  }
 }
 
-@media (max-width: 1040px) {
+/* Mobile screens (< 680px): Super compact, perfect proportion without crowding */
+@media (max-width: 680px) {
   .glowing-nav-dock {
-    padding: 3px;
-    gap: 1px;
+    padding: 2.5px 3.5px;
+    gap: 1.5px;
   }
 
   .glowing-nav-tab {
-    padding: 5px 8px;
-    font-size: 0.76rem;
-    gap: 3px;
+    padding: 4.5px 7.5px;
+    font-size: 0.73rem;
+    gap: 3.5px;
+  }
+
+  .glowing-light-ring {
+    top: 2.5px;
+    bottom: 2.5px;
   }
 }
 
-/* ----------------------------------------------------
-   MOBILE FLOATING BOTTOM CAPSULE DOCK
-   Inspired by Instagram / iOS Floating Tab Bar
-   ---------------------------------------------------- */
-.glowing-mobile-bottom-dock {
-  position: fixed;
-  bottom: 16px;
-  left: 50%;
-  transform: translateX(-50%);
-  z-index: 1000;
-  width: calc(100% - 24px);
-  max-width: 420px;
-  pointer-events: auto;
-  animation: mobileDockFloatIn 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-}
+/* Ultra small phones (< 420px): Streamlined icon + short text */
+@media (max-width: 420px) {
+  .glowing-nav-dock {
+    padding: 2px 3px;
+    gap: 1px;
+    width: 100%;
+    max-width: 360px;
+    justify-content: space-around;
+  }
 
-@media (min-width: 961px) {
-  .glowing-mobile-bottom-dock {
-    display: none !important;
+  .glowing-nav-tab {
+    padding: 4px 6px;
+    font-size: 0.69rem;
+    gap: 2.5px;
+  }
+
+  .glowing-nav-tab-icon svg {
+    width: 14px;
+    height: 14px;
   }
 }
 
-.glowing-mobile-bottom-dock .glowing-nav-dock {
-  width: 100%;
-  justify-content: space-around;
-  padding: 4px 6px;
-  background: rgba(15, 23, 42, 0.88);
-  border-color: rgba(255, 255, 255, 0.18);
-  box-shadow:
-    0 16px 40px -6px rgba(0, 0, 0, 0.55),
-    0 0 30px 4px rgba(251, 191, 36, 0.25),
-    inset 0 1px 1px rgba(255, 255, 255, 0.25);
-}
-
-[data-theme="light"] .glowing-mobile-bottom-dock .glowing-nav-dock {
-  background: rgba(255, 255, 255, 0.94);
-  border-color: rgba(203, 213, 225, 0.9);
-  box-shadow:
-    0 16px 40px -6px rgba(15, 23, 42, 0.18),
-    0 0 25px 2px rgba(251, 191, 36, 0.2);
-}
-
-.glowing-mobile-bottom-dock .glowing-nav-tab {
-  flex: 1;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 2px;
-  padding: 6px 2px;
-  font-size: 0.67rem;
-  font-weight: 600;
-}
-
-.glowing-mobile-bottom-dock .glowing-nav-tab-icon {
-  transform: scale(1.05);
-}
-
-.glowing-mobile-bottom-dock .glowing-floor-beam {
-  display: none;
-}
-
-.glowing-mobile-bottom-dock .glowing-cat-popover {
-  bottom: calc(100% + 14px);
-  top: auto;
-  transform: translateX(-50%) translateY(-8px);
-}
-
-.glowing-mobile-bottom-dock .glowing-cat-popover.is-open {
-  transform: translateX(-50%) translateY(0);
-}
-
-@keyframes mobileDockFloatIn {
-  0% { transform: translate(-50%, 40px); opacity: 0; }
-  100% { transform: translate(-50%, 0); opacity: 1; }
-}
 

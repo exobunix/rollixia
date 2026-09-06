@@ -92,15 +92,19 @@ export default function GlowingNavDock({
     return () => window.removeEventListener('resize', handleResize);
   }, [targetTabId]);
 
-  // Close categories menu on outside click
+  // Close categories menu on outside click or touch
   useEffect(() => {
-    const handleDocClick = (e) => {
+    const handleOutsideClick = (e) => {
       if (catMenuRef.current && !catMenuRef.current.contains(e.target)) {
         setIsCatOpen(false);
       }
     };
-    document.addEventListener('mousedown', handleDocClick);
-    return () => document.removeEventListener('mousedown', handleDocClick);
+    document.addEventListener('mousedown', handleOutsideClick);
+    document.addEventListener('touchstart', handleOutsideClick, { passive: true });
+    return () => {
+      document.removeEventListener('mousedown', handleOutsideClick);
+      document.removeEventListener('touchstart', handleOutsideClick);
+    };
   }, []);
 
   // Mouse move spotlight inside button
@@ -141,9 +145,12 @@ export default function GlowingNavDock({
     }
   };
 
-  const handleTabClick = (tab) => {
+  const handleTabClick = (tab, e) => {
+    if (e && e.stopPropagation) {
+      e.stopPropagation();
+    }
     if (tab.isDropdown) {
-      setIsCatOpen(!isCatOpen);
+      setIsCatOpen((prev) => !prev);
       return;
     }
     setIsCatOpen(false);
@@ -168,7 +175,7 @@ export default function GlowingNavDock({
       {/* Capsule Navigation Dock */}
       <nav
         ref={dockRef}
-        className={`glowing-nav-dock ${!isMobile ? 'desktop-nav' : 'mobile-dock'}`}
+        className={`glowing-nav-dock ${isMobile ? 'mobile-dock' : ''}`}
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
@@ -215,7 +222,7 @@ export default function GlowingNavDock({
               className={`glowing-nav-tab ${isActive ? 'is-active' : ''} ${isHovered ? 'is-hovered' : ''}`}
               onMouseEnter={() => setHoveredTabId(tab.id)}
               onMouseMove={(e) => handleTabMouseMove(e, tab.id)}
-              onClick={() => handleTabClick(tab)}
+              onClick={(e) => handleTabClick(tab, e)}
               title={tab.label}
               aria-expanded={tab.isDropdown ? isCatOpen : undefined}
             >
@@ -229,7 +236,7 @@ export default function GlowingNavDock({
                   color: isActive || isHovered ? tab.color : 'currentColor'
                 }}
               >
-                <Icon size={16} strokeWidth={2.2} />
+                <Icon size={15} strokeWidth={2.2} />
               </span>
 
               {/* Tab Labels: full label on wide screens, compact short label on tablets */}
@@ -239,11 +246,11 @@ export default function GlowingNavDock({
               {/* Dropdown Chevron for Categories */}
               {tab.isDropdown && (
                 <ChevronDown
-                  size={14}
+                  size={13}
                   style={{
                     transform: isCatOpen ? 'rotate(180deg)' : 'rotate(0deg)',
                     transition: 'transform 0.2s ease',
-                    opacity: 0.7
+                    opacity: 0.75
                   }}
                 />
               )}
@@ -254,13 +261,17 @@ export default function GlowingNavDock({
 
       {/* Categories Glass Popover */}
       {isCatOpen && (
-        <div className={`glowing-cat-popover ${isCatOpen ? 'is-open' : ''}`}>
-          <div style={{ maxHeight: '320px', overflowY: 'auto' }}>
+        <div
+          className={`glowing-cat-popover ${isCatOpen ? 'is-open' : ''}`}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div style={{ maxHeight: '300px', overflowY: 'auto' }}>
             {categories.map((c) => (
               <div
                 key={c.id}
                 className="glowing-cat-item"
-                onClick={() => {
+                onClick={(e) => {
+                  e.stopPropagation();
                   setIsCatOpen(false);
                   onNavigate('products', { category: c.slug });
                 }}

@@ -71,22 +71,29 @@ export function Header({ onNavigate, onOpenSearch, currentRoute }) {
         <span>⚡ Flash Sale: Use code <strong>SAVE20</strong> for 20% off all commercial products today!</span>
       </div>
 
-      {/* Main Navbar */}
-      <div className="container" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', height: '72px' }}>
-        {/* Logo */}
-        <RollixiaLogo
-          size={38}
-          textSize="1.4rem"
-          onClick={() => onNavigate('home')}
-        />
+      {/* Main Navbar Container */}
+      <div className="container header-container" style={{ position: 'relative', overflow: 'visible' }}>
+        <div className="header-main-wrap">
+          {/* Logo with space */}
+          <div className="header-logo-wrapper">
+            <RollixiaLogo
+              size={38}
+              textSize="1.4rem"
+              onClick={() => onNavigate('home')}
+            />
+          </div>
 
-        {/* Desktop Glowing Sliding Light Capsule Navigation Dock */}
-        <GlowingNavDock
-          onNavigate={onNavigate}
-          currentRoute={currentRoute}
-          categories={categories}
-        />        {/* Action Controls (Search, Currency, Wishlist, Cart, Profile) */}
-        <div className="header-action-controls" style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', flexShrink: 0 }}>
+          {/* Glowing Sliding Light Capsule Navigation Dock */}
+          <div className="header-nav-slot">
+            <GlowingNavDock
+              onNavigate={onNavigate}
+              currentRoute={currentRoute}
+              categories={categories}
+            />
+          </div>
+
+          {/* Action Controls (Search, Currency, Wishlist, Cart, Profile) */}
+          <div className="header-action-controls" style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', flexShrink: 0 }}>
           {/* Search Trigger */}
           <button
             onClick={onOpenSearch}
@@ -338,32 +345,124 @@ export function Header({ onNavigate, onOpenSearch, currentRoute }) {
           >
             {isMobileNavOpen ? <X size={20} /> : <Menu size={20} />}
           </button>
-        </div>
-      </div>
+          </div> {/* closes header-action-controls */}
+        </div> {/* closes header-main-wrap */}
+      </div> {/* closes container header-container */}
 
       {/* Responsive Styles Injection */}
       <style>{`
-        @media (min-width: 960px) {
-          .desktop-nav { display: flex !important; }
-          .mobile-menu-btn { display: none !important; }
-          #header-get-started-btn { display: inline-flex !important; }
+        .header-container {
+          overflow: visible !important;
         }
 
-        @media (min-width: 1240px) {
-          .search-shortcut-text { display: inline !important; }
+        /* Desktop View (>= 1150px): Single Row, Generous Logo Margin */
+        @media (min-width: 1150px) {
+          .header-main-wrap {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            height: 72px;
+            overflow: visible;
+          }
+          .header-logo-wrapper {
+            order: 1;
+            margin-right: 2.5rem;
+            flex-shrink: 0;
+          }
+          .header-nav-slot {
+            order: 2;
+            flex: 1;
+            display: flex;
+            justify-content: center;
+            overflow: visible;
+          }
+          .header-action-controls {
+            order: 3;
+            display: flex;
+            align-items: center;
+            gap: 0.65rem;
+            flex-shrink: 0;
+          }
+          .mobile-menu-btn {
+            display: none !important;
+          }
+          .search-shortcut-text {
+            display: inline !important;
+          }
         }
 
-        @media (max-width: 1180px) {
-          .header-currency-btn { display: none !important; }
-          .header-theme-btn { display: none !important; }
-          .header-action-controls { gap: 0.45rem !important; }
+        /* Tablet and Mobile Views (< 1150px): 2-ROW HEADER LAYOUT */
+        @media (max-width: 1149px) {
+          .header-main-wrap {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            padding: 8px 0 10px 0;
+            overflow: visible;
+          }
+          /* Row 1: Logo on left with space */
+          .header-logo-wrapper {
+            order: 1;
+            flex: 0 0 auto;
+            margin-right: 1.25rem;
+          }
+          /* Row 1: Action Controls on right */
+          .header-action-controls {
+            order: 2;
+            margin-left: auto;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            flex-shrink: 0;
+          }
+          /* Row 2: Menu centered below Row 1 */
+          .header-nav-slot {
+            order: 3;
+            flex: 0 0 100%;
+            width: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin-top: 8px;
+            padding: 2px 0 2px 0;
+            overflow: visible;
+          }
+          .mobile-menu-btn {
+            display: flex !important;
+          }
+          .search-shortcut-text {
+            display: none !important;
+          }
         }
 
-        @media (max-width: 959px) {
-          .desktop-nav { display: none !important; }
-          .mobile-menu-btn { display: flex !important; }
-          .header-currency-btn { display: none !important; }
-          .header-theme-btn { display: none !important; }
+        /* Mobile Screens (< 640px) */
+        @media (max-width: 639px) {
+          .header-main-wrap {
+            padding: 6px 0 8px 0;
+          }
+          .header-logo-wrapper {
+            margin-right: 0.5rem;
+          }
+          .header-action-controls {
+            gap: 0.35rem;
+          }
+          .header-currency-btn {
+            padding: 0.35rem 0.5rem !important;
+            font-size: 0.75rem !important;
+          }
+          .header-theme-btn span {
+            display: none !important;
+          }
+          .header-theme-btn {
+            padding: 0.35rem 0.5rem !important;
+          }
+          .header-search-btn {
+            padding: 0.35rem 0.5rem !important;
+          }
+          #header-get-started-btn {
+            padding: 5px 10px !important;
+            font-size: 0.78rem !important;
+          }
         }
       `}</style>
 
@@ -375,7 +474,7 @@ export function Header({ onNavigate, onOpenSearch, currentRoute }) {
           padding: '1.25rem',
           display: 'flex',
           flexDirection: 'column',
-          gap: '1rem',
+          gap: '0.85rem',
           animation: 'fadeIn 0.2s ease-out'
         }}>
           <button
@@ -385,6 +484,58 @@ export function Header({ onNavigate, onOpenSearch, currentRoute }) {
           >
             All Products
           </button>
+
+          {/* Expandable Categories in Drawer */}
+          <div>
+            <button
+              onClick={() => setIsCatMenuOpen(!isCatMenuOpen)}
+              className="btn btn-secondary"
+              style={{ width: '100%', justifyContent: 'space-between' }}
+            >
+              <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Layers size={16} color="#c084fc" /> Categories
+              </span>
+              <ChevronDown
+                size={16}
+                style={{
+                  transform: isCatMenuOpen ? 'rotate(180deg)' : 'rotate(0deg)',
+                  transition: 'transform 0.2s ease'
+                }}
+              />
+            </button>
+            {isCatMenuOpen && (
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: '1fr 1fr',
+                gap: '6px',
+                marginTop: '8px',
+                paddingLeft: '4px'
+              }}>
+                {categories.map((c) => (
+                  <button
+                    key={c.id}
+                    onClick={() => {
+                      setIsCatMenuOpen(false);
+                      setIsMobileNavOpen(false);
+                      onNavigate('products', { category: c.slug });
+                    }}
+                    className="btn btn-sm"
+                    style={{
+                      background: 'var(--bg-surface-elevated)',
+                      border: '1px solid var(--border-subtle)',
+                      fontSize: '0.78rem',
+                      justifyContent: 'flex-start',
+                      padding: '6px 10px',
+                      color: 'var(--text-secondary)'
+                    }}
+                  >
+                    {c.name}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
           <button
             onClick={() => { setIsMobileNavOpen(false); onNavigate('products', { badge: 'TRENDING' }); }}
             className="btn btn-secondary"
@@ -399,6 +550,7 @@ export function Header({ onNavigate, onOpenSearch, currentRoute }) {
           >
             <Gift size={16} color="#10b981" /> Free Digital Assets
           </button>
+
           {/* Mobile Theme & Currency Row */}
           <div style={{ display: 'flex', gap: '0.75rem', paddingTop: '0.5rem', borderTop: '1px solid var(--border-subtle)' }}>
             <button
@@ -509,17 +661,6 @@ export function Header({ onNavigate, onOpenSearch, currentRoute }) {
             )}
           </div>
         </div>
-      )}
-      
-      {/* Floating Mobile Glowing Bottom Dock (Visible on Mobile & Tablets < 960px) */}
-      {!currentRoute?.page?.includes('login') &&
-        !currentRoute?.page?.includes('register') && (
-          <GlowingNavDock
-            onNavigate={onNavigate}
-            currentRoute={currentRoute}
-            categories={categories}
-            isMobile={true}
-          />
       )}
     </header>
   );

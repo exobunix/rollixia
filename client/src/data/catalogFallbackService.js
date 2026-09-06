@@ -3,6 +3,17 @@ import { handleAdminFallbackRoute } from './adminFallbackService.js';
 
 export { FALLBACK_CATEGORIES, FALLBACK_PRODUCTS };
 
+function enrichProductBadge(p) {
+  if (!p) return p;
+  if (p.badge) return p;
+  let badge = null;
+  if (p.is_trending === 1) badge = 'TRENDING';
+  else if (p.sale_price === 0 || p.regular_price === 0) badge = 'FREE';
+  else if (p.is_bestseller === 1) badge = 'BESTSELLER';
+  else if (p.sale_price !== null && p.sale_price !== undefined && p.sale_price < p.regular_price) badge = 'DEAL';
+  return badge ? { ...p, badge } : p;
+}
+
 export function getEffectiveProducts() {
   try {
     if (typeof window !== 'undefined' && window.localStorage) {
@@ -17,18 +28,18 @@ export function getEffectiveProducts() {
             const existing = map.get(key) || {};
             map.set(key, { ...existing, ...p });
           });
-          return Array.from(map.values());
+          return Array.from(map.values()).map(enrichProductBadge);
         }
       }
     }
   } catch (e) {}
-  return FALLBACK_PRODUCTS;
+  return FALLBACK_PRODUCTS.map(enrichProductBadge);
 }
 
 export function getFallbackFeatured() {
   const all = [...getEffectiveProducts()];
-  const bestsellers = all.filter(p => (p.sales_count > 0 || p.is_bestseller === 1)).slice(0, 14);
-  const trending = all.filter(p => (p.badge === 'TRENDING' || p.badge === 'POPULAR' || p.is_trending === 1)).slice(0, 14);
+  const bestsellers = all.filter(p => (p.sales_count > 0 || p.is_bestseller === 1 || p.badge === 'BESTSELLER' || p.badge === 'TOP SELLER')).slice(0, 14);
+  const trending = all.filter(p => (p.badge === 'TRENDING' || p.badge === 'POPULAR' || p.badge === 'DEAL' || p.is_trending === 1 || (p.sale_price !== null && p.sale_price < p.regular_price))).slice(0, 14);
   const topRated = all.filter(p => (p.rating_avg >= 4.5)).slice(0, 14);
   const freeDeals = all.filter(p => (p.badge === 'FREE' || p.sale_price === 0 || p.regular_price === 0)).slice(0, 14);
   const newArrivals = all.slice(0, 14);
@@ -61,8 +72,46 @@ export function getFallbackProducts(searchParams = '') {
     if (category && p.category_slug !== category && String(p.category_id) !== category) {
       return false;
     }
-    if (badge && p.badge !== badge) {
-      return false;
+    if (badge) {
+      const bUpper = String(badge).trim().toUpperCase();
+      if (bUpper === 'TRENDING' || bUpper === 'DEAL' || bUpper === 'DEALS') {
+        const isDeal = (
+          p.badge === 'TRENDING' ||
+          p.badge === 'DEAL' ||
+          p.badge === 'DEALS' ||
+          p.badge === 'POPULAR' ||
+          p.is_trending === 1 ||
+          (p.sale_price !== null && p.sale_price !== undefined && p.sale_price < p.regular_price)
+        );
+        if (!isDeal) return false;
+      } else if (bUpper === 'FREE') {
+        const isFree = (
+          p.badge === 'FREE' ||
+          p.sale_price === 0 ||
+          p.regular_price === 0
+        );
+        if (!isFree) return false;
+      } else if (bUpper === 'BESTSELLER' || bUpper === 'TOP SELLER') {
+        const isBestseller = (
+          p.badge === 'BESTSELLER' ||
+          p.badge === 'TOP SELLER' ||
+          p.is_bestseller === 1 ||
+          (p.sales_count && p.sales_count > 0)
+        );
+        if (!isBestseller) return false;
+      } else if (bUpper === 'TOP RATED') {
+        const isTop = (
+          p.badge === 'TOP RATED' ||
+          (p.rating_avg && p.rating_avg >= 4.5)
+        );
+        if (!isTop) return false;
+      } else {
+        const match = (
+          (p.badge && p.badge.toUpperCase() === bUpper) ||
+          (p.badge && p.badge.toUpperCase().includes(bUpper))
+        );
+        if (!match) return false;
+      }
     }
     if (q) {
       const match = (

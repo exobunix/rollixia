@@ -15,6 +15,74 @@
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400;1,600&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
     <!-- Razorpay Standard Web Checkout -->
     <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+    <!-- Extension Error Shield & Safe MutationObserver Guard -->
+    <script>
+      (function() {
+        if (typeof window !== 'undefined') {
+          // 1. Safe MutationObserver wrapper: prevent uncaught errors if target is not a valid DOM Node
+          if (window.MutationObserver && window.MutationObserver.prototype) {
+            try {
+              var origObserve = window.MutationObserver.prototype.observe;
+              window.MutationObserver.prototype.observe = function(target, options) {
+                if (!target || !(target instanceof Node)) {
+                  return;
+                }
+                return origObserve.call(this, target, options);
+              };
+            } catch (err) {}
+          }
+
+          // 2. Global error event interceptor
+          window.addEventListener('error', function(e) {
+            if (!e) return;
+            var msg = (e.message || '') + '';
+            var fn = (e.filename || '') + '';
+            if (
+              msg.indexOf("Failed to execute 'observe' on 'MutationObserver'") !== -1 ||
+              msg.indexOf('parameter 1 is not of type') !== -1 ||
+              fn.indexOf('content-script') !== -1 ||
+              fn.indexOf('chrome-extension') !== -1
+            ) {
+              e.preventDefault();
+              if (typeof e.stopImmediatePropagation === 'function') e.stopImmediatePropagation();
+              return true;
+            }
+          }, true);
+
+          // 3. Unhandled promise rejections from extensions
+          window.addEventListener('unhandledrejection', function(e) {
+            if (!e) return;
+            var reasonMsg = (e.reason && (e.reason.message || e.reason)) + '';
+            if (
+              reasonMsg.indexOf("Failed to execute 'observe' on 'MutationObserver'") !== -1 ||
+              reasonMsg.indexOf('parameter 1 is not of type') !== -1
+            ) {
+              e.preventDefault();
+              if (typeof e.stopImmediatePropagation === 'function') e.stopImmediatePropagation();
+            }
+          }, true);
+
+          // 4. Console.error interceptor for extension pollution
+          if (typeof console !== 'undefined' && console.error) {
+            try {
+              var origConsoleErr = console.error;
+              console.error = function() {
+                var args = Array.prototype.slice.call(arguments);
+                var full = args.map(function(a) { return String(a && a.message ? a.message : a); }).join(' ');
+                if (
+                  full.indexOf("Failed to execute 'observe' on 'MutationObserver'") !== -1 ||
+                  (full.indexOf('parameter 1 is not of type') !== -1 && full.indexOf('MutationObserver') !== -1) ||
+                  full.indexOf('web-client-content-script') !== -1
+                ) {
+                  return;
+                }
+                return origConsoleErr.apply(console, args);
+              };
+            } catch (err) {}
+          }
+        }
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

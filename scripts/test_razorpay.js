@@ -9,8 +9,9 @@ try {
 
 const PORT = process.env.PORT || 5000;
 const BASE_URL = `http://127.0.0.1:${PORT}`;
-const KEY_SECRET = process.env.RAZORPAY_KEY_SECRET || 'FM2lMwXz4Rq4r5IZGFpi7GgP';
-const KEY_ID = process.env.RAZORPAY_KEY_ID || 'rzp_test_TYdMxQomEc4yMe';
+const KEY_SECRET = process.env.RAZORPAY_KEY_SECRET || 'vD85M3FI1t2XKtI4pt60RBhi';
+const KEY_ID = process.env.RAZORPAY_KEY_ID || 'rzp_live_TYeE4nMLmsPaCZ';
+
 
 function request(urlPath, options = {}) {
   return new Promise((resolve, reject) => {

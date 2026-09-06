@@ -141,7 +141,7 @@ export function CheckoutPage({ onNavigate }) {
           }
         }
 
-        const rzpKey = import.meta.env.VITE_RAZORPAY_KEY_ID || orderData.paymentSession?.keyId || 'rzp_test_TYdMxQomEc4yMe';
+        const rzpKey = import.meta.env.VITE_RAZORPAY_KEY_ID || orderData.paymentSession?.keyId || 'rzp_live_TYeE4nMLmsPaCZ';
 
         // Check if we have an authentic Razorpay order ID from Razorpay API (must not be simulated)
         const isAuthenticRazorpayOrder = typeof rzpOrderId === 'string' &&

@@ -280,7 +280,7 @@ export function simulateCreateOrder(payload = {}) {
     paymentSession: {
       provider,
       orderId: null,
-      keyId: import.meta.env.VITE_RAZORPAY_KEY_ID || 'rzp_test_TYdMxQomEc4yMe',
+      keyId: import.meta.env.VITE_RAZORPAY_KEY_ID || 'rzp_live_TYeE4nMLmsPaCZ',
       amount: Math.round(calculation.total * 100),
       currency: payload.currency || 'INR',
       paymentId: order.payment_id,
@@ -374,7 +374,7 @@ export function handleFallbackRoute(endpoint, options = {}, requestBody = null) 
         order_id: null,
         amount,
         currency: requestBody?.currency || 'INR',
-        key_id: import.meta.env.VITE_RAZORPAY_KEY_ID || 'rzp_test_TYdMxQomEc4yMe'
+        key_id: import.meta.env.VITE_RAZORPAY_KEY_ID || 'rzp_live_TYeE4nMLmsPaCZ'
       };
     }
     if (clean === 'verify-payment') {

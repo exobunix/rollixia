@@ -8,10 +8,10 @@ const { generateDownloadToken } = require('../services/downloadService');
 router.post('/verify', async (req, res) => {
   try {
     const orderNumber = req.body.orderNumber || req.body.order_number;
-    const paymentId = req.body.paymentId || req.body.payment_id;
+    const paymentId = req.body.paymentId || req.body.payment_id || req.body.razorpay_payment_id;
     const provider = req.body.provider || req.body.payment_provider || 'simulated';
-    const signature = req.body.signature;
-    const rzpOrderId = req.body.rzpOrderId || req.body.rzp_order_id;
+    const signature = req.body.razorpay_signature || req.body.signature;
+    const rzpOrderId = req.body.razorpay_order_id || req.body.order_id || req.body.rzpOrderId || req.body.rzp_order_id;
 
     if (!orderNumber || !paymentId) {
       return res.status(400).json({ error: 'Order number and payment reference required' });

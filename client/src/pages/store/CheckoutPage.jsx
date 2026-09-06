@@ -88,7 +88,102 @@ export function CheckoutPage({ onNavigate }) {
         return;
       }
 
-      // 3. Complete payment verification via backend for simulated/razorpay
+      // If Razorpay provider is selected, trigger Razorpay Standard Checkout modal
+      if (paymentProvider === 'razorpay') {
+        if (typeof window.Razorpay === 'undefined') {
+          throw new Error('Razorpay SDK could not be loaded. Please check your internet connection and try again.');
+        }
+
+        let rzpOrderId = orderData.paymentSession?.orderId;
+        let rzpAmount = orderData.paymentSession?.amount;
+        let rzpCurrency = orderData.paymentSession?.currency || orderData.currency || 'INR';
+
+        // Fallback: If order was not pre-initialized with Razorpay order_id, create via /api/create-order
+        if (!rzpOrderId) {
+          const createOrderRes = await apiRequest('/api/create-order', {
+            method: 'POST',
+            body: JSON.stringify({
+              amount: Math.round(orderData.totalAmount * 100),
+              currency: rzpCurrency,
+              receipt: orderData.orderNumber
+            })
+          });
+          rzpOrderId = createOrderRes.order_id;
+          rzpAmount = createOrderRes.amount;
+          rzpCurrency = createOrderRes.currency || rzpCurrency;
+        }
+
+        const rzpKey = import.meta.env.VITE_RAZORPAY_KEY_ID || orderData.paymentSession?.keyId || 'rzp_test_TYdMxQomEc4yMe';
+
+        const rzpOptions = {
+          key: rzpKey,
+          amount: rzpAmount,
+          currency: rzpCurrency,
+          name: 'Rollixia Marketplace',
+          description: `Order ${orderData.orderNumber} - Digital Products`,
+          order_id: rzpOrderId,
+          prefill: {
+            name: customerName.trim(),
+            email: customerEmail.trim(),
+            contact: customerPhone.trim() || ''
+          },
+          theme: {
+            color: '#6366f1'
+          },
+          modal: {
+            ondismiss: function() {
+              console.log('Razorpay checkout modal dismissed by user');
+              setIsProcessing(false);
+              addToast('Payment cancelled. You can retry anytime or choose another payment method.', 'info');
+            }
+          },
+          handler: async function(response) {
+            // Received razorpay_payment_id, razorpay_order_id, razorpay_signature
+            try {
+              setIsProcessing(true);
+              addToast('Verifying payment signature with server...', 'info');
+
+              const verifyRes = await apiRequest('/api/verify-payment', {
+                method: 'POST',
+                body: JSON.stringify({
+                  order_id: response.razorpay_order_id,
+                  payment_id: response.razorpay_payment_id,
+                  razorpay_signature: response.razorpay_signature,
+                  orderNumber: orderData.orderNumber
+                })
+              });
+
+              if (verifyRes.success) {
+                clearCart();
+                addToast('Payment verified successfully! Your files are ready.', 'success');
+                onNavigate('order-success', { orderNumber: orderData.orderNumber });
+              } else {
+                throw new Error(verifyRes.error || 'Payment signature verification failed');
+              }
+            } catch (vErr) {
+              console.error('Razorpay verification error:', vErr);
+              addToast(vErr.message || 'Payment signature verification failed', 'error');
+            } finally {
+              setIsProcessing(false);
+            }
+          }
+        };
+
+        const rzp = new window.Razorpay(rzpOptions);
+
+        // Handle payment.failed event
+        rzp.on('payment.failed', function(resp) {
+          console.error('Razorpay payment failed event:', resp.error);
+          setIsProcessing(false);
+          const failureReason = resp.error?.description || resp.error?.reason || 'Payment could not be processed';
+          addToast(`Payment failed: ${failureReason}`, 'error');
+        });
+
+        rzp.open();
+        return;
+      }
+
+      // 3. Complete payment verification via backend for simulated provider
       const verifyPayload = {
         orderNumber: orderData.orderNumber,
         paymentId: orderData.paymentSession?.paymentId || `PAY-SIM-${Date.now()}`,
@@ -335,10 +430,11 @@ export function CheckoutPage({ onNavigate }) {
                           Razorpay Gateway
                         </p>
                         <p style={{ fontSize: '0.785rem', color: 'var(--text-muted)' }}>
-                          Alternative UPI & credit/debit card processing
+                          Standard Web Checkout (UPI, Cards, NetBanking, Wallets)
                         </p>
                       </div>
                     </div>
+                    <span style={{ fontSize: '0.8rem', color: '#06b6d4', fontWeight: 700 }}>STANDARD CHECKOUT</span>
                   </div>
                 </div>
 
@@ -415,7 +511,11 @@ export function CheckoutPage({ onNavigate }) {
                 disabled={isProcessing}
                 style={{ width: '100%', fontWeight: 700 }}
               >
-                {isProcessing ? 'Verifying Payment...' : (
+                {isProcessing ? 'Processing Payment...' : paymentProvider === 'razorpay' ? (
+                  <>
+                    <CreditCard size={18} /> Pay with Razorpay
+                  </>
+                ) : (
                   <>
                     <Lock size={18} /> Pay & Get Instant Access
                   </>

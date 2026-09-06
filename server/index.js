@@ -44,6 +44,8 @@ app.use('/api/products', require('./routes/products'));
 app.use('/api/cart', require('./routes/cart'));
 app.use('/api/orders', require('./routes/orders'));
 app.use('/api/payments', require('./routes/payments'));
+app.use('/api', require('./routes/razorpay'));
+app.use('/api/razorpay', require('./routes/razorpay'));
 app.use('/api/downloads', require('./routes/downloads'));
 app.use('/api/reviews', require('./routes/reviews'));
 app.use('/api/wishlist', require('./routes/wishlist'));

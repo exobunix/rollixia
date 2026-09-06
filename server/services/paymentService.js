@@ -41,29 +41,51 @@ class SimulatedPaymentProvider extends PaymentProvider {
 }
 
 class RazorpayProvider extends PaymentProvider {
-  async createPaymentSession(order) {
-    return {
-      success: true,
-      provider: 'razorpay',
-      orderId: `order_rzp_${Date.now()}`,
-      keyId: process.env.RAZORPAY_KEY_ID || 'rzp_test_mock',
-      amount: Math.round(order.totalAmount * 100),
-      currency: order.currency || 'INR'
-    };
+  async createPaymentSession(order, customer) {
+    const amountInPaise = Math.max(100, Math.round(order.totalAmount * 100));
+    try {
+      const { getRazorpayInstance } = require('../config/razorpay');
+      const razorpay = getRazorpayInstance();
+      const rzpOrder = await razorpay.orders.create({
+        amount: amountInPaise,
+        currency: order.currency || 'INR',
+        receipt: (order.orderNumber || `rcpt_${Date.now()}`).substring(0, 40),
+        notes: {
+          orderNumber: order.orderNumber || '',
+          orderId: String(order.orderId || '')
+        }
+      });
+
+      return {
+        success: true,
+        provider: 'razorpay',
+        orderId: rzpOrder.id,
+        keyId: process.env.RAZORPAY_KEY_ID,
+        amount: rzpOrder.amount,
+        currency: rzpOrder.currency
+      };
+    } catch (err) {
+      console.error('Razorpay SDK order creation error in paymentService:', err);
+      throw err;
+    }
   }
 
   async verifyPayment({ razorpay_order_id, razorpay_payment_id, razorpay_signature }) {
-    if (!razorpay_order_id || !razorpay_payment_id) {
-      return { verified: false, reason: 'Incomplete Razorpay payload' };
+    if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature) {
+      return { verified: false, reason: 'Missing required Razorpay fields' };
     }
-    const secret = process.env.RAZORPAY_KEY_SECRET || 'rzp_test_secret';
+    const secret = process.env.RAZORPAY_KEY_SECRET;
+    if (!secret) {
+      return { verified: false, reason: 'RAZORPAY_KEY_SECRET is not configured' };
+    }
     const body = `${razorpay_order_id}|${razorpay_payment_id}`;
     const expectedSignature = crypto.createHmac('sha256', secret).update(body).digest('hex');
-    const verified = expectedSignature === razorpay_signature || process.env.NODE_ENV !== 'production';
+    const verified = (expectedSignature === razorpay_signature);
     return {
       verified,
       provider: 'razorpay',
-      transactionId: razorpay_payment_id
+      transactionId: razorpay_payment_id,
+      reason: verified ? null : 'Payment signature mismatch'
     };
   }
 }

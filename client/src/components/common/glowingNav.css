@@ -253,3 +253,134 @@
   background: rgba(255, 255, 255, 0.08);
   color: #94a3b8;
 }
+
+/* ----------------------------------------------------
+   RESPONSIVE DESKTOP & TABLET ADAPTATIONS
+   ---------------------------------------------------- */
+.glowing-nav-tab-label-short {
+  display: none;
+}
+
+@media (max-width: 1280px) {
+  .glowing-nav-dock {
+    padding: 4px 5px;
+    gap: 2px;
+  }
+
+  .glowing-nav-tab {
+    padding: 7px 12px;
+    font-size: 0.83rem;
+    gap: 5px;
+  }
+}
+
+@media (max-width: 1150px) {
+  .glowing-nav-dock {
+    padding: 3px 4px;
+    gap: 1px;
+  }
+
+  .glowing-nav-tab {
+    padding: 6px 9px;
+    font-size: 0.79rem;
+    gap: 4px;
+  }
+
+  .glowing-nav-tab-label-full {
+    display: none !important;
+  }
+
+  .glowing-nav-tab-label-short {
+    display: inline !important;
+  }
+}
+
+@media (max-width: 1040px) {
+  .glowing-nav-dock {
+    padding: 3px;
+    gap: 1px;
+  }
+
+  .glowing-nav-tab {
+    padding: 5px 8px;
+    font-size: 0.76rem;
+    gap: 3px;
+  }
+}
+
+/* ----------------------------------------------------
+   MOBILE FLOATING BOTTOM CAPSULE DOCK
+   Inspired by Instagram / iOS Floating Tab Bar
+   ---------------------------------------------------- */
+.glowing-mobile-bottom-dock {
+  position: fixed;
+  bottom: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 1000;
+  width: calc(100% - 24px);
+  max-width: 420px;
+  pointer-events: auto;
+  animation: mobileDockFloatIn 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@media (min-width: 961px) {
+  .glowing-mobile-bottom-dock {
+    display: none !important;
+  }
+}
+
+.glowing-mobile-bottom-dock .glowing-nav-dock {
+  width: 100%;
+  justify-content: space-around;
+  padding: 4px 6px;
+  background: rgba(15, 23, 42, 0.88);
+  border-color: rgba(255, 255, 255, 0.18);
+  box-shadow:
+    0 16px 40px -6px rgba(0, 0, 0, 0.55),
+    0 0 30px 4px rgba(251, 191, 36, 0.25),
+    inset 0 1px 1px rgba(255, 255, 255, 0.25);
+}
+
+[data-theme="light"] .glowing-mobile-bottom-dock .glowing-nav-dock {
+  background: rgba(255, 255, 255, 0.94);
+  border-color: rgba(203, 213, 225, 0.9);
+  box-shadow:
+    0 16px 40px -6px rgba(15, 23, 42, 0.18),
+    0 0 25px 2px rgba(251, 191, 36, 0.2);
+}
+
+.glowing-mobile-bottom-dock .glowing-nav-tab {
+  flex: 1;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  padding: 6px 2px;
+  font-size: 0.67rem;
+  font-weight: 600;
+}
+
+.glowing-mobile-bottom-dock .glowing-nav-tab-icon {
+  transform: scale(1.05);
+}
+
+.glowing-mobile-bottom-dock .glowing-floor-beam {
+  display: none;
+}
+
+.glowing-mobile-bottom-dock .glowing-cat-popover {
+  bottom: calc(100% + 14px);
+  top: auto;
+  transform: translateX(-50%) translateY(-8px);
+}
+
+.glowing-mobile-bottom-dock .glowing-cat-popover.is-open {
+  transform: translateX(-50%) translateY(0);
+}
+
+@keyframes mobileDockFloatIn {
+  0% { transform: translate(-50%, 40px); opacity: 0; }
+  100% { transform: translate(-50%, 0); opacity: 1; }
+}
+

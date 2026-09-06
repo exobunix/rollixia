@@ -12,9 +12,14 @@ import './glowingNav.css';
 /**
  * GlowingNavDock
  * Premium floating capsule navigation dock with an animated glowing sliding light ring,
- * ambient floor beam projection, and real-time cursor tracking.
+ * ambient floor beam projection, real-time cursor tracking, and fluid mobile/tablet responsiveness.
  */
-export default function GlowingNavDock({ onNavigate, currentRoute = {}, categories = [] }) {
+export default function GlowingNavDock({
+  onNavigate,
+  currentRoute = {},
+  categories = [],
+  isMobile = false
+}) {
   const dockRef = useRef(null);
   const tabsRef = useRef({});
   const catMenuRef = useRef(null);
@@ -23,13 +28,13 @@ export default function GlowingNavDock({ onNavigate, currentRoute = {}, categori
   const [isCatOpen, setIsCatOpen] = useState(false);
   const [ringStyle, setRingStyle] = useState({ left: 0, width: 0, opacity: 0 });
 
-  // Navigation Items
+  // Navigation Items with full and compact short labels for tablet/mobile
   const navTabs = useMemo(() => [
-    { id: 'home', label: 'Home', icon: Home, color: '#fbbf24' },
-    { id: 'products', label: 'All Products', icon: Package, color: '#38bdf8' },
-    { id: 'categories', label: 'Categories', icon: LayoutGrid, isDropdown: true, color: '#c084fc' },
-    { id: 'deals', label: 'Deals', icon: Flame, color: '#f43f5e' },
-    { id: 'freebies', label: 'Freebies', icon: Gift, color: '#10b981' }
+    { id: 'home', label: 'Home', shortLabel: 'Home', icon: Home, color: '#fbbf24' },
+    { id: 'products', label: 'All Products', shortLabel: 'Products', icon: Package, color: '#38bdf8' },
+    { id: 'categories', label: 'Categories', shortLabel: 'Categories', icon: LayoutGrid, isDropdown: true, color: '#c084fc' },
+    { id: 'deals', label: 'Deals', shortLabel: 'Deals', icon: Flame, color: '#f43f5e' },
+    { id: 'freebies', label: 'Freebies', shortLabel: 'Free', icon: Gift, color: '#10b981' }
   ], []);
 
   // Determine current active tab from route
@@ -70,7 +75,17 @@ export default function GlowingNavDock({ onNavigate, currentRoute = {}, categori
     updateLightPosition(targetTabId);
   }, [targetTabId]);
 
-  // Reposition on window resize
+  // ResizeObserver: auto-recalculate position when container resizes (e.g. tablet rotation, DevTools toggle)
+  useEffect(() => {
+    if (!dockRef.current) return;
+    const observer = new ResizeObserver(() => {
+      updateLightPosition(targetTabId);
+    });
+    observer.observe(dockRef.current);
+    return () => observer.disconnect();
+  }, [targetTabId]);
+
+  // Fallback window resize
   useEffect(() => {
     const handleResize = () => updateLightPosition(targetTabId);
     window.addEventListener('resize', handleResize);
@@ -101,7 +116,7 @@ export default function GlowingNavDock({ onNavigate, currentRoute = {}, categori
   // Drag the light along the bar support
   const isDraggingRef = useRef(false);
 
-  const handlePointerDown = (e) => {
+  const handlePointerDown = () => {
     isDraggingRef.current = true;
   };
 
@@ -144,12 +159,16 @@ export default function GlowingNavDock({ onNavigate, currentRoute = {}, categori
     }
   };
 
+  const wrapperClass = isMobile
+    ? 'glowing-mobile-bottom-dock'
+    : 'glowing-nav-wrapper';
+
   return (
-    <div className="glowing-nav-wrapper" ref={catMenuRef}>
+    <div className={wrapperClass} ref={catMenuRef}>
       {/* Capsule Navigation Dock */}
       <nav
         ref={dockRef}
-        className="glowing-nav-dock desktop-nav"
+        className={`glowing-nav-dock ${!isMobile ? 'desktop-nav' : 'mobile-dock'}`}
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
@@ -170,15 +189,17 @@ export default function GlowingNavDock({ onNavigate, currentRoute = {}, categori
         />
 
         {/* Floor Light Reflection Beam below dock */}
-        <div
-          className="glowing-floor-beam"
-          style={{
-            transform: `translateX(${ringStyle.left}px)`,
-            width: `${ringStyle.width}px`,
-            opacity: ringStyle.opacity
-          }}
-          aria-hidden="true"
-        />
+        {!isMobile && (
+          <div
+            className="glowing-floor-beam"
+            style={{
+              transform: `translateX(${ringStyle.left}px)`,
+              width: `${ringStyle.width}px`,
+              opacity: ringStyle.opacity
+            }}
+            aria-hidden="true"
+          />
+        )}
 
         {/* Navigation Tabs */}
         {navTabs.map((tab) => {
@@ -211,8 +232,9 @@ export default function GlowingNavDock({ onNavigate, currentRoute = {}, categori
                 <Icon size={16} strokeWidth={2.2} />
               </span>
 
-              {/* Tab Label */}
-              <span>{tab.label}</span>
+              {/* Tab Labels: full label on wide screens, compact short label on tablets */}
+              <span className="glowing-nav-tab-label-full">{tab.label}</span>
+              <span className="glowing-nav-tab-label-short">{tab.shortLabel || tab.label}</span>
 
               {/* Dropdown Chevron for Categories */}
               {tab.isDropdown && (

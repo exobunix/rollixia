@@ -85,14 +85,12 @@ export function Header({ onNavigate, onOpenSearch, currentRoute }) {
           onNavigate={onNavigate}
           currentRoute={currentRoute}
           categories={categories}
-        />
-
-        {/* Action Controls (Search, Currency, Wishlist, Cart, Profile) */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
+        />        {/* Action Controls (Search, Currency, Wishlist, Cart, Profile) */}
+        <div className="header-action-controls" style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', flexShrink: 0 }}>
           {/* Search Trigger */}
           <button
             onClick={onOpenSearch}
-            className="btn btn-secondary btn-sm"
+            className="btn btn-secondary btn-sm header-search-btn"
             style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '0.45rem 0.85rem' }}
             title="Search products (Ctrl+K)"
           >
@@ -105,7 +103,7 @@ export function Header({ onNavigate, onOpenSearch, currentRoute }) {
           {/* Currency Toggle */}
           <button
             onClick={toggleCurrency}
-            className="btn btn-secondary btn-sm"
+            className="btn btn-secondary btn-sm header-currency-btn"
             style={{ fontWeight: 700, fontSize: '0.8rem', padding: '0.45rem 0.75rem' }}
             title="Switch Currency (INR ₹ / USD $)"
           >
@@ -115,7 +113,7 @@ export function Header({ onNavigate, onOpenSearch, currentRoute }) {
           {/* Theme Toggle (Dark / Light Mode) */}
           <button
             onClick={toggleTheme}
-            className="btn btn-secondary btn-sm"
+            className="btn btn-secondary btn-sm header-theme-btn"
             style={{
               padding: '0.45rem 0.65rem',
               display: 'flex',
@@ -140,14 +138,12 @@ export function Header({ onNavigate, onOpenSearch, currentRoute }) {
             )}
           </button>
 
-
           {/* Wishlist */}
           {user && (
             <button
               onClick={() => onNavigate('dashboard', { tab: 'wishlist' })}
-              className="btn-icon"
+              className="btn-icon header-wishlist-btn"
               title="My Wishlist"
-              style={{ position: 'relative' }}
             >
               <Heart size={18} />
               {wishlistCount > 0 && (
@@ -347,11 +343,27 @@ export function Header({ onNavigate, onOpenSearch, currentRoute }) {
 
       {/* Responsive Styles Injection */}
       <style>{`
-        @media (min-width: 900px) {
+        @media (min-width: 960px) {
           .desktop-nav { display: flex !important; }
-          .search-shortcut-text { display: inline !important; }
           .mobile-menu-btn { display: none !important; }
           #header-get-started-btn { display: inline-flex !important; }
+        }
+
+        @media (min-width: 1240px) {
+          .search-shortcut-text { display: inline !important; }
+        }
+
+        @media (max-width: 1180px) {
+          .header-currency-btn { display: none !important; }
+          .header-theme-btn { display: none !important; }
+          .header-action-controls { gap: 0.45rem !important; }
+        }
+
+        @media (max-width: 959px) {
+          .desktop-nav { display: none !important; }
+          .mobile-menu-btn { display: flex !important; }
+          .header-currency-btn { display: none !important; }
+          .header-theme-btn { display: none !important; }
         }
       `}</style>
 
@@ -497,6 +509,17 @@ export function Header({ onNavigate, onOpenSearch, currentRoute }) {
             )}
           </div>
         </div>
+      )}
+      
+      {/* Floating Mobile Glowing Bottom Dock (Visible on Mobile & Tablets < 960px) */}
+      {!currentRoute?.page?.includes('login') &&
+        !currentRoute?.page?.includes('register') && (
+          <GlowingNavDock
+            onNavigate={onNavigate}
+            currentRoute={currentRoute}
+            categories={categories}
+            isMobile={true}
+          />
       )}
     </header>
   );

@@ -464,19 +464,43 @@ export function Header({ onNavigate, onOpenSearch, currentRoute }) {
             font-size: 0.78rem !important;
           }
         }
+
+        /* Mobile Menu Drawer Scrolling */
+        .header-mobile-drawer {
+          max-height: calc(100vh - 110px);
+          max-height: calc(100dvh - 110px);
+          overflow-y: auto !important;
+          -webkit-overflow-scrolling: touch;
+          overscroll-behavior: contain;
+        }
+        .header-mobile-drawer::-webkit-scrollbar {
+          width: 5px;
+        }
+        .header-mobile-drawer::-webkit-scrollbar-thumb {
+          background: rgba(255, 255, 255, 0.2);
+          border-radius: 999px;
+        }
       `}</style>
 
       {/* Mobile Menu Drawer */}
       {isMobileNavOpen && (
-        <div style={{
-          background: 'var(--bg-surface)',
-          borderBottom: '1px solid var(--border-medium)',
-          padding: '1.25rem',
-          display: 'flex',
-          flexDirection: 'column',
-          gap: '0.85rem',
-          animation: 'fadeIn 0.2s ease-out'
-        }}>
+        <div
+          className="header-mobile-drawer"
+          style={{
+            background: 'var(--bg-surface)',
+            borderBottom: '1px solid var(--border-medium)',
+            padding: '1.25rem 1.25rem 3.5rem 1.25rem',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '0.85rem',
+            maxHeight: 'calc(100dvh - 110px)',
+            overflowY: 'auto',
+            WebkitOverflowScrolling: 'touch',
+            overscrollBehavior: 'contain',
+            boxShadow: '0 20px 40px rgba(0, 0, 0, 0.5)',
+            animation: 'fadeIn 0.2s ease-out'
+          }}
+        >
           <button
             onClick={() => { setIsMobileNavOpen(false); onNavigate('products'); }}
             className="btn btn-secondary"

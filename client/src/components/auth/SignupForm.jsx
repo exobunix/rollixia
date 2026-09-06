@@ -3,7 +3,12 @@ import { User, Mail, Lock, Eye, EyeOff, ArrowRight, AlertCircle, Loader2 } from 
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
 
-export default function SignupForm({ onNavigate }) {
+export default function SignupForm({
+  onNavigate,
+  onFocusField,
+  onBlurField,
+  onAuthSuccess
+}) {
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -42,6 +47,14 @@ export default function SignupForm({ onNavigate }) {
   const strength = getPasswordStrength(password);
   const passwordsMatch = !confirmPassword || password === confirmPassword;
 
+  // Form ready state: all credentials entered and valid
+  const isReady =
+    fullName.trim().length > 1 &&
+    email.trim().length > 3 &&
+    password.length >= 6 &&
+    confirmPassword === password &&
+    agreeTerms;
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
@@ -70,7 +83,12 @@ export default function SignupForm({ onNavigate }) {
     try {
       const newUser = await register(email.trim(), password, fullName.trim());
       addToast(`Account created! Welcome to Rollixia, ${newUser.full_name}!`, 'success');
-      onNavigate('dashboard', { tab: 'orders' });
+      
+      if (onAuthSuccess) {
+        onAuthSuccess({ ...newUser, isNew: true });
+      } else {
+        onNavigate('dashboard', { tab: 'orders' });
+      }
     } catch (err) {
       const errMsg = err.message || 'Registration failed. Please try again.';
       setError(errMsg);
@@ -107,6 +125,8 @@ export default function SignupForm({ onNavigate }) {
             className="glass-input-field"
             placeholder="Alex Morgan"
             value={fullName}
+            onFocus={() => onFocusField && onFocusField('name')}
+            onBlur={() => onBlurField && onBlurField()}
             onChange={e => {
               setFullName(e.target.value);
               if (error) setError('');
@@ -132,6 +152,8 @@ export default function SignupForm({ onNavigate }) {
             className="glass-input-field"
             placeholder="alex@example.com"
             value={email}
+            onFocus={() => onFocusField && onFocusField('email')}
+            onBlur={() => onBlurField && onBlurField()}
             onChange={e => {
               setEmail(e.target.value);
               if (error) setError('');
@@ -157,6 +179,8 @@ export default function SignupForm({ onNavigate }) {
             className="glass-input-field"
             placeholder="At least 6 characters"
             value={password}
+            onFocus={() => onFocusField && onFocusField('password')}
+            onBlur={() => onBlurField && onBlurField()}
             onChange={e => {
               setPassword(e.target.value);
               if (error) setError('');
@@ -210,6 +234,8 @@ export default function SignupForm({ onNavigate }) {
             className={`glass-input-field ${!passwordsMatch ? 'has-error' : ''}`}
             placeholder="Re-enter your password"
             value={confirmPassword}
+            onFocus={() => onFocusField && onFocusField('password')}
+            onBlur={() => onBlurField && onBlurField()}
             onChange={e => {
               setConfirmPassword(e.target.value);
               if (error) setError('');
@@ -269,10 +295,10 @@ export default function SignupForm({ onNavigate }) {
         </label>
       </div>
 
-      {/* Raised Glass CTA Button */}
+      {/* Raised Glass CTA Button with ready lighting state */}
       <button
         type="submit"
-        className="glass-cta-button"
+        className={`glass-cta-button ${isReady && !loading ? 'is-ready' : ''}`}
         disabled={loading}
       >
         {loading ? (

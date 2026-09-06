@@ -355,8 +355,23 @@
 }
 
 /* ----------------------------------------------------
-   4. INSET NEUMORPHIC INPUTS
+   4. INSET NEUMORPHIC INPUTS & ROTATING BORDER LIGHT BEAM
    ---------------------------------------------------- */
+@property --border-beam-angle {
+  syntax: '<angle>';
+  inherits: false;
+  initial-value: 0deg;
+}
+
+@keyframes rotateBorderBeam {
+  0% {
+    --border-beam-angle: 0deg;
+  }
+  100% {
+    --border-beam-angle: 360deg;
+  }
+}
+
 .glass-input-group {
   position: relative;
   margin-bottom: 1.15rem;
@@ -379,6 +394,69 @@
 .glass-input-box {
   position: relative;
   width: 100%;
+  border-radius: 16px;
+  isolation: isolate;
+}
+
+/* Animated Rotating Border Light Beam around box edges */
+.glass-input-box::before {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  border-radius: 18px;
+  padding: 2.2px;
+  background: conic-gradient(
+    from var(--border-beam-angle, 0deg),
+    transparent 0%,
+    transparent 55%,
+    rgba(99, 102, 241, 0.45) 68%,
+    rgba(56, 189, 248, 0.95) 82%,
+    #ffffff 94%,
+    rgba(192, 132, 252, 0.95) 98%,
+    transparent 100%
+  );
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  opacity: 0;
+  pointer-events: none;
+  z-index: 5;
+  transition: opacity 0.35s cubic-bezier(0.2, 0, 0.2, 1);
+  animation: rotateBorderBeam 2.3s linear infinite;
+}
+
+/* Outer Ambient Glow Tracing Perimeter */
+.glass-input-box::after {
+  content: '';
+  position: absolute;
+  inset: -4px;
+  border-radius: 20px;
+  background: conic-gradient(
+    from var(--border-beam-angle, 0deg),
+    transparent 0%,
+    transparent 60%,
+    rgba(99, 102, 241, 0.25) 75%,
+    rgba(56, 189, 248, 0.7) 88%,
+    rgba(255, 255, 255, 0.85) 96%,
+    rgba(192, 132, 252, 0.6) 98%,
+    transparent 100%
+  );
+  filter: blur(8px);
+  opacity: 0;
+  pointer-events: none;
+  z-index: 0;
+  transition: opacity 0.35s cubic-bezier(0.2, 0, 0.2, 1);
+  animation: rotateBorderBeam 2.3s linear infinite;
+}
+
+/* Lights up smoothly when cursor enters or box is focused */
+.glass-input-box:hover::before,
+.glass-input-box:focus-within::before,
+.glass-input-box.is-focused::before,
+.glass-input-box:hover::after,
+.glass-input-box:focus-within::after,
+.glass-input-box.is-focused::after {
+  opacity: 1;
 }
 
 .glass-input-icon {
@@ -392,9 +470,11 @@
   justify-content: center;
   pointer-events: none;
   transition: color 0.2s ease;
+  z-index: 2;
 }
 
 .glass-input-field {
+  position: relative;
   width: 100%;
   height: 50px;
   padding: 0 46px 0 46px;
@@ -409,6 +489,7 @@
     inset 0 -1px 2px rgba(255, 255, 255, 0.9),
     0 1px 2px rgba(255, 255, 255, 0.5);
   outline: none;
+  z-index: 1;
   transition:
     background 0.2s ease,
     border-color 0.2s ease,
@@ -684,6 +765,72 @@
 }
 
 /* ----------------------------------------------------
+   7.1 BUTTON READY LIGHT-UP STATE (ALL CREDENTIALS ENTERED)
+   ---------------------------------------------------- */
+.glass-cta-button.is-ready {
+  background: linear-gradient(135deg, #4f46e5 0%, #6366f1 45%, #06b6d4 100%) !important;
+  box-shadow:
+    0 0 24px 3px rgba(99, 102, 241, 0.6),
+    0 0 45px 8px rgba(6, 182, 212, 0.35),
+    0 10px 25px -2px rgba(79, 70, 229, 0.65),
+    inset 0 1px 2px rgba(255, 255, 255, 0.8) !important;
+  animation: readyButtonPulse 2.4s infinite alternate ease-in-out !important;
+  transform: translateY(-2px);
+}
+
+/* Rotating border light beam on ready button */
+.glass-cta-button.is-ready::before {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  border-radius: 18px;
+  padding: 2.5px;
+  background: conic-gradient(
+    from var(--border-beam-angle, 0deg),
+    transparent 0%,
+    transparent 50%,
+    rgba(255, 255, 255, 0.4) 68%,
+    #38bdf8 84%,
+    #ffffff 95%,
+    #c084fc 98%,
+    transparent 100%
+  );
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  animation: rotateBorderBeam 1.8s linear infinite;
+  pointer-events: none;
+  z-index: 4;
+}
+
+/* Continuous light shimmer on ready button */
+.glass-cta-button.is-ready::after {
+  animation: readyShimmerLoop 2.8s infinite ease-in-out;
+}
+
+@keyframes readyButtonPulse {
+  0% {
+    box-shadow:
+      0 0 20px 2px rgba(99, 102, 241, 0.5),
+      0 0 35px 5px rgba(6, 182, 212, 0.25),
+      0 8px 22px -2px rgba(79, 70, 229, 0.55),
+      inset 0 1px 2px rgba(255, 255, 255, 0.7);
+  }
+  100% {
+    box-shadow:
+      0 0 34px 7px rgba(99, 102, 241, 0.8),
+      0 0 58px 12px rgba(6, 182, 212, 0.5),
+      0 14px 32px -2px rgba(79, 70, 229, 0.8),
+      inset 0 1px 3px rgba(255, 255, 255, 1);
+  }
+}
+
+@keyframes readyShimmerLoop {
+  0% { left: -120%; }
+  35%, 100% { left: 180%; }
+}
+
+/* ----------------------------------------------------
    8. LOGIN ↔ SIGNUP BOTTOM SWITCH
    ---------------------------------------------------- */
 .glass-auth-switch-row {
@@ -891,6 +1038,290 @@
   }
 }
 
+/* ----------------------------------------------------
+   12. ANIME MASCOT ("ROXI") & CELEBRATORY WELCOME
+   ---------------------------------------------------- */
+.glass-auth-scene {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  max-width: 480px;
+}
+
+/* Mascot Anchor: positioned playfully at the shoulder of the card */
+.glass-mascot-anchor {
+  position: absolute;
+  left: -86px;
+  top: -26px;
+  z-index: 25;
+  pointer-events: auto;
+  transition: transform 0.4s cubic-bezier(0.2, 0, 0.2, 1);
+}
+
+.glass-mascot-anchor:hover {
+  transform: translateY(-6px) scale(1.06);
+}
+
+.anime-mascot-container {
+  position: relative;
+  width: 112px;
+  height: 112px;
+  filter: drop-shadow(0 12px 25px rgba(99, 102, 241, 0.35));
+  user-select: none;
+  cursor: pointer;
+}
+
+.anime-mascot-container.is-celebrating {
+  animation: mascotBounceCelebrate 0.55s ease infinite alternate;
+}
+
+@keyframes mascotBounceCelebrate {
+  0% { transform: translateY(0) scale(1.05); }
+  100% { transform: translateY(-18px) scale(1.16) rotate(6deg); }
+}
+
+.anime-mascot-svg {
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+/* Mascot Speech Bubble */
+.mascot-speech-bubble {
+  position: absolute;
+  top: -34px;
+  left: 50%;
+  transform: translateX(-50%) translateY(8px);
+  background: rgba(255, 255, 255, 0.94);
+  border: 1px solid rgba(99, 102, 241, 0.35);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  padding: 5px 13px;
+  border-radius: 999px;
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.14);
+  font-size: 0.76rem;
+  font-weight: 700;
+  color: #4f46e5;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s cubic-bezier(0.2, 0, 0.2, 1), transform 0.3s cubic-bezier(0.2, 0, 0.2, 1);
+  z-index: 30;
+}
+
+[data-theme="dark"] .mascot-speech-bubble {
+  background: rgba(15, 23, 42, 0.94);
+  border-color: rgba(129, 140, 248, 0.4);
+  color: #a5b4fc;
+}
+
+.mascot-speech-bubble.show,
+.mascot-speech-bubble.celebrate-show {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
+/* Mascot Paws Animation (Covers eyes when entering password) */
+.mascot-paws {
+  transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.3s ease;
+}
+
+.mascot-paws.paws-down {
+  transform: translateY(0);
+  opacity: 0.25;
+}
+
+.mascot-paws.paws-up {
+  transform: translateY(-28px);
+  opacity: 1;
+}
+
+/* Responsive adjustments for Mascot */
+@media (max-width: 900px) {
+  .glass-mascot-anchor {
+    left: -20px;
+    top: -65px;
+  }
+
+  .anime-mascot-container {
+    width: 92px;
+    height: 92px;
+  }
+
+  .mascot-speech-bubble {
+    top: -28px;
+    font-size: 0.72rem;
+  }
+}
+
+@media (max-width: 600px) {
+  .glass-mascot-anchor {
+    left: 50%;
+    transform: translateX(-50%);
+    top: -62px;
+  }
+
+  .glass-mascot-anchor:hover {
+    transform: translateX(-50%) translateY(-4px) scale(1.04);
+  }
+
+  .anime-mascot-container {
+    width: 82px;
+    height: 82px;
+  }
+}
+
+/* ----------------------------------------------------
+   13. CELEBRATORY WELCOME OVERLAY MODAL
+   ---------------------------------------------------- */
+.glass-welcome-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.68);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  padding: 1.5rem;
+  animation: overlayFadeIn 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes overlayFadeIn {
+  0% { opacity: 0; }
+  100% { opacity: 1; }
+}
+
+.glass-welcome-modal {
+  position: relative;
+  width: 100%;
+  max-width: 450px;
+  padding: 2.8rem 2.2rem 2.4rem 2.2rem;
+  border-radius: 32px;
+  background: rgba(255, 255, 255, 0.9);
+  border: 1px solid rgba(255, 255, 255, 0.95);
+  box-shadow:
+    0 24px 60px -10px rgba(15, 23, 42, 0.35),
+    0 0 50px 10px rgba(99, 102, 241, 0.25),
+    inset 0 2px 4px rgba(255, 255, 255, 0.9);
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  animation: modalScalePop 0.45s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+[data-theme="dark"] .glass-welcome-modal {
+  background: rgba(15, 23, 42, 0.9);
+  border-color: rgba(255, 255, 255, 0.14);
+  box-shadow:
+    0 24px 60px -10px rgba(0, 0, 0, 0.65),
+    0 0 50px 10px rgba(99, 102, 241, 0.35),
+    inset 0 1px 2px rgba(255, 255, 255, 0.2);
+}
+
+@keyframes modalScalePop {
+  0% { transform: scale(0.7) translateY(20px); opacity: 0; }
+  100% { transform: scale(1) translateY(0); opacity: 1; }
+}
+
+.glass-welcome-mascot-wrap {
+  margin-bottom: 1.2rem;
+  display: flex;
+  justify-content: center;
+}
+
+.glass-welcome-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 16px;
+  border-radius: 999px;
+  background: rgba(16, 185, 129, 0.15);
+  border: 1px solid rgba(16, 185, 129, 0.35);
+  color: #059669;
+  font-size: 0.76rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  margin-bottom: 0.8rem;
+}
+
+[data-theme="dark"] .glass-welcome-badge {
+  color: #34d399;
+  background: rgba(16, 185, 129, 0.2);
+  border-color: rgba(52, 211, 153, 0.4);
+}
+
+.glass-welcome-title {
+  font-family: var(--font-display, 'Outfit', sans-serif);
+  font-size: 2.15rem;
+  font-weight: 900;
+  letter-spacing: -0.03em;
+  color: #0f172a;
+  margin: 0 0 0.6rem 0;
+  line-height: 1.2;
+}
+
+[data-theme="dark"] .glass-welcome-title {
+  color: #ffffff;
+}
+
+.glass-welcome-name {
+  display: inline-block;
+  background: linear-gradient(135deg, #4f46e5 0%, #06b6d4 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+[data-theme="dark"] .glass-welcome-name {
+  background: linear-gradient(135deg, #818cf8 0%, #38bdf8 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.glass-welcome-sub {
+  font-size: 0.95rem;
+  color: #64748b;
+  margin: 0 0 1.6rem 0;
+  line-height: 1.5;
+  max-width: 320px;
+}
+
+[data-theme="dark"] .glass-welcome-sub {
+  color: #94a3b8;
+}
+
+.glass-welcome-spinner-track {
+  width: 190px;
+  height: 5px;
+  background: rgba(226, 232, 240, 0.8);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+[data-theme="dark"] .glass-welcome-spinner-track {
+  background: rgba(51, 65, 85, 0.6);
+}
+
+.glass-welcome-spinner-fill {
+  width: 0%;
+  height: 100%;
+  background: linear-gradient(90deg, #6366f1, #06b6d4);
+  border-radius: 999px;
+  animation: welcomeProgressFill 1.35s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+@keyframes welcomeProgressFill {
+  0% { width: 0%; }
+  100% { width: 100%; }
+}
+
 /* Respect Reduced Motion */
 @media (prefers-reduced-motion: reduce) {
   .glass-orb-1,
@@ -899,7 +1330,8 @@
   .glass-orb-4,
   .glass-auth-icon-pod,
   .glass-auth-card::before,
-  .glass-cta-button::after {
+  .glass-cta-button::after,
+  .anime-mascot-container.is-celebrating {
     animation: none !important;
   }
 

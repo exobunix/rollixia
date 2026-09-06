@@ -3,7 +3,13 @@ import { Mail, Lock, Eye, EyeOff, ArrowRight, AlertCircle, Loader2 } from 'lucid
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
 
-export default function LoginForm({ onNavigate, onSwitchToForgot }) {
+export default function LoginForm({
+  onNavigate,
+  onSwitchToForgot,
+  onFocusField,
+  onBlurField,
+  onAuthSuccess
+}) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -12,6 +18,9 @@ export default function LoginForm({ onNavigate, onSwitchToForgot }) {
   const [loading, setLoading] = useState(false);
   const { login } = useAuth();
   const { addToast } = useToast();
+
+  // All credentials filled & valid
+  const isReady = email.trim().length > 3 && password.length >= 6;
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -27,10 +36,15 @@ export default function LoginForm({ onNavigate, onSwitchToForgot }) {
     try {
       const user = await login(cleanEmail, password);
       addToast(`Welcome back, ${user.full_name || 'Customer'}!`, 'success');
-      if (user.role === 'admin' || user.role === 'super_admin') {
-        onNavigate('admin');
+      
+      if (onAuthSuccess) {
+        onAuthSuccess(user);
       } else {
-        onNavigate('dashboard', { tab: 'orders' });
+        if (user.role === 'admin' || user.role === 'super_admin') {
+          onNavigate('admin');
+        } else {
+          onNavigate('dashboard', { tab: 'orders' });
+        }
       }
     } catch (err) {
       const errMsg = err.message || 'Invalid email or password. Please verify your credentials.';
@@ -68,6 +82,8 @@ export default function LoginForm({ onNavigate, onSwitchToForgot }) {
             className={`glass-input-field ${error ? 'has-error' : ''}`}
             placeholder="Enter your email address"
             value={email}
+            onFocus={() => onFocusField && onFocusField('email')}
+            onBlur={() => onBlurField && onBlurField()}
             onChange={e => {
               setEmail(e.target.value);
               if (error) setError('');
@@ -93,6 +109,8 @@ export default function LoginForm({ onNavigate, onSwitchToForgot }) {
             className={`glass-input-field ${error ? 'has-error' : ''}`}
             placeholder="Enter your password"
             value={password}
+            onFocus={() => onFocusField && onFocusField('password')}
+            onBlur={() => onBlurField && onBlurField()}
             onChange={e => {
               setPassword(e.target.value);
               if (error) setError('');
@@ -138,11 +156,11 @@ export default function LoginForm({ onNavigate, onSwitchToForgot }) {
         </button>
       </div>
 
-      {/* Raised Glass CTA Button */}
+      {/* Raised Glass CTA Button with dynamic light-up ready state */}
       <div className="stagger-field-4">
         <button
           type="submit"
-          className="glass-cta-button"
+          className={`glass-cta-button ${isReady && !loading ? 'is-ready' : ''}`}
           disabled={loading}
         >
           {loading ? (

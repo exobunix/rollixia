@@ -295,15 +295,30 @@ export function simulateCreateOrder(payload = {}) {
   }));
 
   const catalog = getEffectiveProducts();
+  const adminFiles = (() => {
+    try {
+      const raw = localStorage.getItem('rollixia_admin_files');
+      return raw ? JSON.parse(raw) : [];
+    } catch (e) { return []; }
+  })();
+
   const downloads = calculation.items.map((item, idx) => {
     const p = catalog.find(prod => prod.id === item.productId) || catalog[0];
+    const attachedFile = adminFiles.find(f => Number(f.product_id) === Number(item.productId));
+    const finalFileName = (attachedFile && attachedFile.file_name) || p.deliverable_name || `${p.slug || 'product'}-v1.0.0.zip`;
+    const finalFileSize = (attachedFile && attachedFile.file_size) || 15485760;
+    const finalVersion = (attachedFile && attachedFile.version) || p.deliverable_version || '1.0.0';
+
     return {
       id: 1000 + idx,
       order_id: order.id,
+      product_id: item.productId,
+      file_id: attachedFile ? attachedFile.id : null,
       product_title: item.productTitle,
-      file_name: `${p.slug || 'product'}-v1.0.0.zip`,
-      file_size: 15485760,
-      version: '1.0.0',
+      product_slug: p.slug,
+      file_name: finalFileName,
+      file_size: finalFileSize,
+      version: finalVersion,
       token: `DL_TOKEN_${Date.now()}_${idx}`
     };
   });
@@ -419,19 +434,36 @@ export function simulateGetMyOrders() {
 export function simulateGetMyDownloads() {
   try {
     const existing = JSON.parse(localStorage.getItem('rollixia_orders') || '[]');
+    const adminFiles = (() => {
+      try {
+        const raw = localStorage.getItem('rollixia_admin_files');
+        return raw ? JSON.parse(raw) : [];
+      } catch (e) { return []; }
+    })();
+
     if (Array.isArray(existing) && existing.length > 0) {
       const allDownloads = [];
       existing.forEach(entry => {
         const orderDate = entry.order?.created_at || new Date().toISOString();
         if (Array.isArray(entry.downloads)) {
           entry.downloads.forEach(dl => {
+            const attachedFile = adminFiles.find(f =>
+              (dl.file_id && Number(f.id) === Number(dl.file_id)) ||
+              (dl.product_id && Number(f.product_id) === Number(dl.product_id))
+            );
+
             allDownloads.push({
               download_id: dl.id || Date.now(),
+              order_id: dl.order_id || entry.order?.id,
+              product_id: dl.product_id,
+              file_id: dl.file_id || (attachedFile ? attachedFile.id : null),
               product_title: dl.product_title || 'Digital Product',
-              product_slug: dl.file_name?.split('-v')[0] || 'product',
+              product_slug: dl.product_slug || dl.file_name?.split('-v')[0] || 'product',
+              file_name: (attachedFile && attachedFile.file_name) || dl.file_name || 'deliverable.zip',
+              file_size: (attachedFile && attachedFile.file_size) || dl.file_size || 15485760,
               license_name: 'Commercial License',
               purchased_version: dl.version || '1.0.0',
-              latest_version: dl.version || '1.0.0',
+              latest_version: (attachedFile && attachedFile.version) || dl.version || '1.0.0',
               purchase_date: orderDate,
               downloads_remaining: 10,
               token: dl.token || `DL_TOKEN_${Date.now()}`,

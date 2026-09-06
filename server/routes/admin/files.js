@@ -133,9 +133,28 @@ router.put('/:id', uploadProtected.single('file'), async (req, res) => {
   try {
     const fileId = req.params.id;
     const db = await getDatabase();
-    const existingFile = db.get('SELECT * FROM product_files WHERE id = ?', [fileId]);
+    let existingFile = db.get('SELECT * FROM product_files WHERE id = ?', [fileId]);
     if (!existingFile) {
-      return res.status(404).json({ error: 'File record not found' });
+      existingFile = db.get('SELECT * FROM product_files WHERE product_id = ? ORDER BY id DESC LIMIT 1', [fileId]);
+    }
+    if (!existingFile) {
+      const targetProdId = parseInt(req.body.product_id) || parseInt(fileId) || 1;
+      const initialFileName = req.file ? req.file.originalname : (req.body.file_name || 'deliverable.zip');
+      const initialFilePath = req.file ? req.file.filename : initialFileName;
+      const initialFileSize = req.file ? req.file.size : 15485760;
+      const result = db.run(
+        `INSERT INTO product_files (product_id, file_name, file_path, file_size, version, changelog, download_limit, is_active, created_at)
+         VALUES (?, ?, ?, ?, ?, ?, 10, 1, CURRENT_TIMESTAMP)`,
+        [
+          targetProdId,
+          initialFileName,
+          initialFilePath,
+          initialFileSize,
+          (req.body.version || '1.0.0').trim(),
+          (req.body.changelog || '').trim()
+        ]
+      );
+      existingFile = db.get('SELECT * FROM product_files WHERE id = ?', [result.lastInsertRowid]);
     }
 
     const {

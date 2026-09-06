@@ -20,6 +20,7 @@ import { useCart } from '../../context/CartContext';
 import { useToast } from '../../context/ToastContext';
 import { apiRequest } from '../../utils/api';
 import { formatCurrency, formatDate, formatDateTime, formatFileSize } from '../../utils/formatters';
+import { downloadEntitledDeliverable } from '../../utils/fileStorage';
 
 export function CustomerDashboardPage({ initialTab = 'orders', onNavigate }) {
   const { user, updateProfile } = useAuth();
@@ -71,8 +72,8 @@ export function CustomerDashboardPage({ initialTab = 'orders', onNavigate }) {
     }).finally(() => setLoading(false));
   }, [user]);
 
-  const handleDownloadFile = (token) => {
-    window.location.href = `/api/downloads/file/${token}`;
+  const handleDownloadFile = async (dl) => {
+    await downloadEntitledDeliverable(dl, addToast);
   };
 
   const handleUpdateProfile = async (e) => {
@@ -317,7 +318,7 @@ export function CustomerDashboardPage({ initialTab = 'orders', onNavigate }) {
                           ) : (
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', alignItems: 'flex-end' }}>
                               <button
-                                onClick={() => handleDownloadFile(dl.token)}
+                                onClick={() => handleDownloadFile(dl)}
                                 className="btn btn-success"
                                 style={{ fontWeight: 700, padding: '0.65rem 1.4rem' }}
                               >

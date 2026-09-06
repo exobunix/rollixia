@@ -1,4 +1,5 @@
 import { FALLBACK_PRODUCTS, FALLBACK_CATEGORIES } from './fallbackCatalog.js';
+import { storeDeliverableBlob } from '../utils/fileStorage.js';
 
 // Local storage keys for persistent admin actions
 const STORAGE_KEYS = {
@@ -25,6 +26,22 @@ function setStored(key, val) {
   try {
     localStorage.setItem(key, JSON.stringify(val));
   } catch (e) {}
+}
+
+function extractFormValue(body, key) {
+  if (!body) return null;
+  if (typeof FormData !== 'undefined' && body instanceof FormData) {
+    return body.get(key);
+  }
+  return body[key];
+}
+
+function extractFormFile(body) {
+  if (!body) return null;
+  if (typeof FormData !== 'undefined' && body instanceof FormData) {
+    return body.get('file') || body.get('package') || null;
+  }
+  return body.file || body.package || null;
 }
 
 // 1. Initial Pre-seeded Deliverable Files
@@ -493,31 +510,171 @@ export function handleAdminFallbackRoute(clean, method, options = {}, requestBod
 
   // admin/files
   if (clean === 'admin/files' || clean === 'admin/files/') {
-    return getFallbackAdminFiles();
+    if (method === 'GET') {
+      return getFallbackAdminFiles();
+    }
   }
 
+  // PUT /api/admin/files/:id (Update or replace deliverable file package)
+  if (clean.startsWith('admin/files/') && (method === 'PUT' || method === 'PATCH')) {
+    const id = clean.replace(/^admin\/files\//, '');
+    const fileObj = extractFormFile(requestBody);
+    const productId = extractFormValue(requestBody, 'product_id');
+    const version = extractFormValue(requestBody, 'version') || '1.0.0';
+    const changelog = extractFormValue(requestBody, 'changelog') || '';
+
+    let files = getStored(STORAGE_KEYS.FILES, null);
+    if (!files || !Array.isArray(files) || files.length === 0) {
+      files = getInitialFiles();
+    }
+
+    const idx = files.findIndex(f => String(f.id) === String(id) || (productId && String(f.product_id) === String(productId)));
+    let targetFile = idx >= 0 ? files[idx] : null;
+
+    const fileName = (fileObj && (fileObj.name || fileObj.originalname)) || (targetFile && targetFile.file_name) || 'deliverable-package.zip';
+    const fileSize = (fileObj && fileObj.size) || (targetFile && targetFile.file_size) || 15485760;
+
+    if (fileObj && typeof fileObj === 'object' && (fileObj.size > 0 || fileObj.name)) {
+      const meta = {
+        fileName,
+        fileSize,
+        fileType: fileObj.type || 'application/octet-stream',
+        version
+      };
+      storeDeliverableBlob(id, fileObj, meta);
+      storeDeliverableBlob(`file_${id}`, fileObj, meta);
+      if (productId) {
+        storeDeliverableBlob(productId, fileObj, meta);
+        storeDeliverableBlob(`product_${productId}`, fileObj, meta);
+      }
+    }
+
+    const updated = {
+      ...(targetFile || {
+        id: Number(id) || Date.now(),
+        product_id: Number(productId) || 1,
+        product_title: 'Digital Deliverable Package',
+        product_slug: 'digital-package',
+        download_count: 0,
+        created_at: new Date().toISOString()
+      }),
+      product_id: Number(productId) || (targetFile ? targetFile.product_id : 1),
+      version: version || (targetFile ? targetFile.version : '1.0.0'),
+      changelog: changelog !== undefined && changelog !== null ? changelog : (targetFile ? targetFile.changelog : ''),
+      file_name: fileName,
+      file_size: fileSize,
+      updated_at: new Date().toISOString()
+    };
+
+    if (idx >= 0) {
+      files[idx] = updated;
+    } else {
+      files.unshift(updated);
+    }
+    setStored(STORAGE_KEYS.FILES, files);
+
+    // Also synchronize deliverable_name on product in rollixia_admin_products
+    const effectiveProdId = Number(productId) || (targetFile ? targetFile.product_id : null);
+    if (effectiveProdId) {
+      const products = getStored(STORAGE_KEYS.PRODUCTS, [...FALLBACK_PRODUCTS]);
+      const pIdx = products.findIndex(p => Number(p.id) === effectiveProdId);
+      if (pIdx >= 0) {
+        products[pIdx] = {
+          ...products[pIdx],
+          deliverable_name: fileName,
+          deliverable_version: version
+        };
+        setStored(STORAGE_KEYS.PRODUCTS, products);
+      }
+    }
+
+    return {
+      success: true,
+      message: 'Product deliverable file updated successfully',
+      file: updated
+    };
+  }
+
+  // POST /api/admin/files/version (Upload new deliverable file or new version for a product)
   if (clean === 'admin/files/version' && method === 'POST') {
-    const files = getStored(STORAGE_KEYS.FILES, getInitialFiles());
+    const fileObj = extractFormFile(requestBody);
+    const productId = Number(extractFormValue(requestBody, 'product_id')) || 1;
+    const version = extractFormValue(requestBody, 'version') || '1.0.0';
+    const changelog = extractFormValue(requestBody, 'changelog') || 'Production master release bundle.';
+
+    const products = getStored(STORAGE_KEYS.PRODUCTS, [...FALLBACK_PRODUCTS]);
+    const targetProduct = products.find(p => Number(p.id) === productId) || FALLBACK_PRODUCTS.find(p => Number(p.id) === productId) || products[0];
+
+    const fileName = (fileObj && (fileObj.name || fileObj.originalname)) || `${targetProduct?.slug || 'package'}-v${version}.zip`;
+    const fileSize = (fileObj && fileObj.size) || 18450000;
+    const newId = Date.now();
+
+    if (fileObj && typeof fileObj === 'object' && (fileObj.size > 0 || fileObj.name)) {
+      const meta = {
+        fileName,
+        fileSize,
+        fileType: fileObj.type || 'application/octet-stream',
+        version
+      };
+      storeDeliverableBlob(newId, fileObj, meta);
+      storeDeliverableBlob(`file_${newId}`, fileObj, meta);
+      if (productId) {
+        storeDeliverableBlob(productId, fileObj, meta);
+        storeDeliverableBlob(`product_${productId}`, fileObj, meta);
+      }
+    }
+
+    let files = getStored(STORAGE_KEYS.FILES, null);
+    if (!files || !Array.isArray(files) || files.length === 0) {
+      files = getInitialFiles();
+    }
+
     const newFile = {
-      id: Date.now(),
-      product_id: Number(requestBody?.product_id) || 1,
-      product_title: 'Updated Deliverable Package',
-      product_slug: 'digital-product',
-      file_name: `package-v${requestBody?.version || '1.0.0'}.zip`,
-      file_size: 18450000,
-      version: requestBody?.version || '1.0.0',
-      changelog: requestBody?.changelog || 'Asset bundle update.',
+      id: newId,
+      product_id: productId,
+      product_title: targetProduct?.title || 'Updated Deliverable Package',
+      product_slug: targetProduct?.slug || 'digital-package',
+      file_name: fileName,
+      file_size: fileSize,
+      version,
+      changelog,
       download_count: 0,
       created_at: new Date().toISOString()
     };
     files.unshift(newFile);
     setStored(STORAGE_KEYS.FILES, files);
-    return { success: true, message: 'File version created', file: newFile };
+
+    // Update target product deliverable details
+    const pIdx = products.findIndex(p => Number(p.id) === productId);
+    if (pIdx >= 0) {
+      products[pIdx] = {
+        ...products[pIdx],
+        deliverable_name: fileName,
+        deliverable_version: version
+      };
+      setStored(STORAGE_KEYS.PRODUCTS, products);
+    }
+
+    return {
+      success: true,
+      message: 'File version created successfully',
+      file: newFile
+    };
   }
 
+  // GET /api/admin/files/:id
+  if (clean.startsWith('admin/files/') && method === 'GET') {
+    const id = clean.replace(/^admin\/files\//, '');
+    const files = getStored(STORAGE_KEYS.FILES, getInitialFiles());
+    const file = files.find(f => String(f.id) === String(id) || String(f.product_id) === String(id));
+    return file || files[0] || null;
+  }
+
+  // DELETE /api/admin/files/:id
   if (clean.startsWith('admin/files/') && method === 'DELETE') {
     const id = clean.replace(/^admin\/files\//, '');
-    let files = getStored(STORAGE_KEYS.FILES, getInitialFiles());
+    let files = getStored(STORAGE_KEYS.FILES, null);
+    if (!files || !Array.isArray(files)) files = getInitialFiles();
     files = files.filter(f => String(f.id) !== String(id));
     setStored(STORAGE_KEYS.FILES, files);
     return { success: true, message: 'File deleted' };

@@ -4,11 +4,14 @@ import { CheckCircle2, DownloadCloud, FileText, ArrowRight, ShieldCheck, Printer
 import { apiRequest } from '../../utils/api';
 import { formatCurrency, formatDate, formatDateTime, formatFileSize } from '../../utils/formatters';
 import { useCurrency } from '../../context/CurrencyContext';
+import { useToast } from '../../context/ToastContext';
+import { downloadEntitledDeliverable } from '../../utils/fileStorage';
 
 export function OrderSuccessPage({ orderNumber, onNavigate }) {
   const [orderData, setOrderData] = useState(null);
   const [loading, setLoading] = useState(true);
   const { currency } = useCurrency();
+  const { addToast } = useToast();
 
   useEffect(() => {
     // Fire celebratory confetti!
@@ -45,9 +48,8 @@ export function OrderSuccessPage({ orderNumber, onNavigate }) {
 
   const { order, items = [], downloads = [] } = orderData;
 
-  const handleDownload = (token, fileName) => {
-    // Open secure token download URL directly
-    window.location.href = `/api/downloads/file/${token}`;
+  const handleDownload = async (dl) => {
+    await downloadEntitledDeliverable(dl, addToast);
   };
 
   const handlePrintInvoice = () => {
@@ -143,7 +145,7 @@ export function OrderSuccessPage({ orderNumber, onNavigate }) {
                 </div>
 
                 <button
-                  onClick={() => handleDownload(dl.token, dl.file_name)}
+                  onClick={() => handleDownload(dl)}
                   className="btn btn-success"
                   style={{ fontWeight: 700, padding: '0.65rem 1.25rem' }}
                 >

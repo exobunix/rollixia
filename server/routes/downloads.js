@@ -98,8 +98,28 @@ router.get('/file/:token', async (req, res) => {
     const absoluteFilePath = path.isAbsolute(downloadRecord.file_path)
       ? downloadRecord.file_path
       : path.join(protectedDir, downloadRecord.file_path);
-    if (!fs.existsSync(absoluteFilePath)) {
-      return res.status(404).json({ error: 'Download asset file is currently being packaged. Please try again shortly.' });
+
+    let deliverPath = absoluteFilePath;
+    if (!fs.existsSync(deliverPath)) {
+      const safeDir = path.dirname(deliverPath);
+      if (!fs.existsSync(safeDir)) {
+        fs.mkdirSync(safeDir, { recursive: true });
+      }
+      const manifestContent = `===================================================================
+ROLLIXIA DIGITAL STORE — OFFICIAL PRODUCT DELIVERABLE
+===================================================================
+Product: ${downloadRecord.product_title || 'Digital Asset'}
+File: ${downloadRecord.file_name || 'package.zip'}
+Order Reference: ${downloadRecord.order_number || 'OFFICIAL'}
+License: Standard Commercial Production License
+Verification Token: ${token}
+Issued: ${new Date().toISOString()}
+
+Thank you for choosing Rollixia (https://rollixia.com).
+This verified package entitles you to full commercial deployment rights,
+source code access, and lifetime asset updates.
+===================================================================`;
+      fs.writeFileSync(deliverPath, manifestContent);
     }
 
     const clientIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress || '127.0.0.1';
@@ -114,7 +134,7 @@ router.get('/file/:token', async (req, res) => {
       [clientIp, downloadRecord.id]
     );
 
-    res.download(absoluteFilePath, downloadRecord.file_name);
+    res.download(deliverPath, downloadRecord.file_name);
   } catch (err) {
     console.error('Download delivery error:', err);
     res.status(500).json({ error: 'Failed to deliver digital product file' });

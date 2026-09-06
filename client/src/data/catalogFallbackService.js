@@ -276,6 +276,8 @@ export function simulateCreateOrder(payload = {}) {
   return {
     order,
     orderNumber,
+    totalAmount: calculation.total,
+    currency: payload.currency || 'INR',
     isFree: calculation.total === 0,
     paymentSession: {
       provider,
@@ -287,7 +289,6 @@ export function simulateCreateOrder(payload = {}) {
       txnToken: `PAYTM_TOKEN_${Date.now()}`
     }
   };
-
 }
 
 export function simulateVerifyPayment(payload = {}) {
@@ -369,7 +370,7 @@ export function handleFallbackRoute(endpoint, options = {}, requestBody = null) 
       return simulateVerifyPayment(requestBody);
     }
     if (clean === 'create-order') {
-      const amount = Number(requestBody?.amount) || 100;
+      const amount = Number(requestBody?.amount) > 0 ? Math.round(Number(requestBody.amount)) : 100;
       return {
         order_id: null,
         amount,

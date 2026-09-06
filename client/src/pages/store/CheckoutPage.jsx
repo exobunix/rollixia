@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { ShieldCheck, Lock, CheckCircle2, ArrowRight, CreditCard, Zap, QrCode, Smartphone, Wallet, X } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { ShieldCheck, Lock, CheckCircle2, ArrowRight, CreditCard, User, Mail, LogIn, UserPlus, AlertCircle } from 'lucide-react';
 import { useCart } from '../../context/CartContext';
 import { useAuth } from '../../context/AuthContext';
 import { useCurrency } from '../../context/CurrencyContext';
@@ -29,25 +29,69 @@ const loadRazorpayScript = () => {
 
 export function CheckoutPage({ onNavigate }) {
   const { items, cartTotals, couponCode, clearCart } = useCart();
-
-  const { user } = useAuth();
+  const { user, login, register } = useAuth();
   const { currency } = useCurrency();
   const { addToast } = useToast();
 
+  // Auth gate inline states (if user is not logged in)
+  const [authMode, setAuthMode] = useState('login'); // 'login' | 'register'
+  const [authEmail, setAuthEmail] = useState('');
+  const [authPassword, setAuthPassword] = useState('');
+  const [authFullName, setAuthFullName] = useState('');
+  const [authLoading, setAuthLoading] = useState(false);
+  const [authError, setAuthError] = useState('');
+
+  // Customer Delivery Info
   const [customerName, setCustomerName] = useState(user?.full_name || '');
   const [customerEmail, setCustomerEmail] = useState(user?.email || '');
-  const [customerPhone, setCustomerPhone] = useState('9876543210');
+  const [customerPhone, setCustomerPhone] = useState('');
   const [country, setCountry] = useState('India');
-  const [paymentProvider, setPaymentProvider] = useState('paytm');
   const [agreedTerms, setAgreedTerms] = useState(true);
   const [isProcessing, setIsProcessing] = useState(false);
 
-  // Paytm Modal State
-  const [showPaytmModal, setShowPaytmModal] = useState(false);
-  const [paytmTab, setPaytmTab] = useState('upi'); // 'upi', 'wallet', 'cards'
-  const [upiId, setUpiId] = useState('');
-  const [pendingOrder, setPendingOrder] = useState(null);
-  const [paytmVerifying, setPaytmVerifying] = useState(false);
+  // Synchronize customer details whenever user logs in or changes
+  useEffect(() => {
+    if (user) {
+      if (user.full_name) setCustomerName(user.full_name);
+      if (user.email) setCustomerEmail(user.email);
+    }
+  }, [user]);
+
+  // Inline sign-in / registration handler
+  const handleInlineAuth = async (e) => {
+    e.preventDefault();
+    setAuthError('');
+    setAuthLoading(true);
+
+    try {
+      if (authMode === 'login') {
+        if (!authEmail.trim() || !authPassword) {
+          throw new Error('Please enter both your email address and password.');
+        }
+        const loggedUser = await login(authEmail.trim(), authPassword);
+        addToast(`Welcome back, ${loggedUser.full_name || 'Customer'}!`, 'success');
+        setCustomerName(loggedUser.full_name || '');
+        setCustomerEmail(loggedUser.email || '');
+      } else {
+        if (!authFullName.trim() || !authEmail.trim() || !authPassword) {
+          throw new Error('Please enter your full name, email, and password.');
+        }
+        if (authPassword.length < 6) {
+          throw new Error('Password must be at least 6 characters.');
+        }
+        const registeredUser = await register(authEmail.trim(), authPassword, authFullName.trim());
+        addToast(`Account created! Welcome, ${registeredUser.full_name}!`, 'success');
+        setCustomerName(registeredUser.full_name || '');
+        setCustomerEmail(registeredUser.email || '');
+      }
+    } catch (err) {
+      const msg = err.message || 'Authentication failed. Please check your credentials.';
+      setAuthError(msg);
+      addToast(msg, 'error');
+    } finally {
+      setAuthLoading(false);
+    }
+  };
 
   if (items.length === 0) {
     return (
@@ -64,6 +108,16 @@ export function CheckoutPage({ onNavigate }) {
   const handleCheckoutSubmit = async (e) => {
     e.preventDefault();
 
+    // 1. Enforce login requirement: without login it will not proceed
+    if (!user) {
+      addToast('Please log in or create an account to proceed with checkout', 'error');
+      const authElem = document.getElementById('checkout-auth-gate');
+      if (authElem) {
+        authElem.scrollIntoView({ behavior: 'smooth' });
+      }
+      return;
+    }
+
     if (!customerEmail.trim() || !customerName.trim()) {
       addToast('Please provide your name and valid email for digital delivery', 'error');
       return;
@@ -77,14 +131,18 @@ export function CheckoutPage({ onNavigate }) {
     setIsProcessing(true);
 
     try {
+      // Accurate total calculation directly from cart (never ₹1 / 100 paise fallback)
+      const totalAmountRupees = Number(cartTotals?.total || 0);
+      const totalAmountPaise = Math.max(100, Math.round(totalAmountRupees * 100));
+
       // 1. Create order on server
       const orderPayload = {
         customer_email: customerEmail.trim(),
         customer_name: customerName.trim(),
-        customer_phone: customerPhone.trim(),
+        customer_phone: customerPhone.trim() || '9876543210',
         items: items.map(i => ({ productId: i.productId, licenseId: i.licenseId })),
         coupon_code: couponCode || null,
-        payment_provider: paymentProvider,
+        payment_provider: 'razorpay',
         currency
       };
 
@@ -94,192 +152,130 @@ export function CheckoutPage({ onNavigate }) {
       });
 
       // 2. If order is free (₹0), server already marked it paid and granted access
-      if (orderData.isFree) {
+      if (orderData.isFree || totalAmountRupees === 0) {
         clearCart();
         addToast('Free product order processed instantly!', 'success');
         onNavigate('order-success', { orderNumber: orderData.orderNumber });
         return;
       }
 
-      // If Paytm provider is selected, open Paytm Business modal
-      if (paymentProvider === 'paytm') {
-        setPendingOrder(orderData);
-        setShowPaytmModal(true);
-        setIsProcessing(false);
-        return;
+      // 3. Initiate Razorpay Standard Web Checkout
+      const isLoaded = await loadRazorpayScript();
+      if (!isLoaded || typeof window.Razorpay === 'undefined') {
+        throw new Error('Razorpay SDK could not be loaded. Please check your internet connection and try again.');
       }
 
-      // If Razorpay provider is selected, trigger Razorpay Standard Checkout modal
-      if (paymentProvider === 'razorpay') {
-        const isLoaded = await loadRazorpayScript();
-        if (!isLoaded || typeof window.Razorpay === 'undefined') {
-          throw new Error('Razorpay SDK could not be loaded. Please check your internet connection and try again.');
+      let rzpOrderId = orderData.paymentSession?.orderId;
+      let rzpAmount = orderData.paymentSession?.amount || totalAmountPaise;
+      let rzpCurrency = orderData.paymentSession?.currency || orderData.currency || 'INR';
+
+      // If order was not pre-initialized with an authentic Razorpay order_id, create via /api/create-order
+      if (!rzpOrderId) {
+        try {
+          const createOrderRes = await apiRequest('/api/create-order', {
+            method: 'POST',
+            body: JSON.stringify({
+              amount: totalAmountPaise,
+              currency: rzpCurrency,
+              receipt: orderData.orderNumber
+            })
+          });
+          if (createOrderRes?.order_id) {
+            rzpOrderId = createOrderRes.order_id;
+          }
+          if (createOrderRes?.amount) {
+            rzpAmount = createOrderRes.amount;
+          }
+        } catch (createErr) {
+          console.warn('Backend order creation endpoint unavailable, using direct client amount:', createErr);
+          rzpOrderId = null;
+          rzpAmount = totalAmountPaise;
         }
+      }
 
-        let rzpOrderId = orderData.paymentSession?.orderId;
-        let rzpAmount = orderData.paymentSession?.amount;
-        let rzpCurrency = orderData.paymentSession?.currency || orderData.currency || 'INR';
+      // Safety check: ensure rzpAmount always matches the full cart value in paise
+      if (!rzpAmount || rzpAmount < totalAmountPaise) {
+        rzpAmount = totalAmountPaise;
+      }
 
-        // Fallback: If order was not pre-initialized with Razorpay order_id, create via /api/create-order
-        if (!rzpOrderId) {
+      const rzpKey = import.meta.env.VITE_RAZORPAY_KEY_ID || orderData.paymentSession?.keyId || 'rzp_live_TYeE4nMLmsPaCZ';
+
+      const isAuthenticRazorpayOrder = typeof rzpOrderId === 'string' &&
+        rzpOrderId.startsWith('order_') &&
+        !rzpOrderId.includes('sim') &&
+        !rzpOrderId.includes('fb');
+
+      const rzpOptions = {
+        key: rzpKey,
+        amount: rzpAmount,
+        currency: rzpCurrency,
+        name: 'Rollixia Marketplace',
+        description: `Order ${orderData.orderNumber} - Digital Products`,
+        prefill: {
+          name: customerName.trim() || user.full_name || '',
+          email: customerEmail.trim() || user.email || '',
+          contact: customerPhone.trim() || ''
+        },
+        theme: {
+          color: '#6366f1'
+        },
+        modal: {
+          ondismiss: function() {
+            console.log('Razorpay checkout modal dismissed by user');
+            setIsProcessing(false);
+            addToast('Payment cancelled. You can retry anytime.', 'info');
+          }
+        },
+        handler: async function(response) {
           try {
-            const createOrderRes = await apiRequest('/api/create-order', {
+            setIsProcessing(true);
+            addToast('Verifying payment signature with Razorpay...', 'info');
+
+            const verifyRes = await apiRequest('/api/verify-payment', {
               method: 'POST',
               body: JSON.stringify({
-                amount: Math.round(orderData.totalAmount * 100),
-                currency: rzpCurrency,
-                receipt: orderData.orderNumber
+                order_id: response.razorpay_order_id || rzpOrderId || '',
+                payment_id: response.razorpay_payment_id,
+                razorpay_signature: response.razorpay_signature || 'verified_sig',
+                orderNumber: orderData.orderNumber
               })
             });
-            rzpOrderId = createOrderRes?.order_id || null;
-            rzpAmount = createOrderRes?.amount || Math.round(orderData.totalAmount * 100);
-            rzpCurrency = createOrderRes?.currency || rzpCurrency;
-          } catch (createErr) {
-            console.warn('Backend order creation unavailable, using standard checkout:', createErr);
-            rzpOrderId = null;
-            rzpAmount = Math.round(orderData.totalAmount * 100);
+
+            if (verifyRes && (verifyRes.success || verifyRes.status === 'TXN_SUCCESS')) {
+              clearCart();
+              addToast('Payment verified successfully! Your digital downloads are ready.', 'success');
+              onNavigate('order-success', { orderNumber: orderData.orderNumber });
+            } else {
+              throw new Error(verifyRes?.error || 'Payment signature verification failed');
+            }
+          } catch (vErr) {
+            console.error('Razorpay verification error:', vErr);
+            addToast(vErr.message || 'Payment signature verification failed', 'error');
+          } finally {
+            setIsProcessing(false);
           }
         }
-
-        const rzpKey = import.meta.env.VITE_RAZORPAY_KEY_ID || orderData.paymentSession?.keyId || 'rzp_live_TYeE4nMLmsPaCZ';
-
-        // Check if we have an authentic Razorpay order ID from Razorpay API (must not be simulated)
-        const isAuthenticRazorpayOrder = typeof rzpOrderId === 'string' &&
-          rzpOrderId.startsWith('order_') &&
-          !rzpOrderId.includes('sim') &&
-          !rzpOrderId.includes('fb');
-
-        const rzpOptions = {
-          key: rzpKey,
-          amount: rzpAmount,
-          currency: rzpCurrency,
-          name: 'Rollixia Marketplace',
-          description: `Order ${orderData.orderNumber} - Digital Products`,
-          prefill: {
-            name: customerName.trim(),
-            email: customerEmail.trim(),
-            contact: customerPhone.trim() || ''
-          },
-          theme: {
-            color: '#6366f1'
-          },
-          modal: {
-            ondismiss: function() {
-              console.log('Razorpay checkout modal dismissed by user');
-              setIsProcessing(false);
-              addToast('Payment cancelled. You can retry anytime or choose another payment method.', 'info');
-            }
-          },
-          handler: async function(response) {
-            // Received razorpay_payment_id, razorpay_order_id, razorpay_signature
-            try {
-              setIsProcessing(true);
-              addToast('Verifying payment...', 'info');
-
-              const verifyRes = await apiRequest('/api/verify-payment', {
-                method: 'POST',
-                body: JSON.stringify({
-                  order_id: response.razorpay_order_id || rzpOrderId || '',
-                  payment_id: response.razorpay_payment_id,
-                  razorpay_signature: response.razorpay_signature || 'verified_sig',
-                  orderNumber: orderData.orderNumber
-                })
-              });
-
-              if (verifyRes && (verifyRes.success || verifyRes.status === 'TXN_SUCCESS')) {
-
-                clearCart();
-                addToast('Payment verified successfully! Your files are ready.', 'success');
-                onNavigate('order-success', { orderNumber: orderData.orderNumber });
-              } else {
-                throw new Error(verifyRes?.error || 'Payment signature verification failed');
-              }
-            } catch (vErr) {
-              console.error('Razorpay verification error:', vErr);
-              addToast(vErr.message || 'Payment signature verification failed', 'error');
-            } finally {
-              setIsProcessing(false);
-            }
-          }
-        };
-
-        if (isAuthenticRazorpayOrder) {
-          rzpOptions.order_id = rzpOrderId;
-        }
-
-        const rzp = new window.Razorpay(rzpOptions);
-
-        // Handle payment.failed event
-        rzp.on('payment.failed', function(resp) {
-          console.error('Razorpay payment failed event:', resp.error);
-          setIsProcessing(false);
-          const failureReason = resp.error?.description || resp.error?.reason || 'Payment could not be processed';
-          addToast(`Payment failed: ${failureReason}`, 'error');
-        });
-
-        rzp.open();
-        return;
-      }
-
-      // 3. Complete payment verification via backend for simulated provider
-      const verifyPayload = {
-        orderNumber: orderData.orderNumber,
-        paymentId: orderData.paymentSession?.paymentId || `PAY-SIM-${Date.now()}`,
-        provider: paymentProvider
       };
 
-      const verifyRes = await apiRequest('/api/payments/verify', {
-        method: 'POST',
-        body: JSON.stringify(verifyPayload)
+      if (isAuthenticRazorpayOrder) {
+        rzpOptions.order_id = rzpOrderId;
+      }
+
+      const rzp = new window.Razorpay(rzpOptions);
+
+      rzp.on('payment.failed', function(resp) {
+        console.error('Razorpay payment failed event:', resp.error);
+        setIsProcessing(false);
+        const failureReason = resp.error?.description || resp.error?.reason || 'Payment could not be processed';
+        addToast(`Payment failed: ${failureReason}`, 'error');
       });
 
-      if (verifyRes.success) {
-        clearCart();
-        addToast('Payment verified successfully! Your files are ready.', 'success');
-        onNavigate('order-success', { orderNumber: orderData.orderNumber });
-      } else {
-        throw new Error(verifyRes.error || 'Payment verification failed');
-      }
+      rzp.open();
     } catch (err) {
       console.error('Checkout error:', err);
       addToast(err.message || 'An error occurred during payment processing', 'error');
     } finally {
       setIsProcessing(false);
-    }
-  };
-
-  const handleCompletePaytmPayment = async (method = 'UPI') => {
-    if (!pendingOrder) return;
-    setPaytmVerifying(true);
-
-    try {
-      const pId = pendingOrder.paymentSession?.txnToken 
-        ? `PAYTM_${pendingOrder.paymentSession.txnToken}` 
-        : `PAYTM_TXN_${Date.now()}`;
-
-      const verifyRes = await apiRequest('/api/payments/verify', {
-        method: 'POST',
-        body: JSON.stringify({
-          orderNumber: pendingOrder.orderNumber,
-          paymentId: pId,
-          provider: 'paytm',
-          method
-        })
-      });
-
-      if (verifyRes.success) {
-        setShowPaytmModal(false);
-        clearCart();
-        addToast('✓ Paytm payment approved! Your download tokens are generated.', 'success');
-        onNavigate('order-success', { orderNumber: pendingOrder.orderNumber });
-      } else {
-        throw new Error(verifyRes.error || 'Paytm payment verification failed');
-      }
-    } catch (err) {
-      console.error('Paytm payment error:', err);
-      addToast(err.message || 'Failed to verify Paytm payment', 'error');
-    } finally {
-      setPaytmVerifying(false);
     }
   };
 
@@ -290,7 +286,7 @@ export function CheckoutPage({ onNavigate }) {
           Secure Checkout
         </h1>
         <p style={{ color: 'var(--text-secondary)', marginBottom: '2.5rem' }}>
-          Instant tokenized delivery right after payment confirmation.
+          Instant tokenized digital delivery right after payment confirmation.
         </p>
 
         <form onSubmit={handleCheckoutSubmit}>
@@ -302,10 +298,236 @@ export function CheckoutPage({ onNavigate }) {
           }}>
             {/* Left: Customer Information & Payment Methods */}
             <div>
-              {/* Customer Contact */}
+              {/* 1. Account Authentication Gate */}
+              <div id="checkout-auth-gate" style={{ marginBottom: '1.5rem' }}>
+                {user ? (
+                  <div className="glass-card" style={{
+                    padding: '1.5rem',
+                    borderRadius: 'var(--radius-lg)',
+                    border: '1px solid rgba(16, 185, 129, 0.35)',
+                    background: 'rgba(16, 185, 129, 0.05)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    gap: '12px'
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                      <div style={{
+                        width: '42px',
+                        height: '42px',
+                        borderRadius: '50%',
+                        background: 'rgba(16, 185, 129, 0.15)',
+                        border: '1px solid rgba(16, 185, 129, 0.4)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        color: '#10b981',
+                        flexShrink: 0
+                      }}>
+                        <CheckCircle2 size={22} />
+                      </div>
+                      <div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <span style={{ fontWeight: 800, color: 'var(--text-primary)', fontSize: '0.95rem' }}>
+                            Signed In as {user.full_name || 'Customer'}
+                          </span>
+                          <span style={{
+                            fontSize: '0.675rem',
+                            fontWeight: 800,
+                            padding: '2px 8px',
+                            borderRadius: '4px',
+                            background: 'rgba(16, 185, 129, 0.2)',
+                            color: '#10b981',
+                            border: '1px solid rgba(16, 185, 129, 0.4)'
+                          }}>
+                            VERIFIED ACCOUNT
+                          </span>
+                        </div>
+                        <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', margin: '2px 0 0 0' }}>
+                          {user.email} • Your purchases will be securely stored in your personal vault.
+                        </p>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => onNavigate('login')}
+                      className="btn btn-ghost btn-sm"
+                      style={{ fontSize: '0.8rem', whiteSpace: 'nowrap' }}
+                    >
+                      Switch Account
+                    </button>
+                  </div>
+                ) : (
+                  <div className="glass-card" style={{
+                    padding: '1.75rem',
+                    borderRadius: 'var(--radius-xl)',
+                    border: '1px solid rgba(99, 102, 241, 0.35)',
+                    background: 'rgba(99, 102, 241, 0.04)',
+                    boxShadow: '0 8px 30px rgba(99, 102, 241, 0.1)'
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '0.75rem' }}>
+                      <div style={{
+                        width: '36px',
+                        height: '36px',
+                        borderRadius: '8px',
+                        background: 'rgba(99, 102, 241, 0.2)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        color: '#6366f1'
+                      }}>
+                        <Lock size={18} />
+                      </div>
+                      <div>
+                        <h3 style={{ fontSize: '1.1rem', fontWeight: 800, color: 'var(--text-primary)', margin: 0 }}>
+                          1. Account Required to Checkout
+                        </h3>
+                        <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', margin: 0 }}>
+                          Please log in or create an account to receive your digital licenses and downloads.
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Auth Mode Tabs */}
+                    <div style={{
+                      display: 'flex',
+                      background: 'var(--bg-surface-elevated)',
+                      borderRadius: 'var(--radius-md)',
+                      padding: '4px',
+                      marginBottom: '1.25rem',
+                      border: '1px solid var(--border-subtle)'
+                    }}>
+                      <button
+                        type="button"
+                        onClick={() => { setAuthMode('login'); setAuthError(''); }}
+                        style={{
+                          flex: 1,
+                          padding: '8px',
+                          border: 'none',
+                          borderRadius: 'var(--radius-sm)',
+                          background: authMode === 'login' ? 'var(--primary)' : 'transparent',
+                          color: authMode === 'login' ? '#ffffff' : 'var(--text-secondary)',
+                          fontWeight: 700,
+                          fontSize: '0.85rem',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: '6px',
+                          transition: 'all var(--transition-fast)'
+                        }}
+                      >
+                        <LogIn size={15} /> Sign In
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => { setAuthMode('register'); setAuthError(''); }}
+                        style={{
+                          flex: 1,
+                          padding: '8px',
+                          border: 'none',
+                          borderRadius: 'var(--radius-sm)',
+                          background: authMode === 'register' ? 'var(--primary)' : 'transparent',
+                          color: authMode === 'register' ? '#ffffff' : 'var(--text-secondary)',
+                          fontWeight: 700,
+                          fontSize: '0.85rem',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: '6px',
+                          transition: 'all var(--transition-fast)'
+                        }}
+                      >
+                        <UserPlus size={15} /> Create Account
+                      </button>
+                    </div>
+
+                    {authError && (
+                      <div style={{
+                        padding: '10px 14px',
+                        background: 'rgba(239, 68, 68, 0.1)',
+                        border: '1px solid rgba(239, 68, 68, 0.3)',
+                        borderRadius: 'var(--radius-md)',
+                        marginBottom: '1rem',
+                        fontSize: '0.825rem',
+                        color: '#ef4444',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '8px'
+                      }}>
+                        <AlertCircle size={16} />
+                        <span>{authError}</span>
+                      </div>
+                    )}
+
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                      {authMode === 'register' && (
+                        <div>
+                          <label className="form-label" style={{ fontSize: '0.8rem' }}>Full Name</label>
+                          <input
+                            type="text"
+                            className="form-input"
+                            placeholder="Alex Morgan"
+                            value={authFullName}
+                            onChange={e => setAuthFullName(e.target.value)}
+                            style={{ fontSize: '0.85rem' }}
+                          />
+                        </div>
+                      )}
+
+                      <div>
+                        <label className="form-label" style={{ fontSize: '0.8rem' }}>Email Address</label>
+                        <input
+                          type="email"
+                          className="form-input"
+                          placeholder="alex@company.com"
+                          value={authEmail}
+                          onChange={e => setAuthEmail(e.target.value)}
+                          style={{ fontSize: '0.85rem' }}
+                        />
+                      </div>
+
+                      <div>
+                        <label className="form-label" style={{ fontSize: '0.8rem' }}>Password</label>
+                        <input
+                          type="password"
+                          className="form-input"
+                          placeholder="••••••••"
+                          value={authPassword}
+                          onChange={e => setAuthPassword(e.target.value)}
+                          style={{ fontSize: '0.85rem' }}
+                        />
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={handleInlineAuth}
+                        disabled={authLoading}
+                        className="btn btn-primary"
+                        style={{ width: '100%', marginTop: '0.5rem', fontWeight: 700 }}
+                      >
+                        {authLoading ? 'Verifying...' : authMode === 'login' ? 'Sign In & Unlock Checkout' : 'Create Account & Continue'}
+                      </button>
+
+                      <div style={{ display: 'flex', justifyContent: 'center', marginTop: '6px' }}>
+                        <button
+                          type="button"
+                          onClick={() => onNavigate(authMode === 'login' ? 'login' : 'register')}
+                          style={{ background: 'none', border: 'none', color: 'var(--primary)', cursor: 'pointer', fontSize: '0.8rem', textDecoration: 'underline' }}
+                        >
+                          Or open full {authMode === 'login' ? 'sign-in' : 'registration'} page
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* 2. Customer Digital Delivery Contact */}
               <div className="glass-card" style={{ padding: '2rem', marginBottom: '1.5rem' }}>
                 <h3 style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--text-primary)', marginBottom: '1.25rem' }}>
-                  1. Digital Delivery Contact
+                  2. Digital Delivery Contact
                 </h3>
 
                 <div className="form-group">
@@ -332,6 +554,17 @@ export function CheckoutPage({ onNavigate }) {
                   />
                 </div>
 
+                <div className="form-group">
+                  <label className="form-label">Phone Number (Optional - for order SMS updates)</label>
+                  <input
+                    type="tel"
+                    className="form-input"
+                    placeholder="+91 98765 43210"
+                    value={customerPhone}
+                    onChange={e => setCustomerPhone(e.target.value)}
+                  />
+                </div>
+
                 <div className="form-group" style={{ marginBottom: 0 }}>
                   <label className="form-label">Billing Country / Region</label>
                   <select
@@ -350,129 +583,97 @@ export function CheckoutPage({ onNavigate }) {
                 </div>
               </div>
 
-              {/* Payment Method Selector */}
+              {/* 3. Payment Gateway: Exclusively Razorpay */}
               <div className="glass-card" style={{ padding: '2rem' }}>
                 <h3 style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--text-primary)', marginBottom: '1.25rem' }}>
-                  2. Payment Architecture
+                  3. Payment Method
                 </h3>
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                  {/* Option 1: Paytm for Business (Primary & Recommended) */}
+                  {/* Razorpay Exclusive Gateway */}
                   <div
-                    onClick={() => setPaymentProvider('paytm')}
                     style={{
-                      padding: '16px 18px',
-                      borderRadius: 'var(--radius-md)',
-                      border: `2px solid ${paymentProvider === 'paytm' ? '#00b9f5' : 'var(--border-subtle)'}`,
-                      background: paymentProvider === 'paytm' ? 'rgba(0, 185, 245, 0.08)' : 'var(--bg-surface-elevated)',
-                      cursor: 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      transition: 'all var(--transition-fast)',
-                      boxShadow: paymentProvider === 'paytm' ? '0 0 20px rgba(0, 185, 245, 0.2)' : 'none'
+                      padding: '20px',
+                      borderRadius: 'var(--radius-lg)',
+                      border: '2px solid var(--primary)',
+                      background: 'rgba(99, 102, 241, 0.08)',
+                      boxShadow: '0 4px 20px rgba(99, 102, 241, 0.15)',
+                      transition: 'all var(--transition-fast)'
                     }}
                   >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-                      <div style={{
-                        width: '42px',
-                        height: '42px',
-                        borderRadius: '10px',
-                        background: '#002970',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        boxShadow: '0 2px 10px rgba(0, 41, 112, 0.5)',
-                        flexShrink: 0
-                      }}>
-                        <span style={{ fontWeight: 900, color: '#ffffff', fontSize: '0.825rem', letterSpacing: '-0.02em' }}>
-                          pay<span style={{ color: '#00b9f5' }}>tm</span>
-                        </span>
-                      </div>
-                      <div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                          <p style={{ fontSize: '1rem', fontWeight: 800, color: 'var(--text-primary)' }}>
-                            Paytm for Business (All-in-One Gateway)
-                          </p>
-                          <span style={{
-                            fontSize: '0.675rem',
-                            fontWeight: 800,
-                            background: 'rgba(0, 185, 245, 0.15)',
-                            color: '#00b9f5',
-                            border: '1px solid rgba(0, 185, 245, 0.3)',
-                            padding: '2px 8px',
-                            borderRadius: '4px'
-                          }}>
-                            RECOMMENDED
-                          </span>
+                    <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '12px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+                        <div style={{
+                          width: '44px',
+                          height: '44px',
+                          borderRadius: '12px',
+                          background: 'linear-gradient(135deg, #0c2340 0%, #1e3a8a 100%)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          boxShadow: '0 4px 12px rgba(12, 35, 64, 0.4)',
+                          color: '#38bdf8',
+                          flexShrink: 0
+                        }}>
+                          <CreditCard size={22} />
                         </div>
-                        <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '2px' }}>
-                          Paytm UPI, Google Pay, PhonePe, Paytm Wallet, NetBanking & Cards
-                        </p>
-                        <p style={{ fontSize: '0.725rem', color: 'var(--text-muted)', marginTop: '2px', fontFamily: 'var(--font-mono)' }}>
-                          Merchant ID: oCtvhv27957773497297 • Instant Delivery
-                        </p>
+                        <div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <p style={{ fontSize: '1.05rem', fontWeight: 800, color: 'var(--text-primary)', margin: 0 }}>
+                              Razorpay Standard Checkout
+                            </p>
+                            <span style={{
+                              fontSize: '0.675rem',
+                              fontWeight: 800,
+                              background: 'rgba(16, 185, 129, 0.15)',
+                              color: '#10b981',
+                              border: '1px solid rgba(16, 185, 129, 0.3)',
+                              padding: '2px 8px',
+                              borderRadius: '4px'
+                            }}>
+                              SECURE GATEWAY
+                            </span>
+                          </div>
+                          <p style={{ fontSize: '0.825rem', color: 'var(--text-secondary)', marginTop: '3px', margin: 0 }}>
+                            All-in-one payment gateway with instant transaction verification.
+                          </p>
+                        </div>
                       </div>
                     </div>
-                    <div style={{ textAlign: 'right' }}>
-                      <span style={{ fontSize: '0.8rem', color: '#10b981', fontWeight: 800 }}>0% UPI FEE</span>
-                    </div>
-                  </div>
 
-                  {/* Option 2: Instant Simulated Card Gateway */}
-                  <div
-                    onClick={() => setPaymentProvider('simulated')}
-                    style={{
-                      padding: '14px 16px',
+                    {/* Supported Payment Options Pill List */}
+                    <div style={{
+                      display: 'grid',
+                      gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))',
+                      gap: '8px',
+                      padding: '12px',
+                      background: 'var(--bg-surface)',
                       borderRadius: 'var(--radius-md)',
-                      border: `2px solid ${paymentProvider === 'simulated' ? 'var(--primary)' : 'var(--border-subtle)'}`,
-                      background: paymentProvider === 'simulated' ? 'var(--primary-light)' : 'var(--bg-surface-elevated)',
-                      cursor: 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between'
-                    }}
-                  >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                      <Zap size={20} color="var(--primary)" />
-                      <div>
-                        <p style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-                          Instant Direct Payment Gateway (Simulated / Verified)
-                        </p>
-                        <p style={{ fontSize: '0.785rem', color: 'var(--text-muted)' }}>
-                          One-click test checkout with instant server verification & token issuance
-                        </p>
+                      border: '1px solid var(--border-subtle)',
+                      marginTop: '12px'
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.785rem', color: 'var(--text-secondary)' }}>
+                        <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#10b981' }} />
+                        <span style={{ fontWeight: 600 }}>UPI & QR</span>
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.785rem', color: 'var(--text-secondary)' }}>
+                        <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#6366f1' }} />
+                        <span style={{ fontWeight: 600 }}>Credit & Debit Cards</span>
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.785rem', color: 'var(--text-secondary)' }}>
+                        <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#06b6d4' }} />
+                        <span style={{ fontWeight: 600 }}>50+ NetBanking</span>
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.785rem', color: 'var(--text-secondary)' }}>
+                        <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#f59e0b' }} />
+                        <span style={{ fontWeight: 600 }}>Wallets & CRED</span>
                       </div>
                     </div>
-                    <span style={{ fontSize: '0.8rem', color: '#10b981', fontWeight: 700 }}>VERIFIED</span>
-                  </div>
 
-                  {/* Option 3: Razorpay */}
-                  <div
-                    onClick={() => setPaymentProvider('razorpay')}
-                    style={{
-                      padding: '14px 16px',
-                      borderRadius: 'var(--radius-md)',
-                      border: `2px solid ${paymentProvider === 'razorpay' ? 'var(--primary)' : 'var(--border-subtle)'}`,
-                      background: paymentProvider === 'razorpay' ? 'var(--primary-light)' : 'var(--bg-surface-elevated)',
-                      cursor: 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between'
-                    }}
-                  >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                      <CreditCard size={20} color="#06b6d4" />
-                      <div>
-                        <p style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-                          Razorpay Gateway
-                        </p>
-                        <p style={{ fontSize: '0.785rem', color: 'var(--text-muted)' }}>
-                          Standard Web Checkout (UPI, Cards, NetBanking, Wallets)
-                        </p>
-                      </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '12px', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                      <ShieldCheck size={14} color="#10b981" />
+                      <span>256-Bit SSL Encrypted • PCI-DSS Level 1 Certified • Official Razorpay Integration</span>
                     </div>
-                    <span style={{ fontSize: '0.8rem', color: '#06b6d4', fontWeight: 700 }}>STANDARD CHECKOUT</span>
                   </div>
                 </div>
 
@@ -543,22 +744,34 @@ export function CheckoutPage({ onNavigate }) {
                 </div>
               </div>
 
-              <button
-                type="submit"
-                className="btn btn-success btn-lg"
-                disabled={isProcessing}
-                style={{ width: '100%', fontWeight: 700 }}
-              >
-                {isProcessing ? 'Processing Payment...' : paymentProvider === 'razorpay' ? (
-                  <>
-                    <CreditCard size={18} /> Pay with Razorpay
-                  </>
-                ) : (
-                  <>
-                    <Lock size={18} /> Pay & Get Instant Access
-                  </>
-                )}
-              </button>
+              {/* Primary Action Button */}
+              {user ? (
+                <button
+                  type="submit"
+                  className="btn btn-success btn-lg"
+                  disabled={isProcessing}
+                  style={{ width: '100%', fontWeight: 700 }}
+                >
+                  {isProcessing ? 'Connecting to Razorpay...' : (
+                    <>
+                      <CreditCard size={18} /> Pay {formatCurrency(cartTotals.total, currency)} with Razorpay
+                    </>
+                  )}
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => {
+                    addToast('Please sign in or create an account to proceed with payment', 'error');
+                    const authElem = document.getElementById('checkout-auth-gate');
+                    if (authElem) authElem.scrollIntoView({ behavior: 'smooth' });
+                  }}
+                  className="btn btn-primary btn-lg"
+                  style={{ width: '100%', fontWeight: 700 }}
+                >
+                  <Lock size={18} /> Sign In to Proceed with Checkout
+                </button>
+              )}
 
               <div style={{
                 display: 'flex',
@@ -570,395 +783,12 @@ export function CheckoutPage({ onNavigate }) {
                 marginTop: '1.25rem'
               }}>
                 <ShieldCheck size={16} color="#10b981" />
-                <span>Verified Server-Side Encryption</span>
+                <span>Verified Razorpay Gateway & Instant Download Vault</span>
               </div>
             </div>
           </div>
         </form>
       </div>
-
-      {/* Interactive Paytm Business Checkout Modal */}
-      {showPaytmModal && pendingOrder && (
-        <div className="modal-overlay" style={{ zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <div
-            className="modal-container"
-            style={{
-              maxWidth: '520px',
-              width: '95%',
-              background: '#090d16',
-              border: '1px solid rgba(0, 185, 245, 0.3)',
-              borderRadius: 'var(--radius-xl)',
-              boxShadow: '0 20px 50px rgba(0, 41, 112, 0.6), 0 0 30px rgba(0, 185, 245, 0.15)',
-              overflow: 'hidden',
-              animation: 'modalSlideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1)'
-            }}
-            onClick={e => e.stopPropagation()}
-          >
-            {/* Paytm Top Brand Banner */}
-            <div style={{
-              background: 'linear-gradient(135deg, #002970 0%, #001740 100%)',
-              padding: '1.25rem 1.5rem',
-              borderBottom: '1px solid rgba(0, 185, 245, 0.3)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between'
-            }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                <div style={{
-                  padding: '4px 10px',
-                  background: '#ffffff',
-                  borderRadius: '6px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center'
-                }}>
-                  <span style={{ fontWeight: 900, color: '#002970', fontSize: '1rem', letterSpacing: '-0.03em' }}>
-                    pay<span style={{ color: '#00b9f5' }}>tm</span>
-                  </span>
-                </div>
-                <div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <span style={{ fontWeight: 800, color: '#ffffff', fontSize: '0.95rem' }}>Paytm for Business</span>
-                    <span style={{
-                      fontSize: '0.65rem',
-                      fontWeight: 700,
-                      background: 'rgba(16, 185, 129, 0.2)',
-                      color: '#10b981',
-                      border: '1px solid rgba(16, 185, 129, 0.4)',
-                      padding: '1px 6px',
-                      borderRadius: '4px'
-                    }}>
-                      VERIFIED
-                    </span>
-                  </div>
-                  <p style={{ fontSize: '0.725rem', color: '#94a3b8', margin: 0 }}>
-                    Rollixia • Merchant ID: oCtvhv27957773497297
-                  </p>
-                </div>
-              </div>
-
-              <button
-                onClick={() => setShowPaytmModal(false)}
-                style={{
-                  background: 'rgba(255, 255, 255, 0.1)',
-                  border: 'none',
-                  color: '#ffffff',
-                  cursor: 'pointer',
-                  width: '32px',
-                  height: '32px',
-                  borderRadius: '50%',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center'
-                }}
-              >
-                <X size={18} />
-              </button>
-            </div>
-
-            {/* Order Price Strip */}
-            <div style={{
-              background: 'rgba(0, 185, 245, 0.06)',
-              padding: '12px 1.5rem',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              borderBottom: '1px solid var(--border-subtle)'
-            }}>
-              <div>
-                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                  Order Ref: {pendingOrder.orderNumber}
-                </span>
-                <p style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)', margin: 0 }}>
-                  Digital Goods • Instant Download
-                </p>
-              </div>
-              <div style={{ textAlign: 'right' }}>
-                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Amount Payable</span>
-                <p style={{ fontSize: '1.4rem', fontWeight: 900, color: '#00b9f5', margin: 0 }}>
-                  {formatCurrency(pendingOrder.totalAmount, currency)}
-                </p>
-              </div>
-            </div>
-
-            {/* Paytm Method Navigation Tabs */}
-            <div style={{ display: 'flex', borderBottom: '1px solid var(--border-subtle)', background: 'var(--bg-surface)' }}>
-              <button
-                type="button"
-                onClick={() => setPaytmTab('upi')}
-                style={{
-                  flex: 1,
-                  padding: '12px 8px',
-                  background: 'none',
-                  border: 'none',
-                  borderBottom: paytmTab === 'upi' ? '2px solid #00b9f5' : '2px solid transparent',
-                  color: paytmTab === 'upi' ? '#00b9f5' : 'var(--text-secondary)',
-                  fontWeight: 700,
-                  fontSize: '0.85rem',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '6px'
-                }}
-              >
-                <QrCode size={16} /> UPI & QR
-              </button>
-              <button
-                type="button"
-                onClick={() => setPaytmTab('wallet')}
-                style={{
-                  flex: 1,
-                  padding: '12px 8px',
-                  background: 'none',
-                  border: 'none',
-                  borderBottom: paytmTab === 'wallet' ? '2px solid #00b9f5' : '2px solid transparent',
-                  color: paytmTab === 'wallet' ? '#00b9f5' : 'var(--text-secondary)',
-                  fontWeight: 700,
-                  fontSize: '0.85rem',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '6px'
-                }}
-              >
-                <Wallet size={16} /> Paytm Wallet
-              </button>
-              <button
-                type="button"
-                onClick={() => setPaytmTab('cards')}
-                style={{
-                  flex: 1,
-                  padding: '12px 8px',
-                  background: 'none',
-                  border: 'none',
-                  borderBottom: paytmTab === 'cards' ? '2px solid #00b9f5' : '2px solid transparent',
-                  color: paytmTab === 'cards' ? '#00b9f5' : 'var(--text-secondary)',
-                  fontWeight: 700,
-                  fontSize: '0.85rem',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '6px'
-                }}
-              >
-                <CreditCard size={16} /> Cards / NetBanking
-              </button>
-            </div>
-
-            {/* Modal Body */}
-            <div style={{ padding: '1.75rem' }}>
-              {/* Tab 1: UPI & QR Code */}
-              {paytmTab === 'upi' && (
-                <div style={{ textAlign: 'center' }}>
-                  {/* Dynamic Stylized QR Box */}
-                  <div style={{
-                    width: '180px',
-                    height: '180px',
-                    margin: '0 auto 1.25rem auto',
-                    background: '#ffffff',
-                    borderRadius: '16px',
-                    padding: '12px',
-                    boxShadow: '0 8px 24px rgba(0, 185, 245, 0.25)',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    position: 'relative'
-                  }}>
-                    {/* SVG Stylized QR Pattern with Paytm Logo */}
-                    <svg width="150" height="150" viewBox="0 0 100 100" fill="none">
-                      <rect width="100" height="100" fill="#ffffff" />
-                      {/* Top-left position block */}
-                      <rect x="5" y="5" width="28" height="28" rx="4" fill="#002970" />
-                      <rect x="10" y="10" width="18" height="18" rx="2" fill="#ffffff" />
-                      <rect x="14" y="14" width="10" height="10" rx="1" fill="#002970" />
-
-                      {/* Top-right position block */}
-                      <rect x="67" y="5" width="28" height="28" rx="4" fill="#002970" />
-                      <rect x="72" y="10" width="18" height="18" rx="2" fill="#ffffff" />
-                      <rect x="76" y="14" width="10" height="10" rx="1" fill="#002970" />
-
-                      {/* Bottom-left position block */}
-                      <rect x="5" y="67" width="28" height="28" rx="4" fill="#002970" />
-                      <rect x="10" y="72" width="18" height="18" rx="2" fill="#ffffff" />
-                      <rect x="14" y="76" width="10" height="10" rx="1" fill="#002970" />
-
-                      {/* QR Matrix Elements */}
-                      <rect x="38" y="10" width="6" height="6" rx="1" fill="#002970" />
-                      <rect x="48" y="10" width="6" height="6" rx="1" fill="#002970" />
-                      <rect x="58" y="10" width="6" height="6" rx="1" fill="#00b9f5" />
-                      <rect x="38" y="22" width="12" height="6" rx="1" fill="#002970" />
-                      <rect x="54" y="22" width="8" height="6" rx="1" fill="#002970" />
-
-                      <rect x="10" y="38" width="8" height="6" rx="1" fill="#002970" />
-                      <rect x="22" y="38" width="10" height="6" rx="1" fill="#00b9f5" />
-                      <rect x="36" y="36" width="28" height="28" rx="6" fill="#002970" />
-                      <rect x="40" y="40" width="20" height="20" rx="4" fill="#ffffff" />
-                      <text x="42" y="54" fontFamily="sans-serif" fontSize="8" fontWeight="900" fill="#00b9f5">paytm</text>
-
-                      <rect x="68" y="38" width="10" height="6" rx="1" fill="#002970" />
-                      <rect x="82" y="38" width="8" height="6" rx="1" fill="#002970" />
-
-                      <rect x="38" y="68" width="8" height="8" rx="1" fill="#00b9f5" />
-                      <rect x="50" y="68" width="12" height="6" rx="1" fill="#002970" />
-                      <rect x="66" y="68" width="8" height="12" rx="1" fill="#002970" />
-                      <rect x="78" y="68" width="12" height="8" rx="1" fill="#002970" />
-                      <rect x="40" y="80" width="12" height="10" rx="1" fill="#002970" />
-                      <rect x="56" y="78" width="6" height="12" rx="1" fill="#00b9f5" />
-                      <rect x="66" y="84" width="24" height="6" rx="1" fill="#002970" />
-                    </svg>
-                  </div>
-
-                  <p style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '4px' }}>
-                    Scan with any UPI App
-                  </p>
-                  <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '1.25rem' }}>
-                    Paytm • Google Pay • PhonePe • BHIM • CRED
-                  </p>
-
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '1.25rem' }}>
-                    <div style={{ height: '1px', flex: 1, background: 'var(--border-subtle)' }} />
-                    <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>OR ENTER UPI ID</span>
-                    <div style={{ height: '1px', flex: 1, background: 'var(--border-subtle)' }} />
-                  </div>
-
-                  <div style={{ display: 'flex', gap: '8px', marginBottom: '1.25rem' }}>
-                    <input
-                      type="text"
-                      className="form-input"
-                      placeholder="mobile-number@paytm"
-                      value={upiId}
-                      onChange={e => setUpiId(e.target.value)}
-                      style={{ fontSize: '0.85rem' }}
-                    />
-                    <button
-                      type="button"
-                      onClick={() => handleCompletePaytmPayment('UPI_VPA')}
-                      disabled={paytmVerifying}
-                      className="btn btn-primary"
-                      style={{ padding: '0.6rem 1rem', whiteSpace: 'nowrap', background: '#00b9f5', color: '#002970', fontWeight: 800 }}
-                    >
-                      Verify & Pay
-                    </button>
-                  </div>
-                </div>
-              )}
-
-              {/* Tab 2: Paytm Wallet */}
-              {paytmTab === 'wallet' && (
-                <div>
-                  <div style={{
-                    padding: '14px',
-                    borderRadius: 'var(--radius-md)',
-                    background: 'var(--bg-surface-elevated)',
-                    border: '1px solid var(--border-subtle)',
-                    marginBottom: '1.25rem'
-                  }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
-                      <Smartphone size={20} color="#00b9f5" />
-                      <span style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-                        Linked Paytm Mobile
-                      </span>
-                    </div>
-                    <input
-                      type="tel"
-                      className="form-input"
-                      value={customerPhone}
-                      onChange={e => setCustomerPhone(e.target.value)}
-                      placeholder="Enter 10-digit mobile number"
-                      style={{ fontSize: '0.9rem' }}
-                    />
-                    <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '6px' }}>
-                      An OTP or 1-click authorization will be sent to your registered Paytm mobile number.
-                    </p>
-                  </div>
-                </div>
-              )}
-
-              {/* Tab 3: Cards / NetBanking */}
-              {paytmTab === 'cards' && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                  <div style={{
-                    padding: '12px 14px',
-                    borderRadius: 'var(--radius-md)',
-                    background: 'var(--bg-surface-elevated)',
-                    border: '1px solid var(--border-subtle)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between'
-                  }}>
-                    <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-primary)' }}>Supported Cards</span>
-                    <span style={{ fontSize: '0.75rem', color: '#00b9f5' }}>Visa • Mastercard • RuPay • Maestro</span>
-                  </div>
-
-                  <div style={{
-                    padding: '12px 14px',
-                    borderRadius: 'var(--radius-md)',
-                    background: 'var(--bg-surface-elevated)',
-                    border: '1px solid var(--border-subtle)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between'
-                  }}>
-                    <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-primary)' }}>Top NetBanking</span>
-                    <span style={{ fontSize: '0.75rem', color: '#00b9f5' }}>HDFC • SBI • ICICI • Axis • Kotak</span>
-                  </div>
-                </div>
-              )}
-
-              {/* Primary Action Button */}
-              <button
-                type="button"
-                onClick={() => handleCompletePaytmPayment(paytmTab.toUpperCase())}
-                disabled={paytmVerifying}
-                style={{
-                  width: '100%',
-                  padding: '14px',
-                  background: 'linear-gradient(135deg, #00b9f5 0%, #0077c5 100%)',
-                  color: '#ffffff',
-                  border: 'none',
-                  borderRadius: 'var(--radius-md)',
-                  fontWeight: 900,
-                  fontSize: '1rem',
-                  letterSpacing: '0.01em',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '8px',
-                  boxShadow: '0 4px 16px rgba(0, 185, 245, 0.4)',
-                  transition: 'transform 0.15s ease'
-                }}
-              >
-                {paytmVerifying ? (
-                  <span>Verifying Transaction with Paytm...</span>
-                ) : (
-                  <>
-                    <Lock size={18} />
-                    <span>Pay {formatCurrency(pendingOrder.totalAmount, currency)} via Paytm</span>
-                  </>
-                )}
-              </button>
-
-              <div style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '8px',
-                marginTop: '1rem',
-                fontSize: '0.75rem',
-                color: 'var(--text-muted)'
-              }}>
-                <ShieldCheck size={14} color="#10b981" />
-                <span>256-Bit SSL Encrypted • Paytm for Business Verified Portal</span>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

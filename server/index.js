@@ -46,8 +46,20 @@ app.use(async (req, res, next) => {
   }
 });
 
+// Serverless URL normalization middleware
+app.use((req, res, next) => {
+  // Strip internal Vercel script path prefixes if present
+  if (req.url.startsWith('/api/index.js')) {
+    req.url = req.url.replace('/api/index.js', '') || '/';
+  }
+  if (req.url.startsWith('/api/[...all].js') || req.url.startsWith('/api/[...path].js')) {
+    req.url = req.url.replace(/^\/api\/\[\.\.\.[^\]]+\]\.js/, '') || '/';
+  }
+  next();
+});
+
 // Health Check
-app.get('/api/health', (req, res) => {
+const healthHandler = (req, res) => {
   const mongoStatus = getMongoStatus();
   res.json({
     status: 'ok',
@@ -63,35 +75,57 @@ app.get('/api/health', (req, res) => {
       endpoint: process.env.IMAGEKIT_URL_ENDPOINT || 'https://ik.imagekit.io/avdarinn'
     }
   });
-});
+};
+app.get('/api/health', healthHandler);
+app.get('/health', healthHandler);
 
 // Storefront API Routes
-app.use('/api/auth', require('./routes/auth'));
-app.use('/api/categories', require('./routes/categories'));
-app.use('/api/products', require('./routes/products'));
-app.use('/api/cart', require('./routes/cart'));
-app.use('/api/orders', require('./routes/orders'));
-app.use('/api/payments', require('./routes/payments'));
-app.use('/api', require('./routes/razorpay'));
-app.use('/api/razorpay', require('./routes/razorpay'));
-app.use('/api/downloads', require('./routes/downloads'));
-app.use('/api/reviews', require('./routes/reviews'));
-app.use('/api/wishlist', require('./routes/wishlist'));
-app.use('/api/support', require('./routes/support'));
-app.use('/api/settings', require('./routes/settings'));
-app.use('/api/imagekit', require('./routes/imagekit'));
+const authRoutes = require('./routes/auth');
+const categoriesRoutes = require('./routes/categories');
+const productsRoutes = require('./routes/products');
+const cartRoutes = require('./routes/cart');
+const ordersRoutes = require('./routes/orders');
+const paymentsRoutes = require('./routes/payments');
+const razorpayRoutes = require('./routes/razorpay');
+const downloadsRoutes = require('./routes/downloads');
+const reviewsRoutes = require('./routes/reviews');
+const wishlistRoutes = require('./routes/wishlist');
+const supportRoutes = require('./routes/support');
+const settingsRoutes = require('./routes/settings');
+const imagekitRoutes = require('./routes/imagekit');
+
+// Helper to mount on both /api/path and /path
+const mount = (basePath, router) => {
+  app.use(`/api${basePath}`, router);
+  app.use(basePath, router);
+};
+
+mount('/auth', authRoutes);
+mount('/categories', categoriesRoutes);
+mount('/products', productsRoutes);
+mount('/cart', cartRoutes);
+mount('/orders', ordersRoutes);
+mount('/payments', paymentsRoutes);
+mount('/razorpay', razorpayRoutes);
+mount('/downloads', downloadsRoutes);
+mount('/reviews', reviewsRoutes);
+mount('/wishlist', wishlistRoutes);
+mount('/support', supportRoutes);
+mount('/settings', settingsRoutes);
+mount('/imagekit', imagekitRoutes);
+app.use('/api', razorpayRoutes);
 
 // Admin API Routes
-app.use('/api/admin/dashboard', require('./routes/admin/dashboard'));
-app.use('/api/admin/products', require('./routes/admin/products'));
-app.use('/api/admin/orders', require('./routes/admin/orders'));
-app.use('/api/admin/customers', require('./routes/admin/customers'));
-app.use('/api/admin/reviews', require('./routes/admin/reviews'));
-app.use('/api/admin/coupons', require('./routes/admin/coupons'));
-app.use('/api/admin/categories', require('./routes/admin/categories'));
-app.use('/api/admin/files', require('./routes/admin/files'));
-app.use('/api/admin/settings', require('./routes/admin/settings'));
-app.use('/api/admin/logs', require('./routes/admin/logs'));
+mount('/admin/dashboard', require('./routes/admin/dashboard'));
+mount('/admin/products', require('./routes/admin/products'));
+mount('/admin/orders', require('./routes/admin/orders'));
+mount('/admin/customers', require('./routes/admin/customers'));
+mount('/admin/reviews', require('./routes/admin/reviews'));
+mount('/admin/coupons', require('./routes/admin/coupons'));
+mount('/admin/categories', require('./routes/admin/categories'));
+mount('/admin/files', require('./routes/admin/files'));
+mount('/admin/settings', require('./routes/admin/settings'));
+mount('/admin/logs', require('./routes/admin/logs'));
 
 // Serve static client build if dist exists
 const clientDistPath = path.join(__dirname, '..', 'client', 'dist');

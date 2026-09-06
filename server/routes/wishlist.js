@@ -1,11 +1,15 @@
 const express = require('express');
 const router = express.Router();
 const { getDatabase } = require('../config/database');
-const { authenticateUser } = require('../middleware/auth');
+const { authenticateUser, optionalUser } = require('../middleware/auth');
 
 // GET /api/wishlist
-router.get('/', authenticateUser, async (req, res) => {
+router.get('/', optionalUser, async (req, res) => {
   try {
+    if (!req.user) {
+      return res.json([]);
+    }
+
     const db = await getDatabase();
     const items = db.query(`
       SELECT p.*, w.created_at as added_at,

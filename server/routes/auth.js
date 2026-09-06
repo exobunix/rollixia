@@ -3,7 +3,7 @@ const router = express.Router();
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { getDatabase } = require('../config/database');
-const { JWT_SECRET, authenticateUser } = require('../middleware/auth');
+const { JWT_SECRET, authenticateUser, optionalUser } = require('../middleware/auth');
 
 // POST /api/auth/register
 router.post('/register', async (req, res) => {
@@ -92,8 +92,15 @@ router.post('/login', async (req, res) => {
 });
 
 // GET /api/auth/me
-router.get('/me', authenticateUser, async (req, res) => {
+router.get('/me', optionalUser, async (req, res) => {
   try {
+    if (!req.user) {
+      return res.json({
+        user: null,
+        stats: { orders: 0, downloads: 0, wishlist: 0 }
+      });
+    }
+
     const db = await getDatabase();
     const ordersCount = db.get('SELECT count(*) as c FROM orders WHERE user_id = ?', [req.user.id])?.c || 0;
     const downloadsCount = db.get('SELECT sum(download_count) as c FROM downloads WHERE user_id = ?', [req.user.id])?.c || 0;

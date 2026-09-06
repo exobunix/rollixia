@@ -12,7 +12,14 @@ function getEffectiveApiBase() {
   return rawApiUrl;
 }
 
-let isApiOffline = false;
+let isApiOffline = (() => {
+  try {
+    if (typeof window !== 'undefined') {
+      return sessionStorage.getItem('rollixia_api_offline') === 'true';
+    }
+  } catch (e) {}
+  return false;
+})();
 let lastOfflineCheck = 0;
 
 export async function apiRequest(endpoint, options = {}) {
@@ -46,13 +53,34 @@ export async function apiRequest(endpoint, options = {}) {
   // Check if fast client fallback is available
   const hasFallback = handleFallbackRoute(endpoint, options, parsedBody);
 
-  // If we recently detected the serverless endpoint is offline or returning 405 on this domain,
-  // return fallback immediately to avoid repeated 405 errors in the browser console
+  // If this is a client-placed order stored in localStorage, return fallback immediately
+  if (endpoint.includes('orders/ORD-') || endpoint.includes('orders/ord-')) {
+    const orderNumMatch = endpoint.match(/orders\/(ORD-[^/?#]+)/i);
+    if (orderNumMatch) {
+      try {
+        const localOrders = JSON.parse(localStorage.getItem('rollixia_orders') || '[]');
+        const existsLocally = localOrders.some(o => o.order && o.order.order_number === orderNumMatch[1]);
+        if (existsLocally && hasFallback !== null) {
+          return hasFallback;
+        }
+      } catch (e) {}
+    }
+  }
+
+  // For unauthenticated wishlist queries without token, return empty list immediately
+  const method = (options.method || 'GET').toUpperCase();
+  if (endpoint.includes('wishlist') && method === 'GET' && !token) {
+    return [];
+  }
+
+  // If we recently detected the serverless endpoint is offline or returning 404/405 on this domain,
+  // return fallback immediately to avoid repeated 404 errors in the browser console
   const apiBase = getEffectiveApiBase();
   const isRelative = !apiBase || (typeof window !== 'undefined' && apiBase.startsWith(window.location.origin));
   if (isApiOffline && isRelative && hasFallback !== null) {
-    if (Date.now() - lastOfflineCheck > 60000) {
+    if (Date.now() - lastOfflineCheck > 120000) {
       isApiOffline = false; // Periodically re-test backend health
+      try { sessionStorage.removeItem('rollixia_api_offline'); } catch (e) {}
     } else {
       return hasFallback;
     }
@@ -96,6 +124,7 @@ export async function apiRequest(endpoint, options = {}) {
     if (!response.ok || isHtmlResponse) {
       isApiOffline = true;
       lastOfflineCheck = Date.now();
+      try { sessionStorage.setItem('rollixia_api_offline', 'true'); } catch (e) {}
 
       if (hasFallback !== null) {
         return hasFallback;
@@ -110,10 +139,12 @@ export async function apiRequest(endpoint, options = {}) {
 
     // Success response - mark online
     isApiOffline = false;
+    try { sessionStorage.removeItem('rollixia_api_offline'); } catch (e) {}
     return data;
   } catch (err) {
     isApiOffline = true;
     lastOfflineCheck = Date.now();
+    try { sessionStorage.setItem('rollixia_api_offline', 'true'); } catch (e) {}
     if (hasFallback !== null) {
       return hasFallback;
     }

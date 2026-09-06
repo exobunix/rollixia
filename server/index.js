@@ -18,6 +18,34 @@ app.use('/uploads', express.static(path.join(__dirname, 'storage', 'public')));
 const { connectMongoDB, getMongoStatus } = require('./config/mongodb');
 const { DEFAULT_FOLDER } = require('./config/imagekit');
 
+let initPromise = null;
+async function ensureInit() {
+  if (!initPromise) {
+    initPromise = Promise.all([
+      getDatabase().catch(err => {
+        console.error('SQLite init error:', err);
+        return null;
+      }),
+      connectMongoDB().catch(err => {
+        console.warn('MongoDB Atlas connect warning:', err.message);
+        return null;
+      })
+    ]);
+  }
+  return initPromise;
+}
+
+// Ensure database connections for both traditional and serverless runtimes
+app.use(async (req, res, next) => {
+  try {
+    await ensureInit();
+    next();
+  } catch (err) {
+    console.error('Database connection error in request:', err);
+    next();
+  }
+});
+
 // Health Check
 app.get('/api/health', (req, res) => {
   const mongoStatus = getMongoStatus();
@@ -86,27 +114,8 @@ app.use((err, req, res, next) => {
     error: err.message || 'Internal server error'
   });
 });
-
-let initPromise = null;
-async function ensureInit() {
-  if (!initPromise) {
-    initPromise = Promise.all([getDatabase(), connectMongoDB()]);
-  }
-  return initPromise;
-}
-
-// Ensure database connections for both traditional and serverless runtimes
-app.use(async (req, res, next) => {
-  try {
-    await ensureInit();
-    next();
-  } catch (err) {
-    console.error('Database connection error in request:', err);
-    next(err);
-  }
-});
-
 // Start Server
+
 async function start() {
   try {
     await ensureInit();

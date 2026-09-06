@@ -272,11 +272,17 @@ export function simulateCreateOrder(payload = {}) {
     localStorage.setItem('rollixia_orders', JSON.stringify(existing));
   } catch (e) {}
 
+  const provider = payload.payment_provider || 'razorpay';
   return {
     order,
     orderNumber,
     isFree: calculation.total === 0,
     paymentSession: {
+      provider,
+      orderId: `order_sim_${Date.now()}`,
+      keyId: import.meta.env.VITE_RAZORPAY_KEY_ID || 'rzp_test_TYdMxQomEc4yMe',
+      amount: Math.round(calculation.total * 100),
+      currency: payload.currency || 'INR',
       paymentId: order.payment_id,
       txnToken: `PAYTM_TOKEN_${Date.now()}`
     }
@@ -291,6 +297,7 @@ export function simulateVerifyPayment(payload = {}) {
     if (target) {
       target.order.payment_status = 'paid';
       target.order.order_status = 'completed';
+      target.order.payment_id = payload.paymentId || payload.payment_id || payload.razorpay_payment_id || `PAY_${Date.now()}`;
       localStorage.setItem('rollixia_orders', JSON.stringify(existing));
     }
   } catch (e) {}
@@ -299,7 +306,7 @@ export function simulateVerifyPayment(payload = {}) {
     success: true,
     status: 'TXN_SUCCESS',
     orderNumber,
-    message: 'Paytm Business transaction verified successfully'
+    message: 'Payment verified successfully'
   };
 }
 
@@ -360,6 +367,37 @@ export function handleFallbackRoute(endpoint, options = {}, requestBody = null) 
     if (clean === 'payments/verify') {
       return simulateVerifyPayment(requestBody);
     }
+    if (clean === 'create-order') {
+      const amount = Number(requestBody?.amount) || 100;
+      return {
+        order_id: `order_sim_${Date.now()}`,
+        amount,
+        currency: requestBody?.currency || 'INR',
+        key_id: import.meta.env.VITE_RAZORPAY_KEY_ID || 'rzp_test_TYdMxQomEc4yMe'
+      };
+    }
+    if (clean === 'verify-payment') {
+      const orderNumber = requestBody?.orderNumber;
+      if (orderNumber) {
+        try {
+          const existing = JSON.parse(localStorage.getItem('rollixia_orders') || '[]');
+          const target = existing.find(o => o.order.order_number === orderNumber);
+          if (target) {
+            target.order.payment_status = 'paid';
+            target.order.order_status = 'completed';
+            target.order.payment_id = requestBody?.payment_id || `pay_${Date.now()}`;
+            localStorage.setItem('rollixia_orders', JSON.stringify(existing));
+          }
+        } catch (e) {}
+      }
+      return {
+        success: true,
+        message: 'Payment verified successfully',
+        payment_id: requestBody?.payment_id || `pay_${Date.now()}`,
+        order_id: requestBody?.order_id || `order_${Date.now()}`,
+        orderNumber
+      };
+    }
     if (clean === 'payments/paytm/initiate') {
       return {
         txnToken: `SIMULATED_PAYTM_TOKEN_${Date.now()}`,
@@ -383,6 +421,7 @@ export function handleFallbackRoute(endpoint, options = {}, requestBody = null) 
       };
     }
   }
+
 
   // GET Handlers
   if (clean === 'categories') {

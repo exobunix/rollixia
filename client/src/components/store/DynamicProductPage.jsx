@@ -582,7 +582,7 @@ export function DynamicProductPage({ slug, productData: initialData, onNavigate,
                       )}
                     </div>
 
-                    <div style={{ display: 'grid', gridTemplateColumns: licenses.length > 1 ? `repeat(${licenses.length}, 1fr)` : '1fr', gap: '0.6rem' }}>
+                    <div className="pdp-hero-licenses-grid">
                       {licenses.map(lic => {
                         const isSel = selectedLicense?.id === lic.id || (!selectedLicense && lic.id === licenses[0]?.id);
                         const licName = lic.license_name || lic.name || 'Standard License';
@@ -1712,7 +1712,7 @@ export function DynamicProductPage({ slug, productData: initialData, onNavigate,
             <p className="pdp-section-subtitle">No recurring subscriptions or hidden royalties. Full ownership for your project.</p>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: licenses.length > 1 ? `repeat(${licenses.length}, minmax(280px, 1fr))` : 'minmax(320px, 500px)', gap: '1.5rem', justifyContent: 'center', maxWidth: '1000px', margin: '0 auto' }}>
+          <div className={`pdp-pricing-plans-grid ${licenses && licenses.length === 1 ? 'is-single-plan' : ''}`}>
             {licenses && licenses.length > 0 ? (
               licenses.map(lic => {
                 const isSel = selectedLicense?.id === lic.id;
@@ -1730,31 +1730,30 @@ export function DynamicProductPage({ slug, productData: initialData, onNavigate,
                 return (
                   <div
                     key={lic.id || licName}
-                    className="pdp-card"
+                    className={`pdp-card pdp-pricing-plan-card ${isSel ? 'is-selected-plan' : ''}`}
                     style={{
                       border: isSel ? '2px solid var(--primary)' : '1px solid var(--border-medium)',
                       background: isSel ? 'linear-gradient(180deg, rgba(99, 102, 241, 0.08) 0%, var(--bg-surface) 100%)' : 'var(--bg-surface)',
                       display: 'flex',
                       flexDirection: 'column',
                       justifyContent: 'space-between',
-                      padding: '2rem',
                       position: 'relative'
                     }}
                   >
                     {isSel && (
-                      <div style={{ position: 'absolute', top: '-12px', left: '50%', transform: 'translateX(-50%)', background: 'var(--primary)', color: '#fff', fontSize: '0.72rem', fontWeight: 800, padding: '3px 12px', borderRadius: '9999px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                      <div className="pdp-selected-badge" style={{ position: 'absolute', top: '-12px', left: '50%', transform: 'translateX(-50%)', background: 'var(--primary)', color: '#fff', fontSize: '0.72rem', fontWeight: 800, padding: '3px 12px', borderRadius: '9999px', textTransform: 'uppercase', letterSpacing: '0.05em', whiteSpace: 'nowrap', zIndex: 2 }}>
                         Selected Option
                       </div>
                     )}
 
                     <div>
-                      <h3 style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--text-primary)', marginBottom: '0.5rem' }}>{licName}</h3>
-                      <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', minHeight: '38px', marginBottom: '1.5rem' }}>
+                      <h3 className="pdp-plan-card-title" style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--text-primary)', marginBottom: '0.5rem' }}>{licName}</h3>
+                      <p className="pdp-plan-card-desc" style={{ fontSize: '0.85rem', color: 'var(--text-muted)', minHeight: '38px', marginBottom: '1.5rem' }}>
                         {lic.description || 'Standard production license with commercial client permissions.'}
                       </p>
 
-                      <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.75rem', marginBottom: '1.5rem' }}>
-                        <span style={{ fontSize: '2.5rem', fontWeight: 800, color: 'var(--text-primary)' }}>
+                      <div className="pdp-plan-price-row" style={{ display: 'flex', alignItems: 'baseline', flexWrap: 'wrap', gap: '0.75rem', marginBottom: '1.5rem' }}>
+                        <span className="pdp-plan-price-text" style={{ fontWeight: 800, color: 'var(--text-primary)' }}>
                           {formatCurrency(lic.price, currency)}
                         </span>
                         {hasLicDiscount && (
@@ -1806,10 +1805,10 @@ export function DynamicProductPage({ slug, productData: initialData, onNavigate,
                 );
               })
             ) : (
-              <div className="pdp-card" style={{ padding: '2.5rem', textAlign: 'center', maxWidth: '500px', margin: '0 auto' }}>
+              <div className="pdp-card pdp-pricing-fallback-card" style={{ textAlign: 'center', maxWidth: '500px', margin: '0 auto', width: '100%' }}>
                 <h3 style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--text-primary)', marginBottom: '0.5rem' }}>{product.title}</h3>
-                <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'center', gap: '0.75rem', margin: '1.5rem 0' }}>
-                  <span style={{ fontSize: '2.5rem', fontWeight: 800, color: 'var(--text-primary)' }}>
+                <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'center', gap: '0.75rem', margin: '1.5rem 0', flexWrap: 'wrap' }}>
+                  <span className="pdp-plan-price-text" style={{ fontWeight: 800, color: 'var(--text-primary)' }}>
                     {formatCurrency(currentPrice, currency)}
                   </span>
                   {hasDiscount && (
@@ -1818,11 +1817,11 @@ export function DynamicProductPage({ slug, productData: initialData, onNavigate,
                     </span>
                   )}
                 </div>
-                <div style={{ display: 'flex', gap: '1rem', marginTop: '1.5rem' }}>
-                  <button onClick={handleBuyNow} className="btn btn-primary btn-lg" style={{ flex: 1 }}>
+                <div className="pdp-fallback-btn-row" style={{ display: 'flex', gap: '1rem', marginTop: '1.5rem', flexWrap: 'wrap' }}>
+                  <button onClick={handleBuyNow} className="btn btn-primary btn-lg" style={{ flex: 1, minWidth: '140px' }}>
                     <Zap size={18} fill="currentColor" /> BUY NOW
                   </button>
-                  <button onClick={handleAddToCart} className="btn btn-secondary btn-lg" style={{ flex: 1 }}>
+                  <button onClick={handleAddToCart} className="btn btn-secondary btn-lg" style={{ flex: 1, minWidth: '140px' }}>
                     Add to Cart
                   </button>
                 </div>

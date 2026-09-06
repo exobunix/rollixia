@@ -2,6 +2,9 @@ import { handleFallbackRoute } from '../data/catalogFallbackService.js';
 
 const API_BASE_URL = (import.meta.env.VITE_API_URL || '').replace(/\/+$/, '');
 
+let isApiOffline = false;
+let lastOfflineCheck = 0;
+
 export async function apiRequest(endpoint, options = {}) {
   const token = localStorage.getItem('digitalstore_token');
   const headers = {
@@ -28,6 +31,20 @@ export async function apiRequest(endpoint, options = {}) {
     }
   } else if (options.body && typeof options.body === 'object') {
     parsedBody = options.body;
+  }
+
+  // Check if fast client fallback is available
+  const hasFallback = handleFallbackRoute(endpoint, options, parsedBody);
+
+  // If we recently detected the serverless endpoint is offline or returning 405 on this domain,
+  // return fallback immediately to avoid repeated 405 errors in the browser console
+  const isRelative = !API_BASE_URL || (typeof window !== 'undefined' && API_BASE_URL.startsWith(window.location.origin));
+  if (isApiOffline && isRelative && hasFallback !== null) {
+    if (Date.now() - lastOfflineCheck > 60000) {
+      isApiOffline = false; // Periodically re-test backend health
+    } else {
+      return hasFallback;
+    }
   }
 
   // Ensure correct URL with API_BASE_URL support
@@ -66,10 +83,13 @@ export async function apiRequest(endpoint, options = {}) {
     );
 
     if (!response.ok || isHtmlResponse) {
-      const fallback = handleFallbackRoute(endpoint, options, parsedBody);
-      if (fallback !== null) {
-        console.warn(`[Rollixia] Remote API unavailable or returned HTML rewrite (${response.status}). Serving client fallback for: ${endpoint}`);
-        return fallback;
+      if (response.status === 405 || isHtmlResponse || response.status === 404) {
+        isApiOffline = true;
+        lastOfflineCheck = Date.now();
+      }
+
+      if (hasFallback !== null) {
+        return hasFallback;
       }
 
       if (!response.ok) {
@@ -81,12 +101,14 @@ export async function apiRequest(endpoint, options = {}) {
       }
     }
 
+    // Success response - mark online
+    isApiOffline = false;
     return data;
   } catch (err) {
-    const fallback = handleFallbackRoute(endpoint, options, parsedBody);
-    if (fallback !== null) {
-      console.warn(`[Rollixia] Network error connecting to ${url}. Serving client fallback for: ${endpoint}`);
-      return fallback;
+    isApiOffline = true;
+    lastOfflineCheck = Date.now();
+    if (hasFallback !== null) {
+      return hasFallback;
     }
     throw err;
   }

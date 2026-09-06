@@ -279,7 +279,7 @@ export function simulateCreateOrder(payload = {}) {
     isFree: calculation.total === 0,
     paymentSession: {
       provider,
-      orderId: `order_sim_${Date.now()}`,
+      orderId: null,
       keyId: import.meta.env.VITE_RAZORPAY_KEY_ID || 'rzp_test_TYdMxQomEc4yMe',
       amount: Math.round(calculation.total * 100),
       currency: payload.currency || 'INR',
@@ -287,6 +287,7 @@ export function simulateCreateOrder(payload = {}) {
       txnToken: `PAYTM_TOKEN_${Date.now()}`
     }
   };
+
 }
 
 export function simulateVerifyPayment(payload = {}) {
@@ -370,7 +371,7 @@ export function handleFallbackRoute(endpoint, options = {}, requestBody = null) 
     if (clean === 'create-order') {
       const amount = Number(requestBody?.amount) || 100;
       return {
-        order_id: `order_sim_${Date.now()}`,
+        order_id: null,
         amount,
         currency: requestBody?.currency || 'INR',
         key_id: import.meta.env.VITE_RAZORPAY_KEY_ID || 'rzp_test_TYdMxQomEc4yMe'

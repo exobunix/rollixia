@@ -16,6 +16,7 @@ import { OrderSuccessPage } from './pages/store/OrderSuccessPage';
 import { CustomerDashboardPage } from './pages/store/CustomerDashboardPage';
 import { LoginPage } from './pages/store/LoginPage';
 import { RegisterPage } from './pages/store/RegisterPage';
+import GlassAuthContainer from './components/auth/GlassAuthContainer';
 import { LegalPage } from './pages/store/LegalPage';
 import { DownloadCloud } from 'lucide-react';
 import { downloadEntitledDeliverable, findDeliverableBlob, triggerBrowserDownload } from './utils/fileStorage';
@@ -414,8 +415,12 @@ export function App() {
           <LoginPage onNavigate={navigate} />
         )}
 
-        {currentRoute.page === 'register' && (
+        {(currentRoute.page === 'register' || currentRoute.page === 'signup') && (
           <RegisterPage onNavigate={navigate} />
+        )}
+
+        {(currentRoute.page === 'forgot-password' || currentRoute.page === 'forgot') && (
+          <GlassAuthContainer initialMode="forgot" onNavigate={navigate} />
         )}
 
         {currentRoute.page === 'legal' && (

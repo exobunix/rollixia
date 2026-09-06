@@ -210,8 +210,8 @@ export function Header({ onNavigate, onOpenSearch, currentRoute }) {
               <button
                 onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
                 onBlur={() => setTimeout(() => setIsUserMenuOpen(false), 200)}
-                className="btn btn-secondary btn-sm"
-                style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
+                className="btn btn-secondary btn-sm header-user-btn"
+                style={{ display: 'flex', alignItems: 'center', gap: '5px' }}
               >
                 <div style={{
                   width: '24px',
@@ -223,14 +223,15 @@ export function Header({ onNavigate, onOpenSearch, currentRoute }) {
                   alignItems: 'center',
                   justifyContent: 'center',
                   fontSize: '0.75rem',
-                  fontWeight: 700
+                  fontWeight: 700,
+                  flexShrink: 0
                 }}>
                   {user.full_name ? user.full_name.charAt(0).toUpperCase() : 'U'}
                 </div>
-                <span style={{ maxWidth: '100px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                <span className="header-user-name" style={{ maxWidth: '90px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                   {user.full_name || 'Account'}
                 </span>
-                <ChevronDown size={14} />
+                <ChevronDown size={14} className="header-user-chevron" />
               </button>
 
               {isUserMenuOpen && (
@@ -318,18 +319,18 @@ export function Header({ onNavigate, onOpenSearch, currentRoute }) {
               )}
             </div>
           ) : (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <div className="header-auth-buttons" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
               <button
                 onClick={() => onNavigate('login')}
-                className="btn btn-secondary btn-sm"
-                style={{ fontWeight: 600, padding: '6px 14px' }}
+                className="btn btn-secondary btn-sm header-login-btn"
+                style={{ fontWeight: 600, padding: '5px 12px' }}
               >
                 Log In
               </button>
               <button
                 onClick={() => onNavigate('register')}
-                className="btn btn-primary btn-sm"
-                style={{ fontWeight: 600, padding: '6px 16px' }}
+                className="btn btn-primary btn-sm header-signup-btn"
+                style={{ fontWeight: 600, padding: '5px 14px' }}
                 id="header-get-started-btn"
               >
                 Sign Up
@@ -337,13 +338,15 @@ export function Header({ onNavigate, onOpenSearch, currentRoute }) {
             </div>
           )}
 
-          {/* Mobile Menu Hamburger */}
+          {/* Mobile Menu Hamburger (Side 3 Button) */}
           <button
             onClick={() => setIsMobileNavOpen(!isMobileNavOpen)}
             className="btn-icon mobile-menu-btn"
             style={{ display: 'flex' }}
+            title="Menu"
+            aria-label="Toggle Navigation Menu"
           >
-            {isMobileNavOpen ? <X size={20} /> : <Menu size={20} />}
+            {isMobileNavOpen ? <X size={19} /> : <Menu size={19} />}
           </button>
           </div> {/* closes header-action-controls */}
         </div> {/* closes header-main-wrap */}
@@ -412,7 +415,7 @@ export function Header({ onNavigate, onOpenSearch, currentRoute }) {
             margin-left: auto;
             display: flex;
             align-items: center;
-            gap: 0.5rem;
+            gap: 0.45rem;
             flex-shrink: 0;
           }
           /* Row 2: Menu centered below Row 1 */
@@ -435,33 +438,165 @@ export function Header({ onNavigate, onOpenSearch, currentRoute }) {
           }
         }
 
-        /* Mobile Screens (< 640px) */
-        @media (max-width: 639px) {
+        /* Mobile Screens (< 768px): Refined compact first row so hamburger never hides */
+        @media (max-width: 767px) {
+          .header-container {
+            padding: 0 10px !important;
+          }
           .header-main-wrap {
-            padding: 6px 0 8px 0;
+            padding: 6px 0 8px 0 !important;
           }
           .header-logo-wrapper {
-            margin-right: 0.5rem;
+            margin-right: 4px !important;
+            flex-shrink: 0 !important;
+          }
+          .rollixia-brand-logo {
+            gap: 6px !important;
+          }
+          .rollixia-brand-logo > div:first-child {
+            width: 30px !important;
+            height: 30px !important;
+          }
+          .rollixia-brand-logo svg {
+            width: 18px !important;
+            height: 18px !important;
+          }
+          .brand-logo-text {
+            font-size: 1.12rem !important;
           }
           .header-action-controls {
-            gap: 0.35rem;
+            gap: 4px !important;
+          }
+        }
+
+        /* Small Mobile Screens (< 540px): Ultra-compact Row 1 */
+        @media (max-width: 540px) {
+          .header-container {
+            padding: 0 6px !important;
+          }
+          .header-main-wrap {
+            padding: 5px 0 6px 0 !important;
+          }
+          .header-logo-wrapper {
+            margin-right: 2px !important;
+          }
+          .rollixia-brand-logo > div:first-child {
+            width: 27px !important;
+            height: 27px !important;
+          }
+          .rollixia-brand-logo svg {
+            width: 16px !important;
+            height: 16px !important;
+          }
+          .brand-logo-text {
+            font-size: 1.02rem !important;
+          }
+
+          .header-action-controls {
+            gap: 3px !important;
+          }
+
+          .header-search-btn {
+            width: 29px !important;
+            height: 29px !important;
+            padding: 0 !important;
+            min-width: 29px !important;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
           }
           .header-currency-btn {
-            padding: 0.35rem 0.5rem !important;
-            font-size: 0.75rem !important;
+            padding: 2px 5px !important;
+            font-size: 0.68rem !important;
+            height: 29px !important;
+            line-height: 1 !important;
+          }
+          .header-theme-btn {
+            width: 29px !important;
+            height: 29px !important;
+            padding: 0 !important;
+            min-width: 29px !important;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
           }
           .header-theme-btn span {
             display: none !important;
           }
-          .header-theme-btn {
-            padding: 0.35rem 0.5rem !important;
+          .header-wishlist-btn {
+            width: 29px !important;
+            height: 29px !important;
+            padding: 0 !important;
+            min-width: 29px !important;
           }
-          .header-search-btn {
-            padding: 0.35rem 0.5rem !important;
+          .header-action-controls .btn-icon {
+            width: 29px !important;
+            height: 29px !important;
+            padding: 0 !important;
+            min-width: 29px !important;
           }
-          #header-get-started-btn {
-            padding: 5px 10px !important;
-            font-size: 0.78rem !important;
+
+          .header-auth-buttons {
+            gap: 3px !important;
+          }
+          .header-login-btn {
+            padding: 3px 6px !important;
+            font-size: 0.72rem !important;
+            height: 29px !important;
+            white-space: nowrap !important;
+          }
+          .header-signup-btn, #header-get-started-btn {
+            padding: 3px 7px !important;
+            font-size: 0.72rem !important;
+            height: 29px !important;
+            white-space: nowrap !important;
+          }
+
+          .header-user-btn {
+            padding: 2px 5px !important;
+            height: 29px !important;
+            gap: 3px !important;
+          }
+          .header-user-name {
+            max-width: 48px !important;
+            font-size: 0.72rem !important;
+          }
+          .header-user-chevron {
+            display: none !important;
+          }
+
+          /* Side three button: firmly on screen */
+          .mobile-menu-btn {
+            display: flex !important;
+            width: 30px !important;
+            height: 30px !important;
+            min-width: 30px !important;
+            padding: 0 !important;
+            align-items: center !important;
+            justify-content: center !important;
+            flex-shrink: 0 !important;
+            margin-left: 2px !important;
+          }
+        }
+
+        /* Tiny Mobile Phones (< 380px) */
+        @media (max-width: 380px) {
+          .header-container {
+            padding: 0 4px !important;
+          }
+          .header-action-controls {
+            gap: 2px !important;
+          }
+          .brand-logo-text {
+            font-size: 0.92rem !important;
+          }
+          .header-login-btn {
+            padding: 2px 4px !important;
+            font-size: 0.67rem !important;
+          }
+          .header-signup-btn, #header-get-started-btn {
+            padding: 2px 5px !important;
+            font-size: 0.67rem !important;
           }
         }
 

@@ -765,7 +765,7 @@ export function DynamicProductPage({ slug, productData: initialData, onNavigate,
                     <ShieldCheck size={20} />
                   </div>
                   <div>
-                    <div style={{ fontSize: '0.75rem', fontWeight: 800, color: '#fff', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                    <div style={{ fontSize: '0.75rem', fontWeight: 800, color: 'var(--text-primary)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
                       Quality Verified
                     </div>
                     <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
@@ -1733,7 +1733,7 @@ export function DynamicProductPage({ slug, productData: initialData, onNavigate,
                       </p>
 
                       <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.75rem', marginBottom: '1.5rem' }}>
-                        <span style={{ fontSize: '2.5rem', fontWeight: 800, color: '#fff' }}>
+                        <span style={{ fontSize: '2.5rem', fontWeight: 800, color: 'var(--text-primary)' }}>
                           {formatCurrency(lic.price, currency)}
                         </span>
                         {hasLicDiscount && (
@@ -1788,7 +1788,7 @@ export function DynamicProductPage({ slug, productData: initialData, onNavigate,
               <div className="pdp-card" style={{ padding: '2.5rem', textAlign: 'center', maxWidth: '500px', margin: '0 auto' }}>
                 <h3 style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--text-primary)', marginBottom: '0.5rem' }}>{product.title}</h3>
                 <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'center', gap: '0.75rem', margin: '1.5rem 0' }}>
-                  <span style={{ fontSize: '2.5rem', fontWeight: 800, color: '#fff' }}>
+                  <span style={{ fontSize: '2.5rem', fontWeight: 800, color: 'var(--text-primary)' }}>
                     {formatCurrency(currentPrice, currency)}
                   </span>
                   {hasDiscount && (
@@ -1943,7 +1943,7 @@ export function DynamicProductPage({ slug, productData: initialData, onNavigate,
               </div>
 
               <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem' }}>
-                <div style={{ fontSize: '3rem', fontWeight: 900, color: '#fff', lineHeight: 1 }}>
+                <div style={{ fontSize: '3rem', fontWeight: 900, color: 'var(--text-primary)', lineHeight: 1 }}>
                   {Number(rawRating).toFixed(1)}
                 </div>
                 <div>
@@ -2275,7 +2275,7 @@ export function DynamicProductPage({ slug, productData: initialData, onNavigate,
               style={{ width: '42px', height: '42px', borderRadius: 'var(--radius-sm)', objectFit: 'cover', flexShrink: 0, border: '1px solid var(--border-subtle)' }}
             />
             <div style={{ overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>
-              <div style={{ fontSize: '0.85rem', fontWeight: 700, color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+              <div style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                 {product.title}
               </div>
               <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.5rem' }}>

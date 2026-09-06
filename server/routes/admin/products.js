@@ -74,11 +74,12 @@ router.get('/', async (req, res) => {
   }
 });
 
+
 // GET /api/admin/products/:id
 router.get('/:id', async (req, res) => {
   try {
     const db = await getDatabase();
-    const product = db.get('SELECT * FROM products WHERE id = ?', [req.params.id]);
+    const product = db.get('SELECT * FROM products WHERE id = ? OR slug = ?', [req.params.id, req.params.id]);
     if (!product) return res.status(404).json({ error: 'Product not found' });
 
     const media = db.query('SELECT * FROM product_media WHERE product_id = ? ORDER BY sort_order ASC, id ASC', [product.id]);
@@ -87,6 +88,8 @@ router.get('/:id', async (req, res) => {
     const compatibility = db.query('SELECT * FROM product_compatibility WHERE product_id = ?', [product.id]);
     const faqs = db.query('SELECT * FROM product_faqs WHERE product_id = ? ORDER BY sort_order ASC, id ASC', [product.id]);
     const files = db.query('SELECT * FROM product_files WHERE product_id = ? ORDER BY id DESC', [product.id]);
+    const testimonials = db.query('SELECT * FROM product_testimonials WHERE product_id = ? ORDER BY id ASC', [product.id]);
+    const sections = db.query('SELECT * FROM product_sections WHERE product_id = ? ORDER BY sort_order ASC, id ASC', [product.id]);
 
     res.json({
       product,
@@ -95,9 +98,12 @@ router.get('/:id', async (req, res) => {
       features,
       compatibility,
       faqs,
+      testimonials,
+      sections,
       files
     });
   } catch (err) {
+    console.error('Admin get product by id error:', err);
     res.status(500).json({ error: 'Failed to retrieve product details' });
   }
 });
@@ -315,7 +321,7 @@ router.post('/', async (req, res) => {
 router.get('/:id/full', async (req, res) => {
   try {
     const db = await getDatabase();
-    const product = db.get('SELECT * FROM products WHERE id = ?', [req.params.id]);
+    const product = db.get('SELECT * FROM products WHERE id = ? OR slug = ?', [req.params.id, req.params.id]);
     if (!product) return res.status(404).json({ error: 'Product not found' });
 
     const media = db.query('SELECT * FROM product_media WHERE product_id = ? ORDER BY sort_order ASC, id ASC', [product.id]);

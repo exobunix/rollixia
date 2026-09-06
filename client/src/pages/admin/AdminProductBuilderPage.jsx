@@ -51,10 +51,22 @@ import { apiRequest } from '../../utils/api';
 import { useToast } from '../../context/ToastContext';
 import { formatCurrency } from '../../utils/formatters';
 import { DynamicProductPage } from '../../components/store/DynamicProductPage';
+import { FALLBACK_PRODUCTS } from '../../data/fallbackCatalog.js';
 
-export function AdminProductBuilderPage({ productId, onBack, onSaved }) {
+export function AdminProductBuilderPage({ productId: propProductId, onBack, onSaved }) {
   const { addToast } = useToast();
-  const [loading, setLoading] = useState(!!productId);
+
+  // Extract product ID from props or URL search parameters (?id=32 or ?productId=32)
+  const productId = propProductId || (() => {
+    if (typeof window !== 'undefined') {
+      const searchParams = new URLSearchParams(window.location.search);
+      return searchParams.get('id') || searchParams.get('productId') || null;
+    }
+    return null;
+  })();
+  const effectiveProductId = productId;
+
+  const [loading, setLoading] = useState(!!effectiveProductId);
   const [saving, setSaving] = useState(false);
   const [activeTab, setActiveTab] = useState('basic');
   const [activeFeatureSubTab, setActiveFeatureSubTab] = useState('features');
@@ -185,98 +197,199 @@ export function AdminProductBuilderPage({ productId, onBack, onSaved }) {
   useEffect(() => {
     apiRequest('/api/categories').then(data => {
       setCategories(data || []);
-      if (!productId && data && data.length > 0) {
+      if (!effectiveProductId && data && data.length > 0) {
         setProduct(prev => ({ ...prev, category_id: data[0].id }));
       }
     }).catch(() => {});
 
-    if (productId) {
+    function populateFromProductData(res) {
+      if (!res) return false;
+      const prod = res.product || (res.id || res.title ? res : null);
+      if (!prod) return false;
+
+      setProduct(prev => ({
+        ...prev,
+        ...prod,
+        title: prod.title || '',
+        slug: prod.slug || '',
+        sku: prod.sku || '',
+        category_id: prod.category_id || 1,
+        badge: prod.badge || '',
+        eyebrow: prod.eyebrow || '',
+        subtitle: prod.subtitle || '',
+        short_description: prod.short_description || '',
+        full_description: prod.full_description || '',
+        regular_price: prod.regular_price !== undefined ? prod.regular_price : 2999,
+        sale_price: prod.sale_price !== undefined ? prod.sale_price : null,
+        cta_text: prod.cta_text || 'BUY NOW',
+        secondary_cta_text: prod.secondary_cta_text || 'ADD TO CART',
+        video_url: prod.video_url || '',
+        video_type: prod.video_type || 'auto',
+        video_thumbnail: prod.video_thumbnail || '',
+        video_title: prod.video_title || 'See the Product in Action',
+        video_description: prod.video_description || 'Watch the complete video walkthrough.',
+        demo_url: prod.demo_url || prod.live_demo_url || '',
+        live_demo_url: prod.live_demo_url || prod.demo_url || '',
+        customer_demo_url: prod.customer_demo_url || '',
+        partner_demo_url: prod.partner_demo_url || '',
+        admin_demo_url: prod.admin_demo_url || '',
+        web_demo_url: prod.web_demo_url || '',
+        docs_url: prod.docs_url || prod.doc_url || '',
+        doc_url: prod.doc_url || prod.docs_url || '',
+        deliverable_name: prod.deliverable_name || '',
+        status: prod.status || 'published',
+        seo_title: prod.seo_title || '',
+        seo_description: prod.seo_description || '',
+        seo_keywords: prod.seo_keywords || '',
+        og_image: prod.og_image || '',
+        hero_image: prod.hero_image || '',
+        thumbnail: prod.thumbnail || ''
+      }));
+
+      // Sections hydration
+      const loadedSectionsRaw = res.sections || prod.sections || [];
+      if (Array.isArray(loadedSectionsRaw) && loadedSectionsRaw.length > 0) {
+        const loadedSections = loadedSectionsRaw.map((s, idx) => ({
+          id: s.id,
+          section_type: s.section_type || s.type,
+          title: s.title || s.section_type,
+          is_visible: s.is_visible !== undefined ? s.is_visible : 1,
+          sort_order: s.sort_order || idx + 1,
+          content: parseSecContent(s.content)
+        }));
+
+        const combinedSections = [...loadedSections];
+        defaultCanonicalSections.forEach(defSec => {
+          if (!combinedSections.some(cs => cs.section_type === defSec.section_type)) {
+            combinedSections.push({ ...defSec, sort_order: combinedSections.length + 1 });
+          }
+        });
+
+        combinedSections.sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0));
+        setSections(combinedSections);
+
+        const ecoSec = loadedSections.find(s => s.section_type === 'ecosystem');
+        if (ecoSec && Array.isArray(ecoSec.content)) setEcosystem(ecoSec.content);
+
+        const csSec = loadedSections.find(s => s.section_type === 'customer_experience' || s.section_type === 'showcase');
+        if (csSec && Array.isArray(csSec.content)) setCustomerShowcase(csSec.content);
+
+        const psSec = loadedSections.find(s => s.section_type === 'partner_experience');
+        if (psSec && Array.isArray(psSec.content)) setPartnerShowcase(psSec.content);
+
+        const asSec = loadedSections.find(s => s.section_type === 'admin_experience');
+        if (asSec && Array.isArray(asSec.content)) setAdminShowcase(asSec.content);
+
+        const incSec = loadedSections.find(s => s.section_type === 'included');
+        if (incSec && Array.isArray(incSec.content)) setIncludedGroups(incSec.content);
+
+        const hwSec = loadedSections.find(s => s.section_type === 'how_it_works');
+        if (hwSec && Array.isArray(hwSec.content)) setHowItWorksSteps(hwSec.content);
+
+        const srcSec = loadedSections.find(s => s.section_type === 'source_code');
+        if (srcSec && Array.isArray(srcSec.content)) setSourceCodeTree(srcSec.content);
+
+        const spSec = loadedSections.find(s => s.section_type === 'specs');
+        if (spSec && Array.isArray(spSec.content)) setSpecs(spSec.content);
+
+        const reqSec = loadedSections.find(s => s.section_type === 'requirements');
+        if (reqSec && Array.isArray(reqSec.content)) setRequirements(reqSec.content);
+
+        const custSec = loadedSections.find(s => s.section_type === 'customization');
+        if (custSec && Array.isArray(custSec.content)) setCustomizationItems(custSec.content);
+
+        const audSec = loadedSections.find(s => s.section_type === 'who_is_it_for');
+        if (audSec && Array.isArray(audSec.content)) setAudienceList(audSec.content);
+
+        const ucSec = loadedSections.find(s => s.section_type === 'use_cases');
+        if (ucSec && Array.isArray(ucSec.content)) setUseCases(ucSec.content);
+
+        const compSec = loadedSections.find(s => s.section_type === 'comparison');
+        if (compSec && Array.isArray(compSec.content)) setComparisonRows(compSec.content);
+
+        const apSec = loadedSections.find(s => s.section_type === 'after_purchase');
+        if (apSec && Array.isArray(apSec.content)) setAfterPurchaseSteps(apSec.content);
+      }
+
+      // Parse technical_specs if specs state is empty
+      if (prod.technical_specs) {
+        try {
+          const rawSpecs = typeof prod.technical_specs === 'string' ? JSON.parse(prod.technical_specs) : prod.technical_specs;
+          if (Array.isArray(rawSpecs) && rawSpecs.length > 0) {
+            setSpecs(prev => prev.length > 0 ? prev : rawSpecs);
+          } else if (typeof rawSpecs === 'object' && rawSpecs !== null) {
+            const specRows = Object.entries(rawSpecs).map(([k, v]) => ({
+              label: k.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
+              value: String(v)
+            }));
+            setSpecs(prev => prev.length > 0 ? prev : specRows);
+          }
+        } catch (e) {}
+      }
+
+      // Parse how_it_works if howItWorksSteps state is empty
+      if (prod.how_it_works) {
+        try {
+          const rawHw = typeof prod.how_it_works === 'string' ? JSON.parse(prod.how_it_works) : prod.how_it_works;
+          if (Array.isArray(rawHw) && rawHw.length > 0) {
+            const formattedHw = rawHw.map((st, i) => ({
+              step: st.step || `0${i + 1}`,
+              title: st.title || '',
+              description: st.desc || st.description || ''
+            }));
+            setHowItWorksSteps(prev => prev.length > 0 ? prev : formattedHw);
+          }
+        } catch (e) {}
+      }
+
+      // Features
+      const loadedFeatures = res.features || prod.features || [];
+      if (Array.isArray(loadedFeatures) && loadedFeatures.length > 0) setFeatures(loadedFeatures);
+
+      // FAQs
+      const loadedFaqs = res.faqs || prod.faqs || [];
+      if (Array.isArray(loadedFaqs) && loadedFaqs.length > 0) setFaqs(loadedFaqs);
+
+      // Testimonials
+      const loadedTestimonials = res.testimonials || prod.testimonials || [];
+      if (Array.isArray(loadedTestimonials) && loadedTestimonials.length > 0) setTestimonials(loadedTestimonials);
+
+      // Media
+      const loadedMedia = res.media || prod.media || [];
+      if (Array.isArray(loadedMedia) && loadedMedia.length > 0) setMediaList(loadedMedia);
+
+      // Licenses
+      const loadedLicenses = res.licenses || prod.licenses || [];
+      if (Array.isArray(loadedLicenses) && loadedLicenses.length > 0) setLicensesList(loadedLicenses);
+
+      return true;
+    }
+
+    if (effectiveProductId) {
       setLoading(true);
-      apiRequest(`/api/admin/products/${productId}/full`)
+      apiRequest(`/api/admin/products/${effectiveProductId}/full`)
         .then(res => {
-          if (res && res.product) {
-            setProduct(prev => ({ ...prev, ...res.product }));
-
-            if (res.sections && res.sections.length > 0) {
-              // Merge existing database sections into local state
-              const loadedSections = res.sections.map((s, idx) => ({
-                id: s.id,
-                section_type: s.section_type || s.type,
-                title: s.title || s.section_type,
-                is_visible: s.is_visible !== undefined ? s.is_visible : 1,
-                sort_order: s.sort_order || idx + 1,
-                content: parseSecContent(s.content)
-              }));
-
-              // Ensure canonical sections are represented if missing
-              const combinedSections = [...loadedSections];
-              defaultCanonicalSections.forEach(defSec => {
-                if (!combinedSections.some(cs => cs.section_type === defSec.section_type)) {
-                  combinedSections.push({ ...defSec, sort_order: combinedSections.length + 1 });
-                }
-              });
-
-              combinedSections.sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0));
-              setSections(combinedSections);
-
-              // Extract structured datasets
-              const ecoSec = loadedSections.find(s => s.section_type === 'ecosystem');
-              if (ecoSec && Array.isArray(ecoSec.content)) setEcosystem(ecoSec.content);
-
-              const csSec = loadedSections.find(s => s.section_type === 'customer_experience' || s.section_type === 'showcase');
-              if (csSec && Array.isArray(csSec.content)) setCustomerShowcase(csSec.content);
-
-              const psSec = loadedSections.find(s => s.section_type === 'partner_experience');
-              if (psSec && Array.isArray(psSec.content)) setPartnerShowcase(psSec.content);
-
-              const asSec = loadedSections.find(s => s.section_type === 'admin_experience');
-              if (asSec && Array.isArray(asSec.content)) setAdminShowcase(asSec.content);
-
-              const incSec = loadedSections.find(s => s.section_type === 'included');
-              if (incSec && Array.isArray(incSec.content)) setIncludedGroups(incSec.content);
-
-              const hwSec = loadedSections.find(s => s.section_type === 'how_it_works');
-              if (hwSec && Array.isArray(hwSec.content)) setHowItWorksSteps(hwSec.content);
-
-              const srcSec = loadedSections.find(s => s.section_type === 'source_code');
-              if (srcSec && Array.isArray(srcSec.content)) setSourceCodeTree(srcSec.content);
-
-              const spSec = loadedSections.find(s => s.section_type === 'specs');
-              if (spSec && Array.isArray(spSec.content)) setSpecs(spSec.content);
-
-              const reqSec = loadedSections.find(s => s.section_type === 'requirements');
-              if (reqSec && Array.isArray(reqSec.content)) setRequirements(reqSec.content);
-
-              const custSec = loadedSections.find(s => s.section_type === 'customization');
-              if (custSec && Array.isArray(custSec.content)) setCustomizationItems(custSec.content);
-
-              const audSec = loadedSections.find(s => s.section_type === 'who_is_it_for');
-              if (audSec && Array.isArray(audSec.content)) setAudienceList(audSec.content);
-
-              const ucSec = loadedSections.find(s => s.section_type === 'use_cases');
-              if (ucSec && Array.isArray(ucSec.content)) setUseCases(ucSec.content);
-
-              const compSec = loadedSections.find(s => s.section_type === 'comparison');
-              if (compSec && Array.isArray(compSec.content)) setComparisonRows(compSec.content);
-
-              const apSec = loadedSections.find(s => s.section_type === 'after_purchase');
-              if (apSec && Array.isArray(apSec.content)) setAfterPurchaseSteps(apSec.content);
+          const success = populateFromProductData(res);
+          if (!success) {
+            // Check fallback catalog by ID or slug
+            const fallback = FALLBACK_PRODUCTS.find(p => String(p.id) === String(effectiveProductId) || p.slug === String(effectiveProductId));
+            if (fallback) {
+              populateFromProductData({ product: fallback });
             }
-
-            if (res.features && res.features.length > 0) setFeatures(res.features);
-            if (res.faqs) setFaqs(res.faqs);
-            if (res.testimonials) setTestimonials(res.testimonials);
-            if (res.media) setMediaList(res.media);
-            if (res.licenses) setLicensesList(res.licenses);
           }
         })
         .catch(err => {
-          console.error(err);
-          addToast('Failed to load product details for editing', 'error');
+          console.warn('API error loading product, trying fallback catalog:', err);
+          const fallback = FALLBACK_PRODUCTS.find(p => String(p.id) === String(effectiveProductId) || p.slug === String(effectiveProductId));
+          if (fallback) {
+            populateFromProductData({ product: fallback });
+          } else {
+            addToast('Failed to load product details for editing', 'error');
+          }
         })
         .finally(() => setLoading(false));
     }
-  }, [productId]);
+  }, [effectiveProductId]);
 
   // Section Ordering & Visibility
   const moveSection = (index, direction) => {

@@ -354,11 +354,25 @@ export function handleAdminFallbackRoute(clean, method, options = {}, requestBod
     }
   }
 
-  if (clean.startsWith('admin/products/') && clean.endsWith('/full')) {
-    const id = clean.replace(/^admin\/products\//, '').replace(/\/full$/, '');
+  if (clean.startsWith('admin/products/') && method === 'GET') {
+    let id = clean.replace(/^admin\/products\//, '');
+    if (id.endsWith('/full')) id = id.replace(/\/full$/, '');
     const products = getStored(STORAGE_KEYS.PRODUCTS, FALLBACK_PRODUCTS);
-    const found = products.find(p => String(p.id) === String(id) || p.slug === id) || products[0];
-    return found;
+    const found = products.find(p => String(p.id) === String(id) || p.slug === id) ||
+                  FALLBACK_PRODUCTS.find(p => String(p.id) === String(id) || p.slug === id) ||
+                  products[0];
+    if (found) {
+      return {
+        product: found,
+        media: found.media || (found.hero_image ? [{ media_url: found.hero_image, caption: found.title }] : []),
+        licenses: found.licenses || [],
+        features: found.features || [],
+        sections: found.sections || [],
+        faqs: found.faqs || [],
+        testimonials: found.testimonials || [],
+        files: []
+      };
+    }
   }
 
   if (clean.startsWith('admin/products/') && clean.endsWith('/duplicate') && method === 'POST') {
@@ -396,7 +410,14 @@ export function handleAdminFallbackRoute(clean, method, options = {}, requestBod
   if (clean.startsWith('admin/products/') && clean.endsWith('/sections') && (method === 'PUT' || method === 'POST')) {
     const id = clean.replace(/^admin\/products\//, '').replace(/\/sections$/, '');
     const products = getStored(STORAGE_KEYS.PRODUCTS, [...FALLBACK_PRODUCTS]);
-    const idx = products.findIndex(p => String(p.id) === String(id));
+    let idx = products.findIndex(p => String(p.id) === String(id));
+    if (idx < 0) {
+      const fb = FALLBACK_PRODUCTS.find(p => String(p.id) === String(id));
+      if (fb) {
+        products.push({ ...fb });
+        idx = products.length - 1;
+      }
+    }
     if (idx >= 0 && requestBody?.sections) {
       products[idx].sections = requestBody.sections;
       setStored(STORAGE_KEYS.PRODUCTS, products);
@@ -407,7 +428,14 @@ export function handleAdminFallbackRoute(clean, method, options = {}, requestBod
   if (clean.startsWith('admin/products/') && (method === 'PUT' || method === 'PATCH')) {
     const id = clean.replace(/^admin\/products\//, '');
     const products = getStored(STORAGE_KEYS.PRODUCTS, [...FALLBACK_PRODUCTS]);
-    const idx = products.findIndex(p => String(p.id) === String(id));
+    let idx = products.findIndex(p => String(p.id) === String(id));
+    if (idx < 0) {
+      const fb = FALLBACK_PRODUCTS.find(p => String(p.id) === String(id));
+      if (fb) {
+        products.push({ ...fb });
+        idx = products.length - 1;
+      }
+    }
     if (idx >= 0 && requestBody) {
       products[idx] = { ...products[idx], ...requestBody };
       setStored(STORAGE_KEYS.PRODUCTS, products);

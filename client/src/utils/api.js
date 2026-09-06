@@ -73,13 +73,19 @@ export async function apiRequest(endpoint, options = {}) {
     return [];
   }
 
-  // If we recently detected the serverless endpoint is offline or returning 404/405 on this domain,
-  // return fallback immediately to avoid repeated 404 errors in the browser console
+  // On production domains without an external dedicated backend, return fallback immediately
+  // to completely eliminate 404 network errors in browser developer tools
   const apiBase = getEffectiveApiBase();
   const isRelative = !apiBase || (typeof window !== 'undefined' && apiBase.startsWith(window.location.origin));
+  const isProdHost = typeof window !== 'undefined' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1';
+
+  if (isProdHost && isRelative && hasFallback !== null) {
+    return hasFallback;
+  }
+
   if (isApiOffline && isRelative && hasFallback !== null) {
     if (Date.now() - lastOfflineCheck > 120000) {
-      isApiOffline = false; // Periodically re-test backend health
+      isApiOffline = false;
       try { sessionStorage.removeItem('rollixia_api_offline'); } catch (e) {}
     } else {
       return hasFallback;

@@ -184,7 +184,7 @@ export function DynamicProductPage({ slug, productData: initialData, onNavigate,
   const [selectedLicense, setSelectedLicense] = useState(null);
 
   // Context Hooks
-  const { addToCart } = useCart();
+  const { addToCart, setIsCartOpen } = useCart();
   const { currency } = useCurrency();
   const { user } = useAuth();
   const { addToast } = useToast();
@@ -397,17 +397,24 @@ export function DynamicProductPage({ slug, productData: initialData, onNavigate,
     addToast(`Added "${product.title}" to cart`, 'success');
   };
 
-  const handleBuyNow = () => {
+  const handleBuyNow = (overrideLicense = null) => {
+    const lic = overrideLicense || selectedLicense;
+    const licPrice = lic ? lic.price : currentPrice;
+    const licRegPrice = lic?.regular_price || regularPrice;
+    const licName = lic?.license_name || lic?.name || 'Standard License';
+    const licId = lic?.id || null;
+
     addToCart({
       id: product.id,
       title: product.title,
-      price: currentPrice,
-      regular_price: regularPrice,
+      price: licPrice,
+      regular_price: licRegPrice,
       image: product.thumbnail || product.hero_image,
       slug: product.slug,
-      license_name: selectedLicense?.license_name || selectedLicense?.name || 'Standard License',
-      license_id: selectedLicense?.id || null
-    });
+      license_name: licName,
+      license_id: licId
+    }, null, false);
+    setIsCartOpen(false);
     if (onNavigate) {
       onNavigate('checkout');
     }
@@ -1782,7 +1789,7 @@ export function DynamicProductPage({ slug, productData: initialData, onNavigate,
                       <button
                         onClick={() => {
                           setSelectedLicense(lic);
-                          handleBuyNow();
+                          handleBuyNow(lic);
                         }}
                         className="btn btn-primary btn-lg"
                         style={{ width: '100%', gap: '0.5rem' }}

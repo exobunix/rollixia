@@ -1218,6 +1218,18 @@ img {
   }
 }
 
+/* Checkout Page Responsive */
+.checkout-page-grid {
+  width: 100%;
+}
+
+@media (max-width: 680px) {
+  .checkout-page-grid {
+    grid-template-columns: 1fr !important;
+    gap: 1.75rem !important;
+  }
+}
+
 /* Cards */
 .pdp-card {
   background: var(--bg-surface);

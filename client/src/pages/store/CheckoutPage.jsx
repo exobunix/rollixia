@@ -28,10 +28,16 @@ const loadRazorpayScript = () => {
 };
 
 export function CheckoutPage({ onNavigate }) {
-  const { items, cartTotals, couponCode, clearCart } = useCart();
+  const { items, cartTotals, couponCode, clearCart, setIsCartOpen } = useCart();
   const { user, login, register } = useAuth();
   const { currency } = useCurrency();
   const { addToast } = useToast();
+
+  // Scroll to top and ensure cart drawer is closed on checkout page mount
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'instant' });
+    if (setIsCartOpen) setIsCartOpen(false);
+  }, [setIsCartOpen]);
 
   // Auth gate inline states (when customer is not logged in)
   const [authMode, setAuthMode] = useState('login'); // 'login' | 'register'
@@ -312,19 +318,19 @@ export function CheckoutPage({ onNavigate }) {
   };
 
   return (
-    <div style={{ padding: '3rem 0 6rem 0' }}>
+    <div style={{ padding: '2.5rem 0 6rem 0' }}>
       <div className="container" style={{ maxWidth: '1040px' }}>
-        <h1 className="display-title gradient-text" style={{ fontSize: 'clamp(2rem, 3.5vw, 2.5rem)', marginBottom: '0.5rem' }}>
+        <h1 className="display-title gradient-text" style={{ fontSize: 'clamp(1.85rem, 3.5vw, 2.5rem)', marginBottom: '0.5rem' }}>
           Secure Checkout
         </h1>
-        <p style={{ color: 'var(--text-secondary)', marginBottom: '2.5rem' }}>
+        <p style={{ color: 'var(--text-secondary)', marginBottom: '2rem' }}>
           Instant tokenized digital delivery right after payment confirmation.
         </p>
 
-        <div style={{
+        <div className="checkout-page-grid" style={{
           display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
-          gap: '3rem',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(290px, 1fr))',
+          gap: '2.5rem',
           alignItems: 'start'
         }}>
           {/* Left: Authentication & Checkout Form */}

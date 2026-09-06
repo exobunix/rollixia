@@ -1,15 +1,25 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { X, Trash2, ArrowRight, ShieldCheck, Tag, ShoppingBag } from 'lucide-react';
 import { useCart } from '../../context/CartContext';
 import { useCurrency } from '../../context/CurrencyContext';
 import { formatCurrency } from '../../utils/formatters';
 
-export function CartDrawer({ onNavigateCheckout, onNavigateShopping }) {
+export function CartDrawer({ onNavigateCheckout, onNavigateShopping, currentRoute }) {
   const { isCartOpen, setIsCartOpen, items, removeFromCart, cartTotals, couponCode, applyCoupon, removeCoupon, calculating } = useCart();
   const { currency } = useCurrency();
   const [inputCoupon, setInputCoupon] = useState('');
 
-  if (!isCartOpen) return null;
+  const isCheckoutRoute = currentRoute?.page === 'checkout' ||
+    currentRoute?.page === 'order-success' ||
+    (typeof window !== 'undefined' && (window.location.pathname.includes('/checkout') || window.location.pathname.includes('/order-success')));
+
+  useEffect(() => {
+    if (isCheckoutRoute && isCartOpen) {
+      setIsCartOpen(false);
+    }
+  }, [isCheckoutRoute, isCartOpen, setIsCartOpen]);
+
+  if (!isCartOpen || isCheckoutRoute) return null;
 
   const handleApplyCoupon = (e) => {
     e.preventDefault();

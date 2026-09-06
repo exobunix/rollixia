@@ -71,31 +71,32 @@ export function CartProvider({ children }) {
     recalculate();
   }, [items, couponCode]);
 
-  const addToCart = (product, license = null) => {
+  const addToCart = (product, license = null, openDrawer = true) => {
+    const targetLicenseId = license ? license.id : (product.license_id || null);
     // Digital products: avoid redundant duplicates with the exact same license
     const existingIndex = items.findIndex(
-      i => i.productId === product.id && i.licenseId === (license ? license.id : null)
+      i => i.productId === product.id && i.licenseId === targetLicenseId
     );
 
     if (existingIndex > -1) {
       addToast(`"${product.title}" is already in your cart!`, 'info');
-      setIsCartOpen(true);
+      if (openDrawer) setIsCartOpen(true);
       return;
     }
 
     const newItem = {
       productId: product.id,
-      licenseId: license ? license.id : null,
+      licenseId: targetLicenseId,
       title: product.title,
       slug: product.slug,
-      price: license ? license.price : (product.sale_price !== null ? product.sale_price : product.regular_price),
-      licenseName: license ? license.license_name : 'Standard Commercial License',
-      thumbnail: product.thumbnail || (product.media && product.media[0] ? product.media[0].media_url : null)
+      price: license ? license.price : (product.price !== undefined ? product.price : (product.sale_price !== null ? product.sale_price : product.regular_price)),
+      licenseName: license ? (license.license_name || license.name) : (product.license_name || 'Standard Commercial License'),
+      thumbnail: product.thumbnail || product.image || (product.media && product.media[0] ? product.media[0].media_url : null)
     };
 
     setItems(prev => [...prev, newItem]);
     addToast(`Added "${product.title}" to your cart!`, 'success');
-    setIsCartOpen(true);
+    if (openDrawer) setIsCartOpen(true);
   };
 
   const removeFromCart = (productId, licenseId = null) => {

@@ -209,7 +209,11 @@ export function App() {
   // Sync route on mount, popstate (browser back/forward), and legacy hashchange
   useEffect(() => {
     const handleLocationChange = () => {
-      setCurrentRoute(parseLocation());
+      const loc = parseLocation();
+      if (loc.page === 'checkout' || loc.page === 'order-success') {
+        setIsCartOpen(false);
+      }
+      setCurrentRoute(loc);
       window.scrollTo({ top: 0, behavior: 'smooth' });
     };
 
@@ -217,16 +221,24 @@ export function App() {
     window.addEventListener('hashchange', handleLocationChange);
 
     // Initial parse and hash cleanup
-    setCurrentRoute(parseLocation());
+    const initialLoc = parseLocation();
+    if (initialLoc.page === 'checkout' || initialLoc.page === 'order-success') {
+      setIsCartOpen(false);
+    }
+    setCurrentRoute(initialLoc);
 
     return () => {
       window.removeEventListener('popstate', handleLocationChange);
       window.removeEventListener('hashchange', handleLocationChange);
     };
-  }, []);
+  }, [setIsCartOpen]);
 
   // Programmatic navigation helper using HTML5 pushState (no '#')
   const navigate = (page, params = {}) => {
+    if (page === 'checkout' || page === 'order-success') {
+      setIsCartOpen(false);
+    }
+
     let newPath = '/';
     const query = new URLSearchParams();
 
@@ -434,6 +446,7 @@ export function App() {
 
       {/* Global Slide-Out Cart Drawer */}
       <CartDrawer
+        currentRoute={currentRoute}
         onNavigateCheckout={() => {
           setIsCartOpen(false);
           navigate('checkout');

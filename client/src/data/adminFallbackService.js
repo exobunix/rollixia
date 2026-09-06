@@ -410,9 +410,9 @@ export function handleAdminFallbackRoute(clean, method, options = {}, requestBod
   if (clean.startsWith('admin/products/') && clean.endsWith('/sections') && (method === 'PUT' || method === 'POST')) {
     const id = clean.replace(/^admin\/products\//, '').replace(/\/sections$/, '');
     const products = getStored(STORAGE_KEYS.PRODUCTS, [...FALLBACK_PRODUCTS]);
-    let idx = products.findIndex(p => String(p.id) === String(id));
+    let idx = products.findIndex(p => String(p.id) === String(id) || p.slug === id);
     if (idx < 0) {
-      const fb = FALLBACK_PRODUCTS.find(p => String(p.id) === String(id));
+      const fb = FALLBACK_PRODUCTS.find(p => String(p.id) === String(id) || p.slug === id);
       if (fb) {
         products.push({ ...fb });
         idx = products.length - 1;
@@ -421,6 +421,13 @@ export function handleAdminFallbackRoute(clean, method, options = {}, requestBod
     if (idx >= 0 && requestBody?.sections) {
       products[idx].sections = requestBody.sections;
       setStored(STORAGE_KEYS.PRODUCTS, products);
+      if (typeof window !== 'undefined') {
+        try {
+          window.dispatchEvent(new CustomEvent('rollixia_catalog_updated', {
+            detail: { productId: id, sections: requestBody.sections }
+          }));
+        } catch (e) {}
+      }
     }
     return { success: true, message: 'Product sections saved successfully' };
   }
@@ -428,17 +435,50 @@ export function handleAdminFallbackRoute(clean, method, options = {}, requestBod
   if (clean.startsWith('admin/products/') && (method === 'PUT' || method === 'PATCH')) {
     const id = clean.replace(/^admin\/products\//, '');
     const products = getStored(STORAGE_KEYS.PRODUCTS, [...FALLBACK_PRODUCTS]);
-    let idx = products.findIndex(p => String(p.id) === String(id));
+    let idx = products.findIndex(p => String(p.id) === String(id) || p.slug === id);
     if (idx < 0) {
-      const fb = FALLBACK_PRODUCTS.find(p => String(p.id) === String(id));
+      const fb = FALLBACK_PRODUCTS.find(p => String(p.id) === String(id) || p.slug === id);
       if (fb) {
         products.push({ ...fb });
         idx = products.length - 1;
       }
     }
     if (idx >= 0 && requestBody) {
-      products[idx] = { ...products[idx], ...requestBody };
+      const updatedProduct = {
+        ...products[idx],
+        ...requestBody
+      };
+
+      // Ensure licenses array contains properly typed numbers
+      if (requestBody.licenses && Array.isArray(requestBody.licenses)) {
+        updatedProduct.licenses = requestBody.licenses.map(lic => ({
+          ...lic,
+          price: lic.price !== undefined ? parseFloat(lic.price) : (lic.sale_price !== undefined ? parseFloat(lic.sale_price) : 0),
+          regular_price: lic.regular_price !== undefined && lic.regular_price !== null && lic.regular_price !== '' ? parseFloat(lic.regular_price) : null
+        }));
+      }
+
+      // Ensure regular_price and sale_price numbers
+      if (requestBody.regular_price !== undefined) {
+        updatedProduct.regular_price = parseFloat(requestBody.regular_price) || 0;
+      }
+      if (requestBody.sale_price !== undefined) {
+        updatedProduct.sale_price = requestBody.sale_price !== null && requestBody.sale_price !== '' ? parseFloat(requestBody.sale_price) : null;
+      }
+
+      products[idx] = updatedProduct;
       setStored(STORAGE_KEYS.PRODUCTS, products);
+
+      // Trigger cross-component notification
+      if (typeof window !== 'undefined') {
+        try {
+          window.dispatchEvent(new CustomEvent('rollixia_catalog_updated', {
+            detail: { productId: id, product: updatedProduct }
+          }));
+        } catch (e) {}
+      }
+
+      return { success: true, message: 'Product updated successfully', product: updatedProduct };
     }
     return { success: true, message: 'Product updated successfully' };
   }

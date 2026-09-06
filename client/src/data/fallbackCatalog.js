@@ -5876,7 +5876,7 @@ export const FALLBACK_PRODUCTS = [
     "product_type": "Automation / Workflow Bundle",
     "author": "AutomateScale Labs",
     "regular_price": 2999,
-    "sale_price": 299,
+    "sale_price": 1,
     "badge": "DEAL",
     "status": "published",
     "demo_url": null,
@@ -5926,7 +5926,7 @@ export const FALLBACK_PRODUCTS = [
       {
         "id": 25,
         "license_name": "Commercial License",
-        "price": 299,
+        "price": 1,
         "regular_price": null,
         "description": "Full commercial license for personal & client projects",
         "permissions": "Unlimited commercial use, Lifetime updates, 100% profit retention",

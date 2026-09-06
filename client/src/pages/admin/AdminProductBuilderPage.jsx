@@ -582,6 +582,32 @@ export function AdminProductBuilderPage({ productId: propProductId, onBack, onSa
         });
       }
 
+      // Synchronize in-memory product state
+      setProduct(prev => ({ ...prev, ...productPayload }));
+
+      // Direct client cache synchronization for zero-latency storefront reflection
+      try {
+        if (typeof window !== 'undefined' && window.localStorage) {
+          const storedProducts = JSON.parse(localStorage.getItem('rollixia_admin_products') || '[]');
+          const idx = storedProducts.findIndex(p => String(p.id) === String(finalProductId) || p.slug === productPayload.slug);
+          const fullSavedObj = {
+            ...(idx >= 0 ? storedProducts[idx] : {}),
+            ...productPayload,
+            id: finalProductId,
+            sections: enrichedSections
+          };
+          if (idx >= 0) {
+            storedProducts[idx] = fullSavedObj;
+          } else {
+            storedProducts.push(fullSavedObj);
+          }
+          localStorage.setItem('rollixia_admin_products', JSON.stringify(storedProducts));
+          window.dispatchEvent(new CustomEvent('rollixia_catalog_updated', {
+            detail: { productId: finalProductId, product: fullSavedObj }
+          }));
+        }
+      } catch (e) {}
+
       addToast('Product saved successfully!', 'success');
       if (onSaved) onSaved();
       if (redirectAfterSave && onBack) onBack();

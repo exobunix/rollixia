@@ -2,7 +2,19 @@ const initSqlJs = require('sql.js');
 const fs = require('fs');
 const path = require('path');
 
-const DB_PATH = path.join(__dirname, '..', 'database.sqlite');
+const isServerless = Boolean(process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME || process.env.NOW_REGION);
+let DB_PATH = path.join(__dirname, '..', 'database.sqlite');
+if (isServerless) {
+  const tmpDbPath = path.join('/tmp', 'database.sqlite');
+  if (!fs.existsSync(tmpDbPath) && fs.existsSync(DB_PATH)) {
+    try {
+      fs.copyFileSync(DB_PATH, tmpDbPath);
+    } catch (e) {
+      console.error('Failed to copy database to /tmp:', e);
+    }
+  }
+  DB_PATH = tmpDbPath;
+}
 
 let dbInstance = null;
 

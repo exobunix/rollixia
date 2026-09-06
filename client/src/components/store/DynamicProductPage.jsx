@@ -270,6 +270,27 @@ export function DynamicProductPage({ slug, productData: initialData, onNavigate,
     return () => { isMounted = false; };
   }, [cleanSlug, initialData]);
 
+  // Listen for live catalog updates from admin edits
+  useEffect(() => {
+    if (!cleanSlug || initialData) return;
+    const handleCatalogUpdate = () => {
+      const updated = getFallbackProductBySlug(cleanSlug);
+      if (updated && (updated.product || updated.id)) {
+        setData(updated);
+        const lics = updated.licenses || updated.product?.licenses || [];
+        if (lics.length > 0) {
+          setSelectedLicense(lics[0]);
+        }
+      }
+    };
+    window.addEventListener('rollixia_catalog_updated', handleCatalogUpdate);
+    window.addEventListener('storage', handleCatalogUpdate);
+    return () => {
+      window.removeEventListener('rollixia_catalog_updated', handleCatalogUpdate);
+      window.removeEventListener('storage', handleCatalogUpdate);
+    };
+  }, [cleanSlug, initialData]);
+
   // Loading State
   if (loading) {
     return (

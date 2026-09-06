@@ -3,8 +3,30 @@ import { handleAdminFallbackRoute } from './adminFallbackService.js';
 
 export { FALLBACK_CATEGORIES, FALLBACK_PRODUCTS };
 
+export function getEffectiveProducts() {
+  try {
+    if (typeof window !== 'undefined' && window.localStorage) {
+      const stored = localStorage.getItem('rollixia_admin_products');
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          const map = new Map();
+          FALLBACK_PRODUCTS.forEach(p => map.set(String(p.id), { ...p }));
+          parsed.forEach(p => {
+            const key = String(p.id);
+            const existing = map.get(key) || {};
+            map.set(key, { ...existing, ...p });
+          });
+          return Array.from(map.values());
+        }
+      }
+    }
+  } catch (e) {}
+  return FALLBACK_PRODUCTS;
+}
+
 export function getFallbackFeatured() {
-  const all = [...FALLBACK_PRODUCTS];
+  const all = [...getEffectiveProducts()];
   const bestsellers = all.filter(p => (p.sales_count > 0 || p.is_bestseller === 1)).slice(0, 14);
   const trending = all.filter(p => (p.badge === 'TRENDING' || p.badge === 'POPULAR' || p.is_trending === 1)).slice(0, 14);
   const topRated = all.filter(p => (p.rating_avg >= 4.5)).slice(0, 14);
@@ -34,7 +56,8 @@ export function getFallbackProducts(searchParams = '') {
   const sort = params.get ? (params.get('sort') || 'popular') : 'popular';
   const maxPrice = params.get && params.get('max_price') ? parseFloat(params.get('max_price')) : null;
 
-  let filtered = FALLBACK_PRODUCTS.filter(p => {
+  const catalog = getEffectiveProducts();
+  let filtered = catalog.filter(p => {
     if (category && p.category_slug !== category && String(p.category_id) !== category) {
       return false;
     }
@@ -83,7 +106,8 @@ export function getFallbackProductBySlug(slug) {
     cleanSlug = String(slug).trim().toLowerCase().replace(/\/+$/, '');
   }
 
-  const p = FALLBACK_PRODUCTS.find(item => {
+  const catalog = getEffectiveProducts();
+  const p = catalog.find(item => {
     if (!item) return false;
     const itemSlug = String(item.slug || '').trim().toLowerCase();
     const itemId = String(item.id || '').trim();
@@ -121,15 +145,32 @@ export function getFallbackProductBySlug(slug) {
     try { parsedTechnicalSpecs = JSON.parse(p.technical_specs); } catch (e) {}
   }
 
+  // Ensure licenses array contains updated prices and descriptions
+  const effectiveLicenses = (p.licenses && p.licenses.length > 0) ? p.licenses : [
+    {
+      id: 1,
+      license_name: 'Commercial License',
+      price: p.sale_price !== null && p.sale_price !== undefined ? p.sale_price : p.regular_price,
+      regular_price: p.regular_price,
+      description: 'Full commercial license for personal & client projects.'
+    }
+  ];
+
   return {
     product: {
       ...p,
+      regular_price: p.regular_price,
+      sale_price: p.sale_price,
+      licenses: effectiveLicenses,
       technical_specs: parsedTechnicalSpecs
     },
     ...p,
+    regular_price: p.regular_price,
+    sale_price: p.sale_price,
     technical_specs: parsedTechnicalSpecs,
-    media: p.media || [],
-    licenses: p.licenses || [],
+    media: p.media || (p.hero_image ? [{ media_url: p.hero_image, is_thumbnail: 1 }] : []),
+    licenses: effectiveLicenses,
+    pricingPlans: effectiveLicenses,
     features: p.features || [],
     compatibility: p.compatibility || [],
     faqs: p.faqs || [],
@@ -137,7 +178,6 @@ export function getFallbackProductBySlug(slug) {
     testimonials: p.testimonials || [],
     sections: parsedSections,
     ratingBreakdown: { 5: 14, 4: 1, 3: 0, 2: 0, 1: 0 },
-    pricingPlans: p.licenses || [],
     activeFile: {
       id: 1,
       file_name: `${p.slug}-v1.0.0.zip`,
@@ -151,8 +191,9 @@ export function getFallbackRelated(slug) {
   const current = getFallbackProductBySlug(slug);
   const currentId = current?.product?.id || current?.id;
   const currentCatId = current?.product?.category_id || current?.category_id;
-  if (!currentId) return FALLBACK_PRODUCTS.slice(0, 4);
-  return FALLBACK_PRODUCTS.filter(p => p.id !== currentId && p.category_id === currentCatId).slice(0, 4);
+  const catalog = getEffectiveProducts();
+  if (!currentId) return catalog.slice(0, 4);
+  return catalog.filter(p => p.id !== currentId && p.category_id === currentCatId).slice(0, 4);
 }
 
 export const FALLBACK_SETTINGS = {
@@ -177,8 +218,9 @@ export function simulateCalculateCart(payload = {}) {
   const couponCode = payload.couponCode;
 
   let subtotal = 0;
+  const catalog = getEffectiveProducts();
   const calculatedItems = items.map(cartItem => {
-    const product = FALLBACK_PRODUCTS.find(p => p.id === cartItem.productId) || FALLBACK_PRODUCTS[0];
+    const product = catalog.find(p => p.id === cartItem.productId) || catalog[0];
     let license = null;
     if (product && product.licenses && product.licenses.length > 0) {
       license = product.licenses.find(l => l.id === cartItem.licenseId) || product.licenses[0];
@@ -252,8 +294,9 @@ export function simulateCreateOrder(payload = {}) {
     price: item.price
   }));
 
+  const catalog = getEffectiveProducts();
   const downloads = calculation.items.map((item, idx) => {
-    const p = FALLBACK_PRODUCTS.find(prod => prod.id === item.productId) || FALLBACK_PRODUCTS[0];
+    const p = catalog.find(prod => prod.id === item.productId) || catalog[0];
     return {
       id: 1000 + idx,
       order_id: order.id,
@@ -320,7 +363,7 @@ export function simulateGetOrder(orderNumber) {
     if (target) return target;
   } catch (e) {}
 
-  const p = FALLBACK_PRODUCTS[0];
+  const p = getEffectiveProducts()[0];
   return {
     order: {
       id: 9999,

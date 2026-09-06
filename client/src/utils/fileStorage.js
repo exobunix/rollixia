@@ -29,7 +29,7 @@ function openDB() {
  * Store an uploaded deliverable file
  * @param {string|number} key - Product ID or File ID
  * @param {Blob|File} blob - The actual file
- * @param {object} meta - Metadata (fileName, fileSize, fileType, version)
+ * @param {object} meta - Metadata (fileName, fileSize, fileType, version, productTitle, productSlug)
  */
 export async function storeDeliverableBlob(key, blob, meta = {}) {
   try {
@@ -44,6 +44,9 @@ export async function storeDeliverableBlob(key, blob, meta = {}) {
         fileSize: meta.fileSize || (blob && blob.size) || 0,
         fileType: meta.fileType || (blob && blob.type) || 'application/octet-stream',
         version: meta.version || '1.0.0',
+        productId: meta.productId ? String(meta.productId) : null,
+        productSlug: meta.productSlug || null,
+        productTitle: meta.productTitle || null,
         uploadedAt: new Date().toISOString()
       };
       const req = store.put(entry);
@@ -69,6 +72,61 @@ export async function getDeliverableBlob(key) {
       const store = tx.objectStore(STORE_NAME);
       const req = store.get(String(key));
       req.onsuccess = () => resolve(req.result || null);
+      req.onerror = () => resolve(null);
+    });
+  } catch (err) {
+    return null;
+  }
+}
+
+/**
+ * Robust search for an uploaded deliverable in IndexedDB matching any attribute
+ */
+export async function findDeliverableBlob({ fileId, productId, productSlug, productTitle, fileName } = {}) {
+  try {
+    const db = await openDB();
+    return new Promise((resolve) => {
+      const tx = db.transaction(STORE_NAME, 'readonly');
+      const store = tx.objectStore(STORE_NAME);
+      const req = store.getAll();
+      req.onsuccess = () => {
+        const all = req.result || [];
+        if (all.length === 0) return resolve(null);
+
+        // 1. Direct match by key
+        const targetKeys = [
+          productId ? String(productId) : null,
+          productId ? `product_${productId}` : null,
+          fileId ? String(fileId) : null,
+          fileId ? `file_${fileId}` : null
+        ].filter(Boolean);
+
+        for (const item of all) {
+          if (targetKeys.includes(String(item.key))) return resolve(item);
+        }
+
+        // 2. Match by file name
+        if (fileName) {
+          const norm = fileName.toLowerCase().trim();
+          for (const item of all) {
+            if (item.fileName && item.fileName.toLowerCase().trim() === norm) return resolve(item);
+          }
+        }
+
+        // 3. Match by product title or slug
+        for (const item of all) {
+          if (productSlug && item.productSlug && item.productSlug === productSlug) return resolve(item);
+          if (productTitle && item.productTitle && item.productTitle.toLowerCase() === productTitle.toLowerCase()) return resolve(item);
+        }
+
+        // 4. Fallback: if any stored blobs exist in IndexedDB, return the most recent uploaded blob
+        const withBlob = all.filter(item => item && item.blob);
+        if (withBlob.length > 0) {
+          return resolve(withBlob[withBlob.length - 1]);
+        }
+
+        resolve(null);
+      };
       req.onerror = () => resolve(null);
     });
   } catch (err) {
@@ -137,26 +195,24 @@ export async function downloadEntitledDeliverable(dl, addToast) {
   if (!dl) return false;
   const fileName = dl.file_name || (dl.product_slug ? `${dl.product_slug}-package.zip` : 'deliverable.zip');
 
-  // 1. Check IndexedDB by file_id or product_id
-  const keysToCheck = [
-    dl.file_id,
-    dl.file_id ? `file_${dl.file_id}` : null,
-    dl.product_id,
-    dl.product_id ? `product_${dl.product_id}` : null
-  ].filter(Boolean);
+  // 1. Check IndexedDB by file_id, product_id, product_title, fileName, or any stored blob
+  try {
+    const stored = await findDeliverableBlob({
+      productId: dl.product_id,
+      fileId: dl.file_id,
+      fileName: dl.file_name,
+      productTitle: dl.product_title,
+      productSlug: dl.product_slug
+    });
 
-  for (const key of keysToCheck) {
-    try {
-      const stored = await getDeliverableBlob(key);
-      if (stored && stored.blob) {
-        const outName = stored.fileName || fileName;
-        triggerBrowserDownload(stored.blob, outName);
-        if (addToast) addToast(`Downloading deliverable: ${outName}`, 'success');
-        return true;
-      }
-    } catch (e) {
-      console.warn('[fileStorage] Error reading from IndexedDB:', e);
+    if (stored && stored.blob) {
+      const outName = stored.fileName || fileName;
+      triggerBrowserDownload(stored.blob, outName);
+      if (addToast) addToast(`Downloading deliverable: ${outName}`, 'success');
+      return true;
     }
+  } catch (e) {
+    console.warn('[fileStorage] Error reading from IndexedDB:', e);
   }
 
   // 2. Try fetching from backend download endpoint if token exists

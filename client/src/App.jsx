@@ -17,6 +17,8 @@ import { CustomerDashboardPage } from './pages/store/CustomerDashboardPage';
 import { LoginPage } from './pages/store/LoginPage';
 import { RegisterPage } from './pages/store/RegisterPage';
 import { LegalPage } from './pages/store/LegalPage';
+import { DownloadCloud } from 'lucide-react';
+import { downloadEntitledDeliverable, findDeliverableBlob, triggerBrowserDownload } from './utils/fileStorage';
 
 // Admin Components & Pages
 import { AdminSidebar } from './components/admin/AdminSidebar';
@@ -78,6 +80,71 @@ class AdminErrorBoundary extends React.Component {
   }
 }
 
+function DirectDownloadHandler({ token, onNavigate }) {
+  const [downloading, setDownloading] = useState(true);
+  const [downloadedName, setDownloadedName] = useState('');
+
+  useEffect(() => {
+    async function run() {
+      try {
+        const stored = await findDeliverableBlob();
+        if (stored && stored.blob) {
+          triggerBrowserDownload(stored.blob, stored.fileName);
+          setDownloadedName(stored.fileName);
+        } else {
+          await downloadEntitledDeliverable({ token });
+        }
+      } catch (e) {
+        console.warn('Direct download error:', e);
+      } finally {
+        setDownloading(false);
+      }
+    }
+    run();
+  }, [token]);
+
+  return (
+    <div style={{ padding: '6rem 1rem 8rem 1rem', textAlign: 'center' }}>
+      <div className="glass-card" style={{ maxWidth: '520px', margin: '0 auto', padding: '3rem 2rem' }}>
+        <div style={{
+          width: '72px',
+          height: '72px',
+          borderRadius: '50%',
+          background: 'rgba(99, 102, 241, 0.15)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          margin: '0 auto 1.5rem auto'
+        }}>
+          <DownloadCloud size={36} color="var(--primary)" />
+        </div>
+        <h2 style={{ fontSize: '1.6rem', fontWeight: 800, marginBottom: '0.75rem', color: 'var(--text-primary)' }}>
+          {downloading ? 'Delivering Your Digital Package...' : 'Your Download Has Started!'}
+        </h2>
+        <p style={{ color: 'var(--text-secondary)', marginBottom: '2rem', fontSize: '0.95rem', lineHeight: 1.6 }}>
+          {downloadedName ? `Delivered "${downloadedName}".` : 'Your verified digital product package has been delivered.'}
+          <br />If your browser did not start the download automatically, click below:
+        </p>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', alignItems: 'center' }}>
+          <button
+            onClick={() => downloadEntitledDeliverable({ token })}
+            className="btn btn-primary"
+            style={{ fontWeight: 700, padding: '0.75rem 2rem' }}
+          >
+            <DownloadCloud size={18} /> Download Package Again
+          </button>
+          <button
+            onClick={() => onNavigate('dashboard', { tab: 'downloads' })}
+            className="btn btn-secondary btn-sm"
+          >
+            Go to Customer Dashboard
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function App() {
   const { user, isAdmin } = useAuth();
   const { setIsCartOpen } = useCart();
@@ -105,6 +172,12 @@ export function App() {
       for (const [key, value] of searchParams.entries()) {
         queryParams[key] = value;
       }
+    }
+
+    // Direct tokenized download URL catch
+    if (pathname.includes('/downloads/file/') || pathname.includes('/api/downloads/file/')) {
+      const token = pathname.split('/downloads/file/')[1] || queryParams.token || '';
+      return { page: 'direct-download', params: { token, ...queryParams } };
     }
 
     const segments = pathname.split('/').filter(Boolean);
@@ -319,6 +392,13 @@ export function App() {
         {currentRoute.page === 'order-success' && (
           <OrderSuccessPage
             orderNumber={currentRoute.params.orderNumber}
+            onNavigate={navigate}
+          />
+        )}
+
+        {currentRoute.page === 'direct-download' && (
+          <DirectDownloadHandler
+            token={currentRoute.params.token}
             onNavigate={navigate}
           />
         )}

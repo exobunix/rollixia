@@ -178,12 +178,25 @@ export function getFallbackProductBySlug(slug) {
     testimonials: p.testimonials || [],
     sections: parsedSections,
     ratingBreakdown: { 5: 14, 4: 1, 3: 0, 2: 0, 1: 0 },
-    activeFile: {
-      id: 1,
-      file_name: `${p.slug}-v1.0.0.zip`,
-      file_size: 15485760,
-      version: '1.0.0'
-    }
+    activeFile: (() => {
+      const adminFiles = (() => {
+        try {
+          const raw = localStorage.getItem('rollixia_admin_files');
+          return raw ? JSON.parse(raw) : [];
+        } catch (e) { return []; }
+      })();
+      const attached = adminFiles.find(f =>
+        (p && String(f.product_id) === String(p.id)) ||
+        (p && f.product_slug && f.product_slug === p.slug) ||
+        (p && f.product_title && f.product_title.toLowerCase() === p.title.toLowerCase())
+      );
+      return {
+        id: attached ? attached.id : 1,
+        file_name: (attached && attached.file_name) || p.deliverable_name || `${p.slug}-v1.0.0.zip`,
+        file_size: (attached && attached.file_size) || 15485760,
+        version: (attached && attached.version) || p.deliverable_version || '1.0.0'
+      };
+    })()
   };
 }
 
@@ -198,15 +211,16 @@ export function getFallbackRelated(slug) {
 
 export const FALLBACK_SETTINGS = {
   store_name: 'Rollixia',
-  store_tagline: 'Premium Digital Products, Software Starters & UI Kits',
+  tagline: 'Premium Digital Assets, Source Code & Software Ecosystem',
   support_email: 'support@rollixia.com',
   currency: 'INR',
-  currency_symbol: '₹'
+  currency_symbol: '₹',
+  allow_guest_checkout: true,
+  tax_rate: 0
 };
 
 export const FALLBACK_PAYTM_CONFIG = {
-  mid: 'oCtvhv27957773497297',
-  environment: 'production',
+  mid: 'DEFAULT_MID',
   website: 'DEFAULT',
   isConfigured: true,
   hasKey: false,
@@ -220,7 +234,7 @@ export function simulateCalculateCart(payload = {}) {
   let subtotal = 0;
   const catalog = getEffectiveProducts();
   const calculatedItems = items.map(cartItem => {
-    const product = catalog.find(p => p.id === cartItem.productId) || catalog[0];
+    const product = catalog.find(p => String(p.id) === String(cartItem.productId) || p.slug === cartItem.productSlug) || catalog[0];
     let license = null;
     if (product && product.licenses && product.licenses.length > 0) {
       license = product.licenses.find(l => l.id === cartItem.licenseId) || product.licenses[0];
@@ -232,6 +246,7 @@ export function simulateCalculateCart(payload = {}) {
       productId: product.id,
       licenseId: license ? license.id : null,
       productTitle: product.title,
+      productSlug: product.slug,
       licenseName: license ? license.license_name : 'Standard Commercial License',
       price: Number(price || 0)
     };
@@ -303,8 +318,19 @@ export function simulateCreateOrder(payload = {}) {
   })();
 
   const downloads = calculation.items.map((item, idx) => {
-    const p = catalog.find(prod => prod.id === item.productId) || catalog[0];
-    const attachedFile = adminFiles.find(f => Number(f.product_id) === Number(item.productId));
+    const p = catalog.find(prod =>
+      String(prod.id) === String(item.productId) ||
+      prod.slug === item.productSlug ||
+      prod.title === item.productTitle
+    ) || catalog[0];
+
+    const attachedFile = adminFiles.find(f =>
+      (p && String(f.product_id) === String(p.id)) ||
+      (String(f.id) === String(item.productId)) ||
+      (p && f.product_slug && f.product_slug === p.slug) ||
+      (p && f.product_title && f.product_title.toLowerCase() === p.title.toLowerCase())
+    );
+
     const finalFileName = (attachedFile && attachedFile.file_name) || p.deliverable_name || `${p.slug || 'product'}-v1.0.0.zip`;
     const finalFileSize = (attachedFile && attachedFile.file_size) || 15485760;
     const finalVersion = (attachedFile && attachedFile.version) || p.deliverable_version || '1.0.0';
@@ -312,9 +338,9 @@ export function simulateCreateOrder(payload = {}) {
     return {
       id: 1000 + idx,
       order_id: order.id,
-      product_id: item.productId,
+      product_id: p.id,
       file_id: attachedFile ? attachedFile.id : null,
-      product_title: item.productTitle,
+      product_title: item.productTitle || p.title,
       product_slug: p.slug,
       file_name: finalFileName,
       file_size: finalFileSize,
@@ -372,44 +398,106 @@ export function simulateVerifyPayment(payload = {}) {
 }
 
 export function simulateGetOrder(orderNumber) {
+  const adminFiles = (() => {
+    try {
+      const raw = localStorage.getItem('rollixia_admin_files');
+      return raw ? JSON.parse(raw) : [];
+    } catch (e) { return []; }
+  })();
+  const catalog = getEffectiveProducts();
+
+  let existing = [];
   try {
-    const existing = JSON.parse(localStorage.getItem('rollixia_orders') || '[]');
-    const target = existing.find(o => o.order.order_number === orderNumber);
-    if (target) return target;
+    existing = JSON.parse(localStorage.getItem('rollixia_orders') || '[]');
   } catch (e) {}
 
-  const p = getEffectiveProducts()[0];
-  return {
-    order: {
-      id: 9999,
-      order_number: orderNumber,
-      customer_name: 'Valued Customer',
-      customer_email: 'customer@example.com',
-      total_amount: p.sale_price ?? p.regular_price ?? 2499,
-      currency: 'INR',
-      payment_provider: 'paytm',
-      payment_status: 'paid',
-      order_status: 'completed',
-      created_at: new Date().toISOString()
-    },
-    items: [
-      {
-        product_title: p.title,
-        license_name: 'Standard Commercial License',
-        price: p.sale_price ?? p.regular_price ?? 2499
-      }
-    ],
-    downloads: [
-      {
-        id: 1001,
-        product_title: p.title,
-        file_name: `${p.slug}-v1.0.0.zip`,
-        file_size: 15485760,
-        version: '1.0.0',
-        token: `DL_TOKEN_${Date.now()}`
-      }
-    ]
-  };
+  let target = existing.find(o => o.order && o.order.order_number === orderNumber);
+
+  if (!target) {
+    const p = catalog[0];
+    const attachedFile = adminFiles.find(f =>
+      (p && String(f.product_id) === String(p.id)) ||
+      (p && f.product_slug && f.product_slug === p.slug) ||
+      (p && f.product_title && f.product_title.toLowerCase() === p.title.toLowerCase())
+    );
+
+    const finalFileName = (attachedFile && attachedFile.file_name) || p.deliverable_name || `${p.slug || 'product'}-v1.0.0.zip`;
+    const finalFileSize = (attachedFile && attachedFile.file_size) || 15485760;
+    const finalVersion = (attachedFile && attachedFile.version) || p.deliverable_version || '1.0.0';
+
+    target = {
+      order: {
+        id: 9999,
+        order_number: orderNumber,
+        customer_name: 'Valued Customer',
+        customer_email: 'customer@example.com',
+        total_amount: p.sale_price ?? p.regular_price ?? 0,
+        currency: 'INR',
+        payment_provider: 'razorpay',
+        payment_status: 'paid',
+        order_status: 'completed',
+        created_at: new Date().toISOString()
+      },
+      items: [
+        {
+          productId: p.id,
+          product_id: p.id,
+          product_title: p.title,
+          license_name: 'Standard Commercial License',
+          price: p.sale_price ?? p.regular_price ?? 0
+        }
+      ],
+      downloads: [
+        {
+          id: attachedFile ? attachedFile.id : 1001,
+          order_id: 9999,
+          product_id: p.id,
+          file_id: attachedFile ? attachedFile.id : null,
+          product_title: p.title,
+          product_slug: p.slug,
+          file_name: finalFileName,
+          file_size: finalFileSize,
+          version: finalVersion,
+          token: `DL_TOKEN_${Date.now()}_0`
+        }
+      ]
+    };
+  } else {
+    // Target was found in localStorage, but let's re-synchronize its downloads with the latest admin files!
+    if (Array.isArray(target.downloads)) {
+      target.downloads = target.downloads.map(dl => {
+        const prod = catalog.find(p =>
+          (dl.product_id && String(p.id) === String(dl.product_id)) ||
+          (dl.product_slug && p.slug === dl.product_slug) ||
+          (dl.product_title && p.title === dl.product_title)
+        ) || catalog[0];
+
+        const attached = adminFiles.find(f =>
+          (prod && String(f.product_id) === String(prod.id)) ||
+          (dl.file_id && String(f.id) === String(dl.file_id)) ||
+          (prod && f.product_slug && f.product_slug === prod.slug) ||
+          (prod && f.product_title && f.product_title.toLowerCase() === prod.title.toLowerCase())
+        );
+
+        return {
+          ...dl,
+          product_id: prod ? prod.id : dl.product_id,
+          file_id: attached ? attached.id : dl.file_id,
+          product_title: prod ? prod.title : dl.product_title,
+          product_slug: prod ? prod.slug : dl.product_slug,
+          file_name: (attached && attached.file_name) || (prod && prod.deliverable_name) || dl.file_name || 'deliverable.zip',
+          file_size: (attached && attached.file_size) || dl.file_size || 15485760,
+          version: (attached && attached.version) || (prod && prod.deliverable_version) || dl.version || '1.0.0'
+        };
+      });
+
+      try {
+        localStorage.setItem('rollixia_orders', JSON.stringify(existing));
+      } catch (e) {}
+    }
+  }
+
+  return target;
 }
 
 export function simulateGetMyOrders() {

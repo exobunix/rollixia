@@ -284,7 +284,23 @@ export function DynamicProductPage({ slug, productData: initialData, onNavigate,
   // Listen for live catalog updates from admin edits
   useEffect(() => {
     if (!cleanSlug || initialData) return;
-    const handleCatalogUpdate = () => {
+    const handleCatalogUpdate = (e) => {
+      if (e && e.detail && e.detail.product) {
+        const p = e.detail.product;
+        const matches = (
+          String(p.id) === String(cleanSlug) ||
+          p.slug === cleanSlug ||
+          (data && (String(p.id) === String(data.id || data.product?.id) || p.slug === (data.slug || data.product?.slug)))
+        );
+        if (matches) {
+          const updatedFull = getFallbackProductBySlug(cleanSlug);
+          if (updatedFull) {
+            setData(updatedFull);
+            return;
+          }
+        }
+      }
+
       const updated = getFallbackProductBySlug(cleanSlug);
       if (updated && (updated.product || updated.id)) {
         setData(updated);
@@ -300,7 +316,7 @@ export function DynamicProductPage({ slug, productData: initialData, onNavigate,
       window.removeEventListener('rollixia_catalog_updated', handleCatalogUpdate);
       window.removeEventListener('storage', handleCatalogUpdate);
     };
-  }, [cleanSlug, initialData]);
+  }, [cleanSlug, initialData, data]);
 
   // Loading State
   if (loading) {
@@ -377,11 +393,17 @@ export function DynamicProductPage({ slug, productData: initialData, onNavigate,
   // Build Media Gallery
   const galleryImages = [];
   if (product.hero_image) galleryImages.push({ media_url: product.hero_image, caption: product.title });
-  if (product.thumbnail && product.thumbnail !== product.hero_image) {
+  if (product.hero_secondary_image && product.hero_secondary_image !== product.hero_image) {
+    galleryImages.push({ media_url: product.hero_secondary_image, caption: `${product.title} — Secondary Showcase` });
+  }
+  if (product.thumbnail && product.thumbnail !== product.hero_image && product.thumbnail !== product.hero_secondary_image) {
     galleryImages.push({ media_url: product.thumbnail, caption: product.title });
   }
   media.forEach(m => {
     if (m && m.media_url && !galleryImages.some(g => g.media_url === m.media_url)) {
+      if (product.hero_image && product.hero_image !== m.media_url && m.media_url.endsWith('-cover.svg')) {
+        return;
+      }
       galleryImages.push(m);
     }
   });
@@ -1221,7 +1243,7 @@ export function DynamicProductPage({ slug, productData: initialData, onNavigate,
 
   // 06. SECTION 06 — CUSTOMER / USER EXPERIENCE
   const renderCustomerExperience = () => {
-    let raw = getSectionData('customer_experience') || getSectionData('showcase');
+    let raw = getSectionData('customer_experience') || getSectionData('showcase') || product.customer_experience || product.showcase;
     if (typeof raw === 'string') {
       try { raw = JSON.parse(raw); } catch (e) {}
     }
@@ -1305,7 +1327,7 @@ export function DynamicProductPage({ slug, productData: initialData, onNavigate,
 
   // 07. SECTION 07 — PARTNER / PROVIDER EXPERIENCE
   const renderPartnerExperience = () => {
-    let raw = getSectionData('partner_experience');
+    let raw = getSectionData('partner_experience') || product.partner_experience;
     if (typeof raw === 'string') {
       try { raw = JSON.parse(raw); } catch (e) {}
     }
@@ -1383,7 +1405,7 @@ export function DynamicProductPage({ slug, productData: initialData, onNavigate,
 
   // 08. SECTION 08 — ADMIN PANEL / DASHBOARD SHOWCASE
   const renderAdminExperience = () => {
-    let raw = getSectionData('admin_experience');
+    let raw = getSectionData('admin_experience') || product.admin_experience;
     if (typeof raw === 'string') {
       try { raw = JSON.parse(raw); } catch (e) {}
     }

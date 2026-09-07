@@ -25,7 +25,23 @@ function getStored(key, defaultVal) {
 function setStored(key, val) {
   try {
     localStorage.setItem(key, JSON.stringify(val));
-  } catch (e) {}
+  } catch (e) {
+    console.warn(`[adminFallbackService] Failed to set ${key} in localStorage:`, e);
+    // If quota exceeded and saving products, prune down to only modified items
+    if (key === STORAGE_KEYS.PRODUCTS && Array.isArray(val)) {
+      try {
+        const deltaOnly = val.filter(p => p && (
+          (p.hero_image && !p.hero_image.endsWith('-cover.svg')) ||
+          p.hero_secondary_image ||
+          p.demo_links ||
+          p.updated_at
+        ));
+        localStorage.setItem(key, JSON.stringify(deltaOnly.length > 0 ? deltaOnly : val.slice(0, 2)));
+      } catch (quotaErr) {
+        console.error('[adminFallbackService] Critical LocalStorage full:', quotaErr);
+      }
+    }
+  }
 }
 
 function extractFormValue(body, key) {
@@ -179,11 +195,19 @@ export function getFallbackAdminDashboard() {
 }
 
 export function getFallbackAdminProducts(queryStr = '') {
-  let customProducts = getStored(STORAGE_KEYS.PRODUCTS, null);
-  if (!customProducts) {
-    customProducts = [...FALLBACK_PRODUCTS];
-    setStored(STORAGE_KEYS.PRODUCTS, customProducts);
+  const stored = getStored(STORAGE_KEYS.PRODUCTS, []);
+  const map = new Map();
+  FALLBACK_PRODUCTS.forEach(p => map.set(String(p.id), { ...p }));
+  if (Array.isArray(stored)) {
+    stored.forEach(p => {
+      if (p && p.id) {
+        const key = String(p.id);
+        const existing = map.get(key) || {};
+        map.set(key, { ...existing, ...p });
+      }
+    });
   }
+  const customProducts = Array.from(map.values());
 
   const params = new URLSearchParams(queryStr.replace(/^\?/, ''));
   const q = (params.get('q') || '').toLowerCase().trim();
@@ -374,10 +398,10 @@ export function handleAdminFallbackRoute(clean, method, options = {}, requestBod
   if (clean.startsWith('admin/products/') && method === 'GET') {
     let id = clean.replace(/^admin\/products\//, '');
     if (id.endsWith('/full')) id = id.replace(/\/full$/, '');
-    const products = getStored(STORAGE_KEYS.PRODUCTS, FALLBACK_PRODUCTS);
-    const found = products.find(p => String(p.id) === String(id) || p.slug === id) ||
-                  FALLBACK_PRODUCTS.find(p => String(p.id) === String(id) || p.slug === id) ||
-                  products[0];
+    const stored = getStored(STORAGE_KEYS.PRODUCTS, []);
+    const modified = Array.isArray(stored) ? stored.find(p => String(p.id) === String(id) || p.slug === id) : null;
+    const fallback = FALLBACK_PRODUCTS.find(p => String(p.id) === String(id) || p.slug === id) || FALLBACK_PRODUCTS[0];
+    const found = modified ? { ...fallback, ...modified } : fallback;
     if (found) {
       return {
         product: found,
@@ -394,20 +418,21 @@ export function handleAdminFallbackRoute(clean, method, options = {}, requestBod
 
   if (clean.startsWith('admin/products/') && clean.endsWith('/duplicate') && method === 'POST') {
     const id = clean.replace(/^admin\/products\//, '').replace(/\/duplicate$/, '');
-    const products = getStored(STORAGE_KEYS.PRODUCTS, [...FALLBACK_PRODUCTS]);
-    const target = products.find(p => String(p.id) === String(id));
-    if (target) {
+    const stored = getStored(STORAGE_KEYS.PRODUCTS, []);
+    const fallback = FALLBACK_PRODUCTS.find(p => String(p.id) === String(id) || p.slug === id);
+    const existing = (Array.isArray(stored) && stored.find(p => String(p.id) === String(id) || p.slug === id)) || fallback;
+    if (existing) {
       const dup = {
-        ...target,
+        ...existing,
         id: Date.now(),
-        title: `${target.title} (Draft Copy)`,
-        slug: `${target.slug}-copy-${Date.now().toString().slice(-4)}`,
+        title: `${existing.title} (Draft Copy)`,
+        slug: `${existing.slug}-copy-${Date.now().toString().slice(-4)}`,
         status: 'draft',
         sales_count: 0,
         created_at: new Date().toISOString()
       };
-      products.unshift(dup);
-      setStored(STORAGE_KEYS.PRODUCTS, products);
+      const nextList = Array.isArray(stored) ? [dup, ...stored] : [dup];
+      setStored(STORAGE_KEYS.PRODUCTS, nextList);
       return { success: true, message: 'Product duplicated', product: dup };
     }
     return { success: true };
@@ -415,55 +440,63 @@ export function handleAdminFallbackRoute(clean, method, options = {}, requestBod
 
   if (clean.startsWith('admin/products/') && clean.endsWith('/status') && method === 'PATCH') {
     const id = clean.replace(/^admin\/products\//, '').replace(/\/status$/, '');
-    const products = getStored(STORAGE_KEYS.PRODUCTS, [...FALLBACK_PRODUCTS]);
-    const target = products.find(p => String(p.id) === String(id));
-    if (target && requestBody?.status) {
-      target.status = requestBody.status;
-      setStored(STORAGE_KEYS.PRODUCTS, products);
+    let stored = getStored(STORAGE_KEYS.PRODUCTS, []);
+    if (!Array.isArray(stored)) stored = [];
+    let idx = stored.findIndex(p => String(p.id) === String(id) || p.slug === id);
+    const fallback = FALLBACK_PRODUCTS.find(p => String(p.id) === String(id) || p.slug === id) || {};
+    if (idx >= 0) {
+      stored[idx] = { ...stored[idx], status: requestBody?.status || 'draft' };
+    } else {
+      stored.push({ ...fallback, status: requestBody?.status || 'draft' });
     }
+    setStored(STORAGE_KEYS.PRODUCTS, stored);
     return { success: true, message: 'Product status updated' };
   }
 
   if (clean.startsWith('admin/products/') && clean.endsWith('/sections') && (method === 'PUT' || method === 'POST')) {
     const id = clean.replace(/^admin\/products\//, '').replace(/\/sections$/, '');
-    const products = getStored(STORAGE_KEYS.PRODUCTS, [...FALLBACK_PRODUCTS]);
-    let idx = products.findIndex(p => String(p.id) === String(id) || p.slug === id);
-    if (idx < 0) {
-      const fb = FALLBACK_PRODUCTS.find(p => String(p.id) === String(id) || p.slug === id);
-      if (fb) {
-        products.push({ ...fb });
-        idx = products.length - 1;
-      }
+    let stored = getStored(STORAGE_KEYS.PRODUCTS, []);
+    if (!Array.isArray(stored)) stored = [];
+    let idx = stored.findIndex(p => String(p.id) === String(id) || p.slug === id);
+    const fallback = FALLBACK_PRODUCTS.find(p => String(p.id) === String(id) || p.slug === id) || {};
+    
+    const updatedObj = {
+      ...fallback,
+      ...(idx >= 0 ? stored[idx] : {}),
+      sections: requestBody?.sections || [],
+      updated_at: new Date().toISOString()
+    };
+
+    if (idx >= 0) {
+      stored[idx] = updatedObj;
+    } else {
+      stored.push(updatedObj);
     }
-    if (idx >= 0 && requestBody?.sections) {
-      products[idx].sections = requestBody.sections;
-      setStored(STORAGE_KEYS.PRODUCTS, products);
-      if (typeof window !== 'undefined') {
-        try {
-          window.dispatchEvent(new CustomEvent('rollixia_catalog_updated', {
-            detail: { productId: id, sections: requestBody.sections }
-          }));
-        } catch (e) {}
-      }
+    setStored(STORAGE_KEYS.PRODUCTS, stored);
+
+    if (typeof window !== 'undefined') {
+      try {
+        window.dispatchEvent(new CustomEvent('rollixia_catalog_updated', {
+          detail: { productId: id, sections: requestBody.sections, product: updatedObj }
+        }));
+      } catch (e) {}
     }
     return { success: true, message: 'Product sections saved successfully' };
   }
 
   if (clean.startsWith('admin/products/') && (method === 'PUT' || method === 'PATCH')) {
     const id = clean.replace(/^admin\/products\//, '');
-    const products = getStored(STORAGE_KEYS.PRODUCTS, [...FALLBACK_PRODUCTS]);
-    let idx = products.findIndex(p => String(p.id) === String(id) || p.slug === id);
-    if (idx < 0) {
-      const fb = FALLBACK_PRODUCTS.find(p => String(p.id) === String(id) || p.slug === id);
-      if (fb) {
-        products.push({ ...fb });
-        idx = products.length - 1;
-      }
-    }
-    if (idx >= 0 && requestBody) {
+    let stored = getStored(STORAGE_KEYS.PRODUCTS, []);
+    if (!Array.isArray(stored)) stored = [];
+    let idx = stored.findIndex(p => String(p.id) === String(id) || p.slug === id);
+    const fallback = FALLBACK_PRODUCTS.find(p => String(p.id) === String(id) || p.slug === id) || {};
+
+    if (requestBody) {
       const updatedProduct = {
-        ...products[idx],
-        ...requestBody
+        ...fallback,
+        ...(idx >= 0 ? stored[idx] : {}),
+        ...requestBody,
+        updated_at: new Date().toISOString()
       };
 
       // Ensure licenses array contains properly typed numbers
@@ -483,8 +516,12 @@ export function handleAdminFallbackRoute(clean, method, options = {}, requestBod
         updatedProduct.sale_price = requestBody.sale_price !== null && requestBody.sale_price !== '' ? parseFloat(requestBody.sale_price) : null;
       }
 
-      products[idx] = updatedProduct;
-      setStored(STORAGE_KEYS.PRODUCTS, products);
+      if (idx >= 0) {
+        stored[idx] = updatedProduct;
+      } else {
+        stored.push(updatedProduct);
+      }
+      setStored(STORAGE_KEYS.PRODUCTS, stored);
 
       // Trigger cross-component notification
       if (typeof window !== 'undefined') {

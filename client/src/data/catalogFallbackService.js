@@ -205,6 +205,23 @@ export function getFallbackProductBySlug(slug) {
     }
   ];
 
+  let effectiveMedia = Array.isArray(p.media) && p.media.length > 0 ? [...p.media] : [];
+  if (p.hero_image) {
+    const isCustomHero = !p.hero_image.endsWith('-cover.svg');
+    if (isCustomHero) {
+      effectiveMedia = effectiveMedia.filter(m => !m.media_url || !m.media_url.endsWith('-cover.svg'));
+    }
+    const thumbIdx = effectiveMedia.findIndex(m => m.is_thumbnail === 1 || m.is_thumbnail === true);
+    if (thumbIdx >= 0) {
+      effectiveMedia[thumbIdx] = { ...effectiveMedia[thumbIdx], media_url: p.hero_image };
+    } else {
+      effectiveMedia.unshift({ id: 1, media_url: p.hero_image, is_thumbnail: 1, media_type: 'image' });
+    }
+  }
+  if (p.hero_secondary_image && !effectiveMedia.some(m => m.media_url === p.hero_secondary_image)) {
+    effectiveMedia.push({ id: 2, media_url: p.hero_secondary_image, is_thumbnail: 0, media_type: 'image' });
+  }
+
   return {
     product: {
       ...p,
@@ -217,7 +234,7 @@ export function getFallbackProductBySlug(slug) {
     regular_price: p.regular_price,
     sale_price: p.sale_price,
     technical_specs: parsedTechnicalSpecs,
-    media: p.media || (p.hero_image ? [{ media_url: p.hero_image, is_thumbnail: 1 }] : []),
+    media: effectiveMedia.length > 0 ? effectiveMedia : (p.hero_image ? [{ media_url: p.hero_image, is_thumbnail: 1 }] : []),
     licenses: effectiveLicenses,
     pricingPlans: effectiveLicenses,
     features: p.features || [],

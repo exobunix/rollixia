@@ -57,6 +57,7 @@ import { useToast } from '../../context/ToastContext';
 import { formatCurrency } from '../../utils/formatters';
 import { DynamicProductPage } from '../../components/store/DynamicProductPage';
 import { FALLBACK_PRODUCTS } from '../../data/fallbackCatalog.js';
+import { compressImageFile, compressDataUrlIfNeeded } from '../../utils/imageCompressor.js';
 
 export function AdminProductBuilderPage({ productId: propProductId, onBack, onSaved }) {
   const { addToast } = useToast();
@@ -555,6 +556,18 @@ export function AdminProductBuilderPage({ productId: propProductId, onBack, onSa
     const applyUrlToTarget = (url) => {
       if (targetField === 'hero') {
         setProduct(prev => ({ ...prev, hero_image: url, thumbnail: prev.thumbnail || url }));
+        setMediaList(prev => {
+          const next = [...prev];
+          const thumbIdx = next.findIndex(m => m.is_thumbnail === 1 || m.is_thumbnail === true);
+          if (thumbIdx >= 0) {
+            next[thumbIdx] = { ...next[thumbIdx], media_url: url };
+          } else if (next.length > 0) {
+            next[0] = { ...next[0], media_url: url };
+          } else {
+            next.unshift({ media_url: url, is_thumbnail: 1, media_type: 'image' });
+          }
+          return next;
+        });
       } else if (targetField === 'hero_secondary') {
         setProduct(prev => ({ ...prev, hero_secondary_image: url }));
       } else if (targetField === 'thumbnail') {
@@ -608,7 +621,17 @@ export function AdminProductBuilderPage({ productId: propProductId, onBack, onSa
         return;
       }
     } catch (e) {
-      // Fallback to local FileReader below
+      // Fallback to client-side compressed image below
+    }
+
+    try {
+      const compressedUrl = await compressImageFile(file, 1280, 1280, 0.82);
+      if (compressedUrl) {
+        applyUrlToTarget(compressedUrl);
+        return;
+      }
+    } catch (compErr) {
+      console.warn('[ImageCompressor] Canvas compression failed, fallback to reader:', compErr);
     }
 
     const reader = new FileReader();
@@ -644,12 +667,16 @@ export function AdminProductBuilderPage({ productId: propProductId, onBack, onSa
       } catch (err) {}
 
       if (!mediaUrl) {
-        mediaUrl = await new Promise((resolve) => {
-          const reader = new FileReader();
-          reader.onload = (e) => resolve(e.target.result);
-          reader.onerror = () => resolve('');
-          reader.readAsDataURL(file);
-        });
+        try {
+          mediaUrl = await compressImageFile(file, 1280, 1280, 0.82);
+        } catch (e) {
+          mediaUrl = await new Promise((resolve) => {
+            const reader = new FileReader();
+            reader.onload = (ev) => resolve(ev.target.result);
+            reader.onerror = () => resolve('');
+            reader.readAsDataURL(file);
+          });
+        }
       }
 
       if (mediaUrl) {
@@ -797,12 +824,63 @@ export function AdminProductBuilderPage({ productId: propProductId, onBack, onSa
 
     setSaving(true);
     try {
+      // 1. Compress any large base64 data URLs before saving
+      const compressedHero = await compressDataUrlIfNeeded(product.hero_image, 1280, 1280, 0.82);
+      const compressedHeroSecondary = await compressDataUrlIfNeeded(product.hero_secondary_image, 1280, 1280, 0.82);
+      const compressedThumbnail = await compressDataUrlIfNeeded(product.thumbnail || compressedHero, 800, 800, 0.82);
+
+      // Compress customer showcase images
+      const compressedCustomerShowcase = await Promise.all(
+        customerShowcase.map(async item => ({
+          ...item,
+          image: item.image ? await compressDataUrlIfNeeded(item.image, 1280, 1280, 0.82) : item.image
+        }))
+      );
+
+      // Compress partner showcase images
+      const compressedPartnerShowcase = await Promise.all(
+        partnerShowcase.map(async item => ({
+          ...item,
+          image: item.image ? await compressDataUrlIfNeeded(item.image, 1280, 1280, 0.82) : item.image
+        }))
+      );
+
+      // Compress admin showcase images
+      const compressedAdminShowcase = await Promise.all(
+        adminShowcase.map(async item => ({
+          ...item,
+          image: item.image ? await compressDataUrlIfNeeded(item.image, 1280, 1280, 0.82) : item.image
+        }))
+      );
+
+      // Sync primary hero image into mediaList
+      let finalMediaList = Array.isArray(mediaList) ? [...mediaList] : [];
+      if (compressedHero) {
+        // Filter out obsolete default cover SVGs if custom photo is present
+        const isCustomHero = !compressedHero.endsWith('-cover.svg');
+        if (isCustomHero) {
+          finalMediaList = finalMediaList.filter(m => !m.media_url || !m.media_url.endsWith('-cover.svg'));
+        }
+        const thumbIdx = finalMediaList.findIndex(m => m.is_thumbnail === 1 || m.is_thumbnail === true);
+        if (thumbIdx >= 0) {
+          finalMediaList[thumbIdx] = { ...finalMediaList[thumbIdx], media_url: compressedHero };
+        } else {
+          finalMediaList.unshift({ media_url: compressedHero, is_thumbnail: 1, media_type: 'image' });
+        }
+      }
+      if (compressedHeroSecondary && !finalMediaList.some(m => m.media_url === compressedHeroSecondary)) {
+        finalMediaList.push({ media_url: compressedHeroSecondary, is_thumbnail: 0, media_type: 'image' });
+      }
+
       const targetStatus = overrideStatus || product.status || 'published';
       const firstActiveDemo = demoLinks.find(d => d.is_visible && d.url) || demoLinks[0];
       const productPayload = {
         ...product,
+        hero_image: compressedHero || product.hero_image,
+        hero_secondary_image: compressedHeroSecondary || product.hero_secondary_image,
+        thumbnail: compressedThumbnail || product.thumbnail,
         status: targetStatus,
-        media: mediaList,
+        media: finalMediaList,
         demo_links: demoLinks,
         live_demo_url: firstActiveDemo?.url || product.live_demo_url,
         demo_url: firstActiveDemo?.url || product.demo_url,
@@ -810,7 +888,8 @@ export function AdminProductBuilderPage({ productId: propProductId, onBack, onSa
         faqs,
         testimonials,
         licenses: licensesList,
-        category_id: product.category_id || (categories[0] ? categories[0].id : 1)
+        category_id: product.category_id || (categories[0] ? categories[0].id : 1),
+        updated_at: new Date().toISOString()
       };
 
       let finalProductId = productId;
@@ -829,14 +908,15 @@ export function AdminProductBuilderPage({ productId: propProductId, onBack, onSa
       }
 
       // Save sections with enriched structured data
+      let enrichedSections = [];
       if (finalProductId) {
-        const enrichedSections = sections.map((s, idx) => {
+        enrichedSections = sections.map((s, idx) => {
           let secContent = s.content;
           if (s.section_type === 'features') secContent = features;
           else if (s.section_type === 'ecosystem') secContent = ecosystem;
-          else if (s.section_type === 'customer_experience' || s.section_type === 'showcase') secContent = customerShowcase;
-          else if (s.section_type === 'partner_experience') secContent = partnerShowcase;
-          else if (s.section_type === 'admin_experience') secContent = adminShowcase;
+          else if (s.section_type === 'customer_experience' || s.section_type === 'showcase') secContent = compressedCustomerShowcase;
+          else if (s.section_type === 'partner_experience') secContent = compressedPartnerShowcase;
+          else if (s.section_type === 'admin_experience') secContent = compressedAdminShowcase;
           else if (s.section_type === 'how_it_works') secContent = howItWorksSteps;
           else if (s.section_type === 'included') secContent = includedGroups;
           else if (s.section_type === 'source_code') secContent = sourceCodeTree;
@@ -876,29 +956,59 @@ export function AdminProductBuilderPage({ productId: propProductId, onBack, onSa
 
       // Synchronize in-memory product state
       setProduct(prev => ({ ...prev, ...productPayload }));
+      setCustomerShowcase(compressedCustomerShowcase);
+      setPartnerShowcase(compressedPartnerShowcase);
+      setAdminShowcase(compressedAdminShowcase);
+      setMediaList(finalMediaList);
 
       // Direct client cache synchronization for zero-latency storefront reflection
       try {
         if (typeof window !== 'undefined' && window.localStorage) {
-          const storedProducts = JSON.parse(localStorage.getItem('rollixia_admin_products') || '[]');
-          const idx = storedProducts.findIndex(p => String(p.id) === String(finalProductId) || p.slug === productPayload.slug);
+          let storedProducts = [];
+          try {
+            const raw = localStorage.getItem('rollixia_admin_products');
+            storedProducts = raw ? JSON.parse(raw) : [];
+            if (!Array.isArray(storedProducts)) storedProducts = [];
+          } catch (e) {
+            storedProducts = [];
+          }
+
+          // Filter out unmodified static catalog dumps to keep storage compact
+          const customDelta = storedProducts.filter(p => p && (
+            (p.hero_image && !p.hero_image.endsWith('-cover.svg')) ||
+            p.hero_secondary_image ||
+            p.demo_links ||
+            p.updated_at
+          ));
+
+          const idx = customDelta.findIndex(p => String(p.id) === String(finalProductId) || p.slug === productPayload.slug);
           const fullSavedObj = {
-            ...(idx >= 0 ? storedProducts[idx] : {}),
+            ...(idx >= 0 ? customDelta[idx] : {}),
             ...productPayload,
             id: finalProductId,
             sections: enrichedSections
           };
+
           if (idx >= 0) {
-            storedProducts[idx] = fullSavedObj;
+            customDelta[idx] = fullSavedObj;
           } else {
-            storedProducts.push(fullSavedObj);
+            customDelta.push(fullSavedObj);
           }
-          localStorage.setItem('rollixia_admin_products', JSON.stringify(storedProducts));
+
+          try {
+            localStorage.setItem('rollixia_admin_products', JSON.stringify(customDelta));
+          } catch (quotaErr) {
+            console.warn('[AdminProductBuilder] Quota limit exceeded, keeping only current product:', quotaErr);
+            localStorage.setItem('rollixia_admin_products', JSON.stringify([fullSavedObj]));
+          }
+
           window.dispatchEvent(new CustomEvent('rollixia_catalog_updated', {
             detail: { productId: finalProductId, product: fullSavedObj }
           }));
         }
-      } catch (e) {}
+      } catch (e) {
+        console.error('[AdminProductBuilder] Failed to synchronize client cache:', e);
+      }
 
       addToast('Product saved successfully!', 'success');
       if (onSaved) onSaved();

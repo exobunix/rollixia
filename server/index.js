@@ -113,6 +113,7 @@ mount('/wishlist', wishlistRoutes);
 mount('/support', supportRoutes);
 mount('/settings', settingsRoutes);
 mount('/imagekit', imagekitRoutes);
+mount('/coupons', require('./routes/coupons'));
 app.use('/api', razorpayRoutes);
 
 // Admin API Routes

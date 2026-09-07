@@ -117,10 +117,44 @@ function getInitialCustomers() {
 // 4. Initial Pre-seeded Coupons
 function getInitialCoupons() {
   return [
-    { id: 1, code: 'LAUNCH50', discount_type: 'percentage', discount_value: 50, min_order_amount: 1499, max_discount_amount: 5000, usage_limit: 500, usage_count: 142, is_active: 1, created_at: '2026-01-01T00:00:00.000Z' },
-    { id: 2, code: 'SAVE20', discount_type: 'percentage', discount_value: 20, min_order_amount: 999, max_discount_amount: 2000, usage_limit: 1000, usage_count: 89, is_active: 1, created_at: '2026-02-01T00:00:00.000Z' },
-    { id: 3, code: 'WELCOME10', discount_type: 'percentage', discount_value: 10, min_order_amount: 499, max_discount_amount: 1000, usage_limit: 2000, usage_count: 210, is_active: 1, created_at: '2026-03-01T00:00:00.000Z' },
-    { id: 4, code: 'VIPCREATOR', discount_type: 'percentage', discount_value: 30, min_order_amount: 2499, max_discount_amount: 4000, usage_limit: 150, usage_count: 45, is_active: 1, created_at: '2026-04-15T00:00:00.000Z' }
+    { id: 1, code: 'LAUNCH50', coupon_type: 'normal', discount_type: 'percentage', discount_value: 50, min_order_amount: 1499, max_discount_amount: 5000, usage_limit: 500, usage_count: 142, is_active: 1, created_at: '2026-01-01T00:00:00.000Z' },
+    { id: 2, code: 'SAVE20', coupon_type: 'normal', discount_type: 'percentage', discount_value: 20, min_order_amount: 999, max_discount_amount: 2000, usage_limit: 1000, usage_count: 89, is_active: 1, created_at: '2026-02-01T00:00:00.000Z' },
+    { id: 3, code: 'WELCOME10', coupon_type: 'normal', discount_type: 'percentage', discount_value: 10, min_order_amount: 499, max_discount_amount: 1000, usage_limit: 2000, usage_count: 210, is_active: 1, created_at: '2026-03-01T00:00:00.000Z' },
+    { id: 4, code: 'VIPCREATOR', coupon_type: 'normal', discount_type: 'percentage', discount_value: 30, min_order_amount: 2499, max_discount_amount: 4000, usage_limit: 150, usage_count: 45, is_active: 1, created_at: '2026-04-15T00:00:00.000Z' },
+    {
+      id: 5,
+      code: 'DEAL10',
+      coupon_type: 'upselling',
+      upsell_step: 1,
+      discount_type: 'percentage',
+      discount_value: 10,
+      min_order_amount: 0,
+      max_discount_amount: 5000,
+      timer_seconds: 30,
+      popup_title: 'Wait! Limited Time Deal Only For You 🎁',
+      popup_desc: 'Deciding not to purchase? We have an exclusive 10% extra discount waiting for you! Click below to apply instantly.',
+      usage_limit: 5000,
+      usage_count: 32,
+      is_active: 1,
+      created_at: '2026-05-01T00:00:00.000Z'
+    },
+    {
+      id: 6,
+      code: 'LASTCHANCE15',
+      coupon_type: 'upselling',
+      upsell_step: 2,
+      discount_type: 'percentage',
+      discount_value: 15,
+      min_order_amount: 0,
+      max_discount_amount: 5000,
+      timer_seconds: 30,
+      popup_title: '🔥 Final Chance: We Really Want You On Board!',
+      popup_desc: 'Here is our absolute best offer: an additional 15% OFF your entire cart. Don\'t miss out before this session expires!',
+      usage_limit: 5000,
+      usage_count: 14,
+      is_active: 1,
+      created_at: '2026-05-01T00:00:00.000Z'
+    }
   ];
 }
 
@@ -325,6 +359,15 @@ export function getFallbackAdminCoupons() {
   if (!stored || !Array.isArray(stored) || stored.length === 0) {
     stored = getInitialCoupons();
     setStored(STORAGE_KEYS.COUPONS, stored);
+  } else {
+    // Ensure default upselling coupons exist if stored coupons are from an older version
+    const hasUpsell = stored.some(c => c.coupon_type === 'upselling');
+    if (!hasUpsell) {
+      const initial = getInitialCoupons();
+      const upsellCoupons = initial.filter(c => c.coupon_type === 'upselling');
+      stored = [...stored, ...upsellCoupons];
+      setStored(STORAGE_KEYS.COUPONS, stored);
+    }
   }
   return stored;
 }
@@ -934,19 +977,41 @@ export function handleAdminFallbackRoute(clean, method, options = {}, requestBod
       const newCoupon = {
         id: Date.now(),
         code: (requestBody?.code || 'DEAL').toUpperCase().trim(),
+        coupon_type: requestBody?.coupon_type || 'normal', // 'normal' | 'upselling'
+        upsell_step: Number(requestBody?.upsell_step) || 1, // 1 | 2
+        timer_seconds: Number(requestBody?.timer_seconds) || 30,
+        popup_title: requestBody?.popup_title || (requestBody?.coupon_type === 'upselling' ? 'Wait! Limited Time Deal Only For You 🎁' : ''),
+        popup_desc: requestBody?.popup_desc || (requestBody?.coupon_type === 'upselling' ? 'Claim an additional discount on your order right now before you leave!' : ''),
         discount_type: requestBody?.discount_type || 'percentage',
-        discount_value: Number(requestBody?.discount_value) || 20,
-        min_order_amount: Number(requestBody?.min_order_amount) || 0,
-        max_discount_amount: Number(requestBody?.max_discount_amount) || 0,
-        usage_limit: Number(requestBody?.usage_limit) || 100,
+        discount_value: Number(requestBody?.discount_value) || 10,
+        min_order_amount: Number(requestBody?.min_order_amount ?? requestBody?.min_order_value) || 0,
+        max_discount_amount: Number(requestBody?.max_discount_amount ?? requestBody?.max_discount) || 0,
+        usage_limit: Number(requestBody?.usage_limit) || 1000,
         usage_count: 0,
-        is_active: 1,
+        is_active: requestBody?.is_active !== undefined ? (requestBody.is_active ? 1 : 0) : 1,
         created_at: new Date().toISOString()
       };
       coupons.unshift(newCoupon);
       setStored(STORAGE_KEYS.COUPONS, coupons);
       return { success: true, message: 'Coupon created successfully', coupon: newCoupon };
     }
+  }
+
+  if (clean.startsWith('admin/coupons/') && (method === 'PUT' || method === 'PATCH')) {
+    const id = clean.replace(/^admin\/coupons\//, '');
+    let coupons = getStored(STORAGE_KEYS.COUPONS, getInitialCoupons());
+    const idx = coupons.findIndex(c => String(c.id) === String(id));
+    if (idx >= 0) {
+      coupons[idx] = {
+        ...coupons[idx],
+        ...requestBody,
+        id: coupons[idx].id,
+        updated_at: new Date().toISOString()
+      };
+      setStored(STORAGE_KEYS.COUPONS, coupons);
+      return { success: true, message: 'Coupon updated successfully', coupon: coupons[idx] };
+    }
+    return { success: false, message: 'Coupon not found' };
   }
 
   if (clean.startsWith('admin/coupons/') && method === 'DELETE') {

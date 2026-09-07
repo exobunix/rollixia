@@ -1,6 +1,7 @@
-export function formatCurrency(amount, currency = 'INR') {
+export function formatCurrency(amount, currency = 'INR', options = {}) {
+  const allowZero = typeof options === 'boolean' ? options : Boolean(options && options.allowZero);
   const num = Number(amount) || 0;
-  if (num === 0) return 'FREE';
+  if (num === 0 && !allowZero) return 'FREE';
 
   if (currency === 'USD') {
     // 1 USD ~ 85 INR conversion rate

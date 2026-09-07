@@ -237,7 +237,7 @@ export function CartDrawer({ onNavigateCheckout, onNavigateShopping, currentRout
               )}
               <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--text-secondary)' }}>
                 <span>GST / Tax (18%)</span>
-                <span>{formatCurrency(cartTotals.tax, currency)}</span>
+                <span>{formatCurrency(cartTotals.tax, currency, true)}</span>
               </div>
               <div style={{
                 display: 'flex',

@@ -6,6 +6,7 @@ import { useCurrency } from '../../context/CurrencyContext';
 import { useToast } from '../../context/ToastContext';
 import { formatCurrency } from '../../utils/formatters';
 import { apiRequest } from '../../utils/api';
+import { UpsellModal } from '../../components/common/UpsellModal';
 
 const loadRazorpayScript = () => {
   return new Promise((resolve) => {
@@ -768,7 +769,7 @@ export function CheckoutPage({ onNavigate }) {
               )}
               <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--text-secondary)' }}>
                 <span>Tax (18% GST)</span>
-                <span>{formatCurrency(cartTotals.tax, currency)}</span>
+                <span>{formatCurrency(cartTotals.tax, currency, true)}</span>
               </div>
               <div style={{
                 display: 'flex',
@@ -789,6 +790,7 @@ export function CheckoutPage({ onNavigate }) {
             {/* Primary Action Button */}
             {user ? (
               <button
+                id="checkout-pay-button"
                 type="submit"
                 form="checkout-form"
                 className="btn btn-success btn-lg"
@@ -803,6 +805,7 @@ export function CheckoutPage({ onNavigate }) {
               </button>
             ) : (
               <button
+                id="checkout-pay-button"
                 type="button"
                 onClick={(e) => {
                   if (authEmail.trim() && authPassword) {
@@ -836,6 +839,15 @@ export function CheckoutPage({ onNavigate }) {
           </div>
         </div>
       </div>
+
+      {/* Multi-Step Upselling Exit Intent & Hold Timer Modal */}
+      <UpsellModal
+        isCheckout={true}
+        onScrollToPayment={() => {
+          const btn = document.getElementById('checkout-pay-button');
+          if (btn) btn.scrollIntoView({ behavior: 'smooth' });
+        }}
+      />
     </div>
   );
 }

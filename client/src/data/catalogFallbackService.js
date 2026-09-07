@@ -1,5 +1,5 @@
 import { FALLBACK_CATEGORIES, FALLBACK_PRODUCTS } from './fallbackCatalog.js';
-import { handleAdminFallbackRoute } from './adminFallbackService.js';
+import { handleAdminFallbackRoute, getFallbackAdminCoupons, getFallbackAdminSettings } from './adminFallbackService.js';
 import { getProductImageOverrides } from '../utils/imageCompressor.js';
 
 export { FALLBACK_CATEGORIES, FALLBACK_PRODUCTS };
@@ -350,7 +350,30 @@ export function simulateCalculateCart(payload = {}) {
   let coupon = null;
   if (couponCode) {
     const code = couponCode.toUpperCase().trim();
-    if (code === 'SAVE20') {
+    let matchedCoupon = null;
+    try {
+      const allCoupons = getFallbackAdminCoupons();
+      if (Array.isArray(allCoupons)) {
+        matchedCoupon = allCoupons.find(c => c.code && c.code.toUpperCase() === code && (c.is_active === 1 || c.is_active === true));
+      }
+    } catch (e) {}
+
+    if (matchedCoupon) {
+      if (matchedCoupon.discount_type === 'percentage') {
+        discount = Math.round(subtotal * (Number(matchedCoupon.discount_value) / 100));
+        const maxDisc = Number(matchedCoupon.max_discount_amount || matchedCoupon.max_discount);
+        if (maxDisc > 0 && discount > maxDisc) {
+          discount = maxDisc;
+        }
+      } else {
+        discount = Number(matchedCoupon.discount_value) || 0;
+      }
+      coupon = {
+        code: matchedCoupon.code,
+        discount_type: matchedCoupon.discount_type,
+        discount_value: matchedCoupon.discount_value
+      };
+    } else if (code === 'SAVE20') {
       discount = Math.round(subtotal * 0.2);
       coupon = { code: 'SAVE20', discount_type: 'percentage', discount_value: 20 };
     } else if (code === 'LAUNCH50') {
@@ -359,13 +382,16 @@ export function simulateCalculateCart(payload = {}) {
     }
   }
 
-  const total = Math.max(0, subtotal - discount);
+  const discountedSubtotal = Math.max(0, subtotal - discount);
+  // Calculate 18% GST on discounted subtotal
+  const tax = Math.round(discountedSubtotal * 0.18);
+  const total = discountedSubtotal + tax;
 
   return {
     items: calculatedItems,
     subtotal,
     discount,
-    tax: 0,
+    tax,
     total,
     coupon
   };
@@ -384,7 +410,7 @@ export function simulateCreateOrder(payload = {}) {
     customer_phone: payload.customer_phone || '9876543210',
     subtotal: calculation.subtotal,
     discount_amount: calculation.discount,
-    tax_amount: 0,
+    tax_amount: calculation.tax,
     total_amount: calculation.total,
     currency: payload.currency || 'INR',
     payment_provider: payload.payment_provider || 'paytm',
@@ -883,6 +909,21 @@ export function handleFallbackRoute(endpoint, options = {}, requestBody = null) 
   if (clean.startsWith('orders/')) {
     const orderNum = clean.replace(/^orders\//, '');
     return simulateGetOrder(orderNum);
+  }
+  if (clean === 'coupons/upsell') {
+    try {
+      const allCoupons = getFallbackAdminCoupons();
+      return (allCoupons || []).filter(c => c.coupon_type === 'upselling' && (c.is_active === 1 || c.is_active === true));
+    } catch (e) {
+      return [];
+    }
+  }
+  if (clean === 'coupons') {
+    try {
+      return getFallbackAdminCoupons() || [];
+    } catch (e) {
+      return [];
+    }
   }
   if (clean === 'settings' || clean === 'settings/') {
     return FALLBACK_SETTINGS;

@@ -27,6 +27,11 @@ router.post('/', async (req, res) => {
   try {
     const {
       code,
+      coupon_type = 'normal',
+      upsell_step = 1,
+      timer_seconds = 30,
+      popup_title = '',
+      popup_desc = '',
       discount_type = 'percentage',
       discount_value,
       min_order_value = 0,
@@ -49,10 +54,15 @@ router.post('/', async (req, res) => {
     }
 
     const result = db.run(
-      `INSERT INTO coupons (code, discount_type, discount_value, min_order_value, max_discount, usage_limit, expires_at, is_active)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO coupons (code, coupon_type, upsell_step, timer_seconds, popup_title, popup_desc, discount_type, discount_value, min_order_value, max_discount, usage_limit, expires_at, is_active)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         cleanCode,
+        coupon_type,
+        parseInt(upsell_step) || 1,
+        parseInt(timer_seconds) || 30,
+        popup_title,
+        popup_desc,
         discount_type,
         parseFloat(discount_value),
         parseFloat(min_order_value) || 0,
@@ -73,11 +83,29 @@ router.post('/', async (req, res) => {
 // PUT /api/admin/coupons/:id
 router.put('/:id', async (req, res) => {
   try {
-    const { discount_type, discount_value, min_order_value, max_discount, usage_limit, expires_at, is_active } = req.body;
+    const {
+      coupon_type,
+      upsell_step,
+      timer_seconds,
+      popup_title,
+      popup_desc,
+      discount_type,
+      discount_value,
+      min_order_value,
+      max_discount,
+      usage_limit,
+      expires_at,
+      is_active
+    } = req.body;
     const db = await getDatabase();
 
     db.run(
       `UPDATE coupons SET
+        coupon_type = COALESCE(?, coupon_type),
+        upsell_step = COALESCE(?, upsell_step),
+        timer_seconds = COALESCE(?, timer_seconds),
+        popup_title = COALESCE(?, popup_title),
+        popup_desc = COALESCE(?, popup_desc),
         discount_type = COALESCE(?, discount_type),
         discount_value = COALESCE(?, discount_value),
         min_order_value = COALESCE(?, min_order_value),
@@ -86,7 +114,21 @@ router.put('/:id', async (req, res) => {
         expires_at = ?,
         is_active = COALESCE(?, is_active)
        WHERE id = ?`,
-      [discount_type, discount_value, min_order_value, max_discount, usage_limit, expires_at, is_active, req.params.id]
+      [
+        coupon_type,
+        upsell_step,
+        timer_seconds,
+        popup_title,
+        popup_desc,
+        discount_type,
+        discount_value,
+        min_order_value,
+        max_discount,
+        usage_limit,
+        expires_at,
+        is_active,
+        req.params.id
+      ]
     );
 
     logAdminActivity(db, req.user.id, 'COUPON_UPDATED', 'coupon', req.params.id);

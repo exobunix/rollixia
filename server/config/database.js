@@ -460,6 +460,25 @@ function initSchema(db) {
         }
       }
     }
+
+    // Migrate coupons table columns for upselling features
+    try {
+      const couponCols = db.query('PRAGMA table_info(coupons)').map(c => c.name);
+      const newCouponCols = [
+        { name: 'coupon_type', def: "TEXT DEFAULT 'normal'" },
+        { name: 'upsell_step', def: 'INTEGER DEFAULT 1' },
+        { name: 'timer_seconds', def: 'INTEGER DEFAULT 30' },
+        { name: 'popup_title', def: 'TEXT' },
+        { name: 'popup_desc', def: 'TEXT' }
+      ];
+      for (const cCol of newCouponCols) {
+        if (!couponCols.includes(cCol.name)) {
+          try {
+            db.exec(`ALTER TABLE coupons ADD COLUMN ${cCol.name} ${cCol.def}`);
+          } catch (cErr) {}
+        }
+      }
+    } catch (cMigErr) {}
   } catch (migErr) {
     console.warn('Migration warning:', migErr.message);
   }

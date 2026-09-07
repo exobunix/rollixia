@@ -3,6 +3,7 @@ import { Trash2, ArrowRight, ShieldCheck, Tag, ShoppingBag, ArrowLeft } from 'lu
 import { useCart } from '../../context/CartContext';
 import { useCurrency } from '../../context/CurrencyContext';
 import { formatCurrency } from '../../utils/formatters';
+import { UpsellModal } from '../../components/common/UpsellModal';
 
 export function CartPage({ onNavigate }) {
   const { items, removeFromCart, clearCart, cartTotals, couponCode, applyCoupon, removeCoupon, calculating } = useCart();
@@ -213,7 +214,7 @@ export function CartPage({ onNavigate }) {
 
               <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--text-secondary)' }}>
                 <span>Estimated Tax (18% GST)</span>
-                <span>{formatCurrency(cartTotals.tax, currency)}</span>
+                <span>{formatCurrency(cartTotals.tax, currency, true)}</span>
               </div>
 
               <div style={{
@@ -255,6 +256,8 @@ export function CartPage({ onNavigate }) {
           </div>
         </div>
       </div>
+
+      <UpsellModal isCheckout={false} onScrollToPayment={() => onNavigate('checkout')} />
     </div>
   );
 }

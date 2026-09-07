@@ -186,7 +186,51 @@ export function AdminProductBuilderPage({ productId: propProductId, onBack, onSa
   const [audienceList, setAudienceList] = useState([]);
   const [useCases, setUseCases] = useState([]);
   const [comparisonRows, setComparisonRows] = useState([]);
-  const [afterPurchaseSteps, setAfterPurchaseSteps] = useState([]);
+  const defaultAfterPurchaseSteps = [
+    { step: '01', title: 'Complete Purchase', description: 'Immediate receipt with private download link and license key.' },
+    { step: '02', title: 'Download Source Code', description: 'Access GitHub repo or direct ZIP archive with clean files.' },
+    { step: '03', title: 'Follow Documentation', description: 'Step-by-step setup guide for local environment and server.' },
+    { step: '04', title: 'Launch to Production', description: 'Deploy to cloud servers or app stores with commercial rights.' }
+  ];
+
+  const [afterPurchaseSteps, setAfterPurchaseSteps] = useState(defaultAfterPurchaseSteps);
+  const [afterPurchaseData, setAfterPurchaseData] = useState({
+    kicker: 'Onboarding Experience',
+    title: 'What Happens After You Buy?',
+    subtitle: 'Instant fulfillment with everything needed to immediately begin development.'
+  });
+
+  const [licensePermissions, setLicensePermissions] = useState({
+    title: 'License & Legal Permissions',
+    subtitle: 'Understand exactly what rights and freedoms are included with your purchase.',
+    label_customize: 'Can I Customize Code?',
+    can_customize: '✓ Allowed — 100% Full Access',
+    label_deploy: 'Commercial Deployment?',
+    can_deploy: '✓ Allowed — Client & Business',
+    label_rebrand: 'White Label Branding?',
+    can_rebrand: '✓ Allowed — Remove All Brand Tags',
+    label_resell: 'Raw Code Reselling?',
+    can_resell: '✕ Prohibited — Cannot Resell Source',
+    disclaimer: 'All product names, logos, and brands are property of their respective owners. Platform is independently developed and provided for professional production deployment.'
+  });
+
+  const [reviewsConfig, setReviewsConfig] = useState({
+    kicker: 'Product Ratings',
+    title: 'Verified Buyer Reviews',
+    subtitle: 'Based on verified orders and customer reviews.',
+    average_rating: 5.0,
+    review_count: 24
+  });
+
+  const [supportConfig, setSupportConfig] = useState({
+    kicker: 'Dedicated Assistance',
+    title: 'Questions Before Purchasing?',
+    description: 'Have a pre-sale question or need custom architecture assistance? Our engineering team is ready to help.',
+    email: 'support@rollixia.com',
+    whatsapp: '+1 (800) 555-ROLL',
+    docs_url: ''
+  });
+
   const [faqs, setFaqs] = useState([]);
   const [testimonials, setTestimonials] = useState([]);
   const [mediaList, setMediaList] = useState([]);
@@ -398,7 +442,81 @@ export function AdminProductBuilderPage({ productId: propProductId, onBack, onSa
         if (compSec && Array.isArray(compSec.content)) setComparisonRows(compSec.content);
 
         const apSec = loadedSections.find(s => s.section_type === 'after_purchase');
-        if (apSec && Array.isArray(apSec.content)) setAfterPurchaseSteps(apSec.content);
+        if (apSec && apSec.content) {
+          const parsed = parseSecContent(apSec.content);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            setAfterPurchaseSteps(parsed);
+          } else if (parsed && typeof parsed === 'object') {
+            if (Array.isArray(parsed.steps) && parsed.steps.length > 0) {
+              setAfterPurchaseSteps(parsed.steps);
+            }
+            setAfterPurchaseData(prev => ({
+              ...prev,
+              kicker: parsed.kicker || prev.kicker,
+              title: parsed.title || apSec.title || prev.title,
+              subtitle: parsed.subtitle || apSec.subtitle || prev.subtitle
+            }));
+          }
+        }
+
+        const licSec = loadedSections.find(s => s.section_type === 'license' || s.section_type === 'license_delivery');
+        if (licSec && licSec.content) {
+          const parsed = parseSecContent(licSec.content);
+          if (parsed && typeof parsed === 'object') {
+            setLicensePermissions(prev => ({
+              ...prev,
+              title: parsed.title || licSec.title || prev.title,
+              subtitle: parsed.subtitle || licSec.subtitle || prev.subtitle,
+              label_customize: parsed.label_customize || prev.label_customize,
+              can_customize: parsed.can_customize || prev.can_customize,
+              label_deploy: parsed.label_deploy || prev.label_deploy,
+              can_deploy: parsed.can_deploy || prev.can_deploy,
+              label_rebrand: parsed.label_rebrand || prev.label_rebrand,
+              can_rebrand: parsed.can_rebrand || prev.can_rebrand,
+              label_resell: parsed.label_resell || prev.label_resell,
+              can_resell: parsed.can_resell || prev.can_resell,
+              disclaimer: parsed.disclaimer || prod.disclaimer || prev.disclaimer
+            }));
+          }
+        }
+
+        const revSec = loadedSections.find(s => s.section_type === 'reviews');
+        if (revSec && revSec.content) {
+          const parsedRev = parseSecContent(revSec.content);
+          if (parsedRev && typeof parsedRev === 'object') {
+            setReviewsConfig(prev => ({
+              ...prev,
+              kicker: parsedRev.kicker || prev.kicker,
+              title: parsedRev.title || revSec.title || prev.title,
+              subtitle: parsedRev.subtitle || revSec.subtitle || prev.subtitle,
+              average_rating: parsedRev.average_rating !== undefined ? parsedRev.average_rating : prev.average_rating,
+              review_count: parsedRev.review_count !== undefined ? parsedRev.review_count : prev.review_count
+            }));
+          }
+        }
+        if (prod.average_rating !== undefined || prod.rating_avg !== undefined) {
+          setReviewsConfig(prev => ({
+            ...prev,
+            average_rating: prod.average_rating !== undefined ? prod.average_rating : (prod.rating_avg !== undefined ? prod.rating_avg : prev.average_rating),
+            review_count: prod.review_count !== undefined ? prod.review_count : prev.review_count
+          }));
+        }
+
+        const supSec = loadedSections.find(s => s.section_type === 'support');
+        if (supSec && supSec.content) {
+          const parsedSup = parseSecContent(supSec.content);
+          if (parsedSup && typeof parsedSup === 'object') {
+            setSupportConfig(prev => ({
+              ...prev,
+              kicker: parsedSup.kicker || prev.kicker,
+              title: parsedSup.title || supSec.title || prev.title,
+              description: parsedSup.description || prev.description,
+              email: parsedSup.email || prev.email,
+              whatsapp: parsedSup.whatsapp || prev.whatsapp,
+              docs_url: parsedSup.docs_url || prod.docs_url || prod.doc_url || prev.docs_url
+            }));
+          }
+        }
       }
 
       // Parse technical_specs if specs state is empty
@@ -448,9 +566,25 @@ export function AdminProductBuilderPage({ productId: propProductId, onBack, onSa
       const loadedMedia = res.media || prod.media || [];
       if (Array.isArray(loadedMedia) && loadedMedia.length > 0) setMediaList(loadedMedia);
 
-      // Licenses
+      // Licenses with features
       const loadedLicenses = res.licenses || prod.licenses || [];
-      if (Array.isArray(loadedLicenses) && loadedLicenses.length > 0) setLicensesList(loadedLicenses);
+      const defaultFeatures = [
+        'Full Unencrypted Source Code',
+        'Commercial Deployment Rights',
+        'Lifetime Code Updates',
+        'Direct Technical Support',
+        'Comprehensive Documentation'
+      ];
+      if (Array.isArray(loadedLicenses) && loadedLicenses.length > 0) {
+        setLicensesList(loadedLicenses.map(lic => ({
+          ...lic,
+          features: Array.isArray(lic.features) && lic.features.length > 0
+            ? lic.features
+            : (typeof lic.features === 'string'
+                ? lic.features.split('\n').map(s => s.trim()).filter(Boolean)
+                : defaultFeatures)
+        })));
+      }
 
       return true;
     }
@@ -784,6 +918,39 @@ export function AdminProductBuilderPage({ productId: propProductId, onBack, onSa
     addToast('Custom section removed', 'info');
   };
 
+  const jumpToSectionEditor = (secType) => {
+    if (['pricing', 'license', 'license_delivery'].includes(secType)) {
+      setActiveTab('pricing');
+    } else if (['media', 'hero', 'gallery'].includes(secType)) {
+      setActiveTab('media');
+    } else if (secType === 'video') {
+      setActiveTab('basic');
+    } else if (['demo', 'links'].includes(secType)) {
+      setActiveTab('links');
+    } else if (['faq', 'testimonials', 'reviews', 'support'].includes(secType)) {
+      setActiveTab('faqs');
+    } else if (['seo'].includes(secType)) {
+      setActiveTab('seo');
+    } else {
+      setActiveTab('features');
+      if (secType === 'customer_experience' || secType === 'showcase') setActiveFeatureSubTab('customer');
+      else if (secType === 'partner_experience') setActiveFeatureSubTab('partner');
+      else if (secType === 'admin_experience') setActiveFeatureSubTab('admin');
+      else if (secType === 'how_it_works') setActiveFeatureSubTab('how_it_works');
+      else if (secType === 'included') setActiveFeatureSubTab('included');
+      else if (secType === 'source_code') setActiveFeatureSubTab('source_code');
+      else if (secType === 'specs') setActiveFeatureSubTab('specs');
+      else if (secType === 'requirements') setActiveFeatureSubTab('requirements');
+      else if (secType === 'customization') setActiveFeatureSubTab('customization');
+      else if (secType === 'who_is_it_for') setActiveFeatureSubTab('audience');
+      else if (secType === 'use_cases') setActiveFeatureSubTab('use_cases');
+      else if (secType === 'comparison') setActiveFeatureSubTab('comparison');
+      else if (secType === 'after_purchase') setActiveFeatureSubTab('after_purchase');
+      else if (secType === 'ecosystem') setActiveFeatureSubTab('ecosystem');
+      else setActiveFeatureSubTab('features');
+    }
+  };
+
   const handleAddCustomSection = () => {
     if (!customSectionDraft.title.trim()) {
       addToast('Please enter a section title', 'error');
@@ -814,7 +981,12 @@ export function AdminProductBuilderPage({ productId: propProductId, onBack, onSa
 
   // Compile final live preview data payload
   const previewPayload = {
-    product: { ...product },
+    product: {
+      ...product,
+      average_rating: parseFloat(reviewsConfig.average_rating) || 5.0,
+      review_count: parseInt(reviewsConfig.review_count, 10) || 24,
+      rating_avg: parseFloat(reviewsConfig.average_rating) || 5.0
+    },
     media: mediaList.length > 0 ? mediaList : [{ media_url: product.hero_image || product.thumbnail }],
     faqs,
     testimonials,
@@ -836,7 +1008,12 @@ export function AdminProductBuilderPage({ productId: propProductId, onBack, onSa
       else if (s.section_type === 'who_is_it_for') content = audienceList;
       else if (s.section_type === 'use_cases') content = useCases;
       else if (s.section_type === 'comparison') content = comparisonRows;
-      else if (s.section_type === 'after_purchase') content = afterPurchaseSteps;
+      else if (s.section_type === 'after_purchase') content = { ...afterPurchaseData, steps: afterPurchaseSteps };
+      else if (s.section_type === 'license' || s.section_type === 'license_delivery') content = licensePermissions;
+      else if (s.section_type === 'reviews') content = reviewsConfig;
+      else if (s.section_type === 'support') content = supportConfig;
+      else if (s.section_type === 'faq') content = faqs;
+      else if (s.section_type === 'testimonials') content = testimonials;
       else if (s.section_type === 'demo') content = demoLinks;
       else if (s.section_type === 'video') {
         content = product.video_url ? {
@@ -914,6 +1091,9 @@ export function AdminProductBuilderPage({ productId: propProductId, onBack, onSa
         hero_image: compressedHero || product.hero_image,
         hero_secondary_image: compressedHeroSecondary || product.hero_secondary_image,
         thumbnail: compressedThumbnail || product.thumbnail,
+        average_rating: parseFloat(reviewsConfig.average_rating) || 5.0,
+        review_count: parseInt(reviewsConfig.review_count, 10) || 24,
+        rating_avg: parseFloat(reviewsConfig.average_rating) || 5.0,
         status: targetStatus,
         media: finalMediaList,
         demo_links: demoLinks,
@@ -979,7 +1159,10 @@ export function AdminProductBuilderPage({ productId: propProductId, onBack, onSa
           else if (s.section_type === 'who_is_it_for') secContent = audienceList;
           else if (s.section_type === 'use_cases') secContent = useCases;
           else if (s.section_type === 'comparison') secContent = comparisonRows;
-          else if (s.section_type === 'after_purchase') secContent = afterPurchaseSteps;
+          else if (s.section_type === 'after_purchase') secContent = { ...afterPurchaseData, steps: afterPurchaseSteps };
+          else if (s.section_type === 'license' || s.section_type === 'license_delivery') secContent = licensePermissions;
+          else if (s.section_type === 'reviews') secContent = reviewsConfig;
+          else if (s.section_type === 'support') secContent = supportConfig;
           else if (s.section_type === 'faq') secContent = faqs;
           else if (s.section_type === 'testimonials') secContent = testimonials;
           else if (s.section_type === 'demo') secContent = demoLinks;
@@ -1095,7 +1278,7 @@ export function AdminProductBuilderPage({ productId: propProductId, onBack, onSa
     { id: 'links', label: '4. Links & Deliverables', icon: LinkIcon },
     { id: 'sections', label: '5. Page Sections & Ordering', icon: Layers },
     { id: 'features', label: '6. Features, Specs & Assets', icon: CheckSquare },
-    { id: 'faqs', label: '7. FAQs & Testimonials', icon: HelpCircle },
+    { id: 'faqs', label: '7. FAQs, Reviews & Support', icon: HelpCircle },
     { id: 'seo', label: '8. SEO & Social Meta', icon: Search }
   ];
 
@@ -1581,9 +1764,215 @@ export function AdminProductBuilderPage({ productId: propProductId, onBack, onSa
                             className="ab-input"
                           />
                         </div>
+
+                        {/* License Features Checklist */}
+                        <div style={{ marginTop: '4px', paddingTop: '8px', borderTop: '1px dashed var(--border-subtle)' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                            <label style={{ fontSize: '0.72rem', fontWeight: 600, color: 'var(--text-secondary)' }}>
+                              Plan Checklist Features (Green Checkmarks)
+                            </label>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const updated = [...licensesList];
+                                const curFeatures = Array.isArray(updated[idx].features) ? updated[idx].features : [];
+                                updated[idx].features = [...curFeatures, 'New Included Benefit'];
+                                setLicensesList(updated);
+                              }}
+                              className="btn btn-secondary btn-sm"
+                              style={{ fontSize: '0.7rem', padding: '2px 8px', height: 'auto', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                            >
+                              <Plus size={12} /> Add Feature
+                            </button>
+                          </div>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                            {(Array.isArray(lic.features) ? lic.features : []).map((feat, fIdx) => (
+                              <div key={fIdx} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                <CheckCircle size={14} color="#10b981" style={{ flexShrink: 0 }} />
+                                <input
+                                  type="text"
+                                  value={feat}
+                                  onChange={(e) => {
+                                    const updated = [...licensesList];
+                                    const curFeatures = [...(Array.isArray(updated[idx].features) ? updated[idx].features : [])];
+                                    curFeatures[fIdx] = e.target.value;
+                                    updated[idx].features = curFeatures;
+                                    setLicensesList(updated);
+                                  }}
+                                  placeholder="e.g. Full Unencrypted Source Code"
+                                  className="ab-input"
+                                  style={{ fontSize: '0.8rem', padding: '4px 8px' }}
+                                />
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const updated = [...licensesList];
+                                    const curFeatures = (Array.isArray(updated[idx].features) ? updated[idx].features : []).filter((_, i) => i !== fIdx);
+                                    updated[idx].features = curFeatures;
+                                    setLicensesList(updated);
+                                  }}
+                                  className="btn btn-outline btn-sm"
+                                  style={{ color: '#f43f5e', borderColor: 'rgba(244, 63, 94, 0.3)', padding: '4px 6px', height: 'auto' }}
+                                >
+                                  <Trash2 size={12} />
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
                       </div>
                     ))
                   )}
+                </div>
+              </div>
+
+              {/* License & Legal Permissions Management (Section 21) */}
+              <div style={{ marginTop: '2.5rem', paddingTop: '1.5rem', borderTop: '1px solid var(--border-subtle)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap', gap: '0.75rem' }}>
+                  <div>
+                    <h3 style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
+                      License & Legal Permissions Matrix (Section 21)
+                    </h3>
+                    <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', margin: '2px 0 0' }}>
+                      Configure the legal rights, permissions, and restrictions displayed to prospective purchasers.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setLicensePermissions({
+                      title: 'License & Legal Permissions',
+                      subtitle: 'Understand exactly what rights and freedoms are included with your purchase.',
+                      label_customize: 'Can I Customize Code?',
+                      can_customize: '✓ Allowed — 100% Full Access',
+                      label_deploy: 'Commercial Deployment?',
+                      can_deploy: '✓ Allowed — Client & Business',
+                      label_rebrand: 'White Label Branding?',
+                      can_rebrand: '✓ Allowed — Remove All Brand Tags',
+                      label_resell: 'Raw Code Reselling?',
+                      can_resell: '✕ Prohibited — Cannot Resell Source',
+                      disclaimer: 'All product names, logos, and brands are property of their respective owners. Platform is independently developed and provided for professional production deployment.'
+                    })}
+                    className="btn btn-secondary btn-sm"
+                  >
+                    Reset Defaults
+                  </button>
+                </div>
+
+                <div className="ab-form-grid" style={{ marginBottom: '1.25rem' }}>
+                  <div className="ab-form-group">
+                    <label className="ab-form-label">Section Title</label>
+                    <input
+                      type="text"
+                      value={licensePermissions.title || ''}
+                      onChange={(e) => setLicensePermissions(prev => ({ ...prev, title: e.target.value }))}
+                      placeholder="License & Legal Permissions"
+                      className="ab-input"
+                      style={{ fontWeight: 600 }}
+                    />
+                  </div>
+                  <div className="ab-form-group">
+                    <label className="ab-form-label">Section Subtitle</label>
+                    <input
+                      type="text"
+                      value={licensePermissions.subtitle || ''}
+                      onChange={(e) => setLicensePermissions(prev => ({ ...prev, subtitle: e.target.value }))}
+                      placeholder="Understand exactly what rights and freedoms are included with your purchase."
+                      className="ab-input"
+                    />
+                  </div>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '12px', marginBottom: '1.25rem' }}>
+                  {/* Card 1: Customization */}
+                  <div style={{ padding: '12px', background: 'var(--bg-surface-elevated)', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-medium)', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                    <label style={{ fontSize: '0.72rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Permission 1 Header</label>
+                    <input
+                      type="text"
+                      value={licensePermissions.label_customize || 'Can I Customize Code?'}
+                      onChange={(e) => setLicensePermissions(prev => ({ ...prev, label_customize: e.target.value }))}
+                      className="ab-input"
+                      style={{ fontSize: '0.8rem' }}
+                    />
+                    <label style={{ fontSize: '0.72rem', fontWeight: 600, color: 'var(--text-secondary)', marginTop: '4px' }}>Permission 1 Status / Text</label>
+                    <input
+                      type="text"
+                      value={licensePermissions.can_customize || '✓ Allowed — 100% Full Access'}
+                      onChange={(e) => setLicensePermissions(prev => ({ ...prev, can_customize: e.target.value }))}
+                      className="ab-input"
+                      style={{ fontSize: '0.85rem', fontWeight: 700, color: '#10b981' }}
+                    />
+                  </div>
+
+                  {/* Card 2: Commercial Deployment */}
+                  <div style={{ padding: '12px', background: 'var(--bg-surface-elevated)', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-medium)', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                    <label style={{ fontSize: '0.72rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Permission 2 Header</label>
+                    <input
+                      type="text"
+                      value={licensePermissions.label_deploy || 'Commercial Deployment?'}
+                      onChange={(e) => setLicensePermissions(prev => ({ ...prev, label_deploy: e.target.value }))}
+                      className="ab-input"
+                      style={{ fontSize: '0.8rem' }}
+                    />
+                    <label style={{ fontSize: '0.72rem', fontWeight: 600, color: 'var(--text-secondary)', marginTop: '4px' }}>Permission 2 Status / Text</label>
+                    <input
+                      type="text"
+                      value={licensePermissions.can_deploy || '✓ Allowed — Client & Business'}
+                      onChange={(e) => setLicensePermissions(prev => ({ ...prev, can_deploy: e.target.value }))}
+                      className="ab-input"
+                      style={{ fontSize: '0.85rem', fontWeight: 700, color: '#10b981' }}
+                    />
+                  </div>
+
+                  {/* Card 3: White Label */}
+                  <div style={{ padding: '12px', background: 'var(--bg-surface-elevated)', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-medium)', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                    <label style={{ fontSize: '0.72rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Permission 3 Header</label>
+                    <input
+                      type="text"
+                      value={licensePermissions.label_rebrand || 'White Label Branding?'}
+                      onChange={(e) => setLicensePermissions(prev => ({ ...prev, label_rebrand: e.target.value }))}
+                      className="ab-input"
+                      style={{ fontSize: '0.8rem' }}
+                    />
+                    <label style={{ fontSize: '0.72rem', fontWeight: 600, color: 'var(--text-secondary)', marginTop: '4px' }}>Permission 3 Status / Text</label>
+                    <input
+                      type="text"
+                      value={licensePermissions.can_rebrand || '✓ Allowed — Remove All Brand Tags'}
+                      onChange={(e) => setLicensePermissions(prev => ({ ...prev, can_rebrand: e.target.value }))}
+                      className="ab-input"
+                      style={{ fontSize: '0.85rem', fontWeight: 700, color: '#10b981' }}
+                    />
+                  </div>
+
+                  {/* Card 4: Reselling Prohibited */}
+                  <div style={{ padding: '12px', background: 'var(--bg-surface-elevated)', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-medium)', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                    <label style={{ fontSize: '0.72rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Permission 4 Header</label>
+                    <input
+                      type="text"
+                      value={licensePermissions.label_resell || 'Raw Code Reselling?'}
+                      onChange={(e) => setLicensePermissions(prev => ({ ...prev, label_resell: e.target.value }))}
+                      className="ab-input"
+                      style={{ fontSize: '0.8rem' }}
+                    />
+                    <label style={{ fontSize: '0.72rem', fontWeight: 600, color: 'var(--text-secondary)', marginTop: '4px' }}>Permission 4 Status / Text</label>
+                    <input
+                      type="text"
+                      value={licensePermissions.can_resell || '✕ Prohibited — Cannot Resell Source'}
+                      onChange={(e) => setLicensePermissions(prev => ({ ...prev, can_resell: e.target.value }))}
+                      className="ab-input"
+                      style={{ fontSize: '0.85rem', fontWeight: 700, color: '#f43f5e' }}
+                    />
+                  </div>
+                </div>
+
+                <div className="ab-form-group">
+                  <label className="ab-form-label">Legal Disclaimer / Brand Copyright Notice</label>
+                  <textarea
+                    rows={2}
+                    value={licensePermissions.disclaimer || ''}
+                    onChange={(e) => setLicensePermissions(prev => ({ ...prev, disclaimer: e.target.value }))}
+                    placeholder="All product names, logos, and brands are property of their respective owners..."
+                    className="ab-textarea"
+                  />
                 </div>
               </div>
             </div>
@@ -3316,6 +3705,16 @@ export function AdminProductBuilderPage({ productId: propProductId, onBack, onSa
                       <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flexShrink: 0 }}>
                         <button
                           type="button"
+                          onClick={() => jumpToSectionEditor(sec.section_type)}
+                          className="btn btn-secondary btn-sm"
+                          style={{ padding: '5px 10px', display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '0.75rem', color: 'var(--primary)', fontWeight: 600 }}
+                          title="Jump directly to edit this section's content"
+                        >
+                          <Edit3 size={13} />
+                          <span>Edit</span>
+                        </button>
+                        <button
+                          type="button"
                           onClick={() => moveSection(idx, -1)}
                           disabled={idx === 0}
                           className="btn btn-secondary btn-sm"
@@ -3975,14 +4374,306 @@ export function AdminProductBuilderPage({ productId: propProductId, onBack, onSa
                   </div>
                 </div>
               )}
+
+              {/* SUB-TAB 15: After Purchase / Onboarding Experience (Section 19) */}
+              {activeFeatureSubTab === 'after_purchase' && (
+                <div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap', gap: '0.75rem' }}>
+                    <div>
+                      <h3 style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
+                        What Happens After You Buy? (Section 19 Timeline)
+                      </h3>
+                      <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', margin: '2px 0 0' }}>
+                        Configure the post-purchase onboarding workflow steps and instructions displayed to customers.
+                      </p>
+                    </div>
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                      <button
+                        type="button"
+                        onClick={() => setAfterPurchaseSteps(defaultAfterPurchaseSteps)}
+                        className="btn btn-secondary btn-sm"
+                      >
+                        Reset Defaults
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setAfterPurchaseSteps([
+                          ...afterPurchaseSteps,
+                          {
+                            step: `0${afterPurchaseSteps.length + 1}`,
+                            title: 'New Step',
+                            description: 'Clear description of what the buyer receives or executes next.'
+                          }
+                        ])}
+                        className="btn btn-primary btn-sm"
+                        style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                      >
+                        <Plus size={14} /> Add Timeline Step
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="ab-form-grid" style={{ marginBottom: '1.25rem' }}>
+                    <div className="ab-form-group">
+                      <label className="ab-form-label">Section Kicker</label>
+                      <input
+                        type="text"
+                        value={afterPurchaseData.kicker}
+                        onChange={(e) => setAfterPurchaseData(prev => ({ ...prev, kicker: e.target.value }))}
+                        placeholder="Onboarding Experience"
+                        className="ab-input"
+                      />
+                    </div>
+                    <div className="ab-form-group">
+                      <label className="ab-form-label">Section Heading Title</label>
+                      <input
+                        type="text"
+                        value={afterPurchaseData.title}
+                        onChange={(e) => setAfterPurchaseData(prev => ({ ...prev, title: e.target.value }))}
+                        placeholder="What Happens After You Buy?"
+                        className="ab-input"
+                        style={{ fontWeight: 600 }}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="ab-form-group" style={{ marginBottom: '1.5rem' }}>
+                    <label className="ab-form-label">Section Subtitle</label>
+                    <input
+                      type="text"
+                      value={afterPurchaseData.subtitle}
+                      onChange={(e) => setAfterPurchaseData(prev => ({ ...prev, subtitle: e.target.value }))}
+                      placeholder="Instant fulfillment with everything needed to immediately begin development."
+                      className="ab-input"
+                    />
+                  </div>
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                    {afterPurchaseSteps.map((st, idx) => (
+                      <div
+                        key={idx}
+                        className="ab-item-row"
+                        style={{
+                          flexDirection: 'column',
+                          alignItems: 'stretch',
+                          gap: '8px',
+                          background: 'var(--bg-surface-elevated)',
+                          padding: '12px',
+                          borderRadius: 'var(--radius-md)',
+                          border: '1px solid var(--border-medium)'
+                        }}
+                      >
+                        <div style={{ display: 'grid', gridTemplateColumns: '70px 1fr auto', gap: '8px', alignItems: 'center' }}>
+                          <input
+                            type="text"
+                            value={st.step || `0${idx + 1}`}
+                            onChange={(e) => {
+                              const updated = [...afterPurchaseSteps];
+                              updated[idx].step = e.target.value;
+                              setAfterPurchaseSteps(updated);
+                            }}
+                            placeholder="01"
+                            className="ab-input"
+                            style={{ fontWeight: 700, textAlign: 'center' }}
+                          />
+                          <input
+                            type="text"
+                            value={st.title || ''}
+                            onChange={(e) => {
+                              const updated = [...afterPurchaseSteps];
+                              updated[idx].title = e.target.value;
+                              setAfterPurchaseSteps(updated);
+                            }}
+                            placeholder="Step Title (e.g. Complete Purchase)"
+                            className="ab-input"
+                            style={{ fontWeight: 600 }}
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setAfterPurchaseSteps(afterPurchaseSteps.filter((_, i) => i !== idx))}
+                            className="btn btn-outline btn-sm"
+                            style={{ color: '#f43f5e', borderColor: 'rgba(244, 63, 94, 0.3)' }}
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
+                        <textarea
+                          rows={2}
+                          value={st.description || ''}
+                          onChange={(e) => {
+                            const updated = [...afterPurchaseSteps];
+                            updated[idx].description = e.target.value;
+                            setAfterPurchaseSteps(updated);
+                          }}
+                          placeholder="Detailed instructions for this step..."
+                          className="ab-textarea"
+                          style={{ resize: 'vertical' }}
+                        />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
-          {/* TAB 7: FAQS & TESTIMONIALS */}
+          {/* TAB 7: FAQS, REVIEWS & SUPPORT */}
           {activeTab === 'faqs' && (
             <div>
-              <div className="ab-section-title">Frequently Asked Questions & Customer Testimonials</div>
-              <div className="ab-section-desc">Manage customer objections with transparent FAQs and verified buyer reviews.</div>
+              <div className="ab-section-title">FAQs, Verified Ratings & Customer Support</div>
+              <div className="ab-section-desc">Manage buyer credibility scores, pre-sales support channels, FAQs and customer testimonials.</div>
+
+              {/* Verified Ratings & Review Badge (Section 23) */}
+              <div style={{ marginBottom: '2.5rem', padding: '16px', background: 'var(--bg-surface-elevated)', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-medium)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap', gap: '0.5rem' }}>
+                  <div>
+                    <h3 style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
+                      Product Ratings & Verified Buyer Reviews (Section 23)
+                    </h3>
+                    <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', margin: '2px 0 0' }}>
+                      Configure the rating score badge (e.g. 5.0) and verified purchaser count displayed on the page.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="ab-form-grid" style={{ marginBottom: '1rem' }}>
+                  <div className="ab-form-group">
+                    <label className="ab-form-label">Rating Kicker</label>
+                    <input
+                      type="text"
+                      value={reviewsConfig.kicker || 'Product Ratings'}
+                      onChange={(e) => setReviewsConfig(prev => ({ ...prev, kicker: e.target.value }))}
+                      placeholder="Product Ratings"
+                      className="ab-input"
+                    />
+                  </div>
+                  <div className="ab-form-group">
+                    <label className="ab-form-label">Review Card Heading</label>
+                    <input
+                      type="text"
+                      value={reviewsConfig.title || 'Verified Buyer Reviews'}
+                      onChange={(e) => setReviewsConfig(prev => ({ ...prev, title: e.target.value }))}
+                      placeholder="Verified Buyer Reviews"
+                      className="ab-input"
+                      style={{ fontWeight: 600 }}
+                    />
+                  </div>
+                  <div className="ab-form-group">
+                    <label className="ab-form-label">Average Rating Score (1.0 to 5.0)</label>
+                    <input
+                      type="number"
+                      step="0.1"
+                      min="1"
+                      max="5"
+                      value={reviewsConfig.average_rating !== undefined ? reviewsConfig.average_rating : 5.0}
+                      onChange={(e) => setReviewsConfig(prev => ({ ...prev, average_rating: parseFloat(e.target.value) || 5.0 }))}
+                      className="ab-input"
+                      style={{ fontWeight: 800, color: 'var(--primary)' }}
+                    />
+                  </div>
+                  <div className="ab-form-group">
+                    <label className="ab-form-label">Total Verified Ratings Count</label>
+                    <input
+                      type="number"
+                      min="0"
+                      value={reviewsConfig.review_count !== undefined ? reviewsConfig.review_count : 24}
+                      onChange={(e) => setReviewsConfig(prev => ({ ...prev, review_count: parseInt(e.target.value, 10) || 0 }))}
+                      className="ab-input"
+                      style={{ fontWeight: 800 }}
+                    />
+                  </div>
+                </div>
+
+                <div className="ab-form-group">
+                  <label className="ab-form-label">Subtitle Description</label>
+                  <input
+                    type="text"
+                    value={reviewsConfig.subtitle || 'Based on verified orders and customer reviews.'}
+                    onChange={(e) => setReviewsConfig(prev => ({ ...prev, subtitle: e.target.value }))}
+                    placeholder="Based on verified orders and customer reviews."
+                    className="ab-input"
+                  />
+                </div>
+              </div>
+
+              {/* Dedicated Assistance & Support (Section 26) */}
+              <div style={{ marginBottom: '2.5rem', padding: '16px', background: 'var(--bg-surface-elevated)', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-medium)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap', gap: '0.5rem' }}>
+                  <div>
+                    <h3 style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
+                      Questions Before Purchasing? / Dedicated Assistance (Section 26)
+                    </h3>
+                    <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', margin: '2px 0 0' }}>
+                      Configure pre-sales contact buttons (Email, WhatsApp Chat, and Documentation).
+                    </p>
+                  </div>
+                </div>
+
+                <div className="ab-form-grid" style={{ marginBottom: '1rem' }}>
+                  <div className="ab-form-group">
+                    <label className="ab-form-label">Support Kicker</label>
+                    <input
+                      type="text"
+                      value={supportConfig.kicker || 'Dedicated Assistance'}
+                      onChange={(e) => setSupportConfig(prev => ({ ...prev, kicker: e.target.value }))}
+                      placeholder="Dedicated Assistance"
+                      className="ab-input"
+                    />
+                  </div>
+                  <div className="ab-form-group">
+                    <label className="ab-form-label">Heading Title</label>
+                    <input
+                      type="text"
+                      value={supportConfig.title || 'Questions Before Purchasing?'}
+                      onChange={(e) => setSupportConfig(prev => ({ ...prev, title: e.target.value }))}
+                      placeholder="Questions Before Purchasing?"
+                      className="ab-input"
+                      style={{ fontWeight: 600 }}
+                    />
+                  </div>
+                  <div className="ab-form-group">
+                    <label className="ab-form-label">Support Email Address</label>
+                    <input
+                      type="email"
+                      value={supportConfig.email || ''}
+                      onChange={(e) => setSupportConfig(prev => ({ ...prev, email: e.target.value }))}
+                      placeholder="e.g. support@rollixia.com"
+                      className="ab-input"
+                    />
+                  </div>
+                  <div className="ab-form-group">
+                    <label className="ab-form-label">WhatsApp Contact Number (with country code)</label>
+                    <input
+                      type="text"
+                      value={supportConfig.whatsapp || ''}
+                      onChange={(e) => setSupportConfig(prev => ({ ...prev, whatsapp: e.target.value }))}
+                      placeholder="e.g. +91 98765 43210"
+                      className="ab-input"
+                    />
+                  </div>
+                  <div className="ab-form-group" style={{ gridColumn: 'span 2' }}>
+                    <label className="ab-form-label">Documentation / Knowledgebase Link URL</label>
+                    <input
+                      type="text"
+                      value={supportConfig.docs_url || ''}
+                      onChange={(e) => setSupportConfig(prev => ({ ...prev, docs_url: e.target.value }))}
+                      placeholder="https://docs.rollixia.com/your-product"
+                      className="ab-input"
+                    />
+                  </div>
+                </div>
+
+                <div className="ab-form-group">
+                  <label className="ab-form-label">Assistance Description Paragraph</label>
+                  <textarea
+                    rows={2}
+                    value={supportConfig.description || ''}
+                    onChange={(e) => setSupportConfig(prev => ({ ...prev, description: e.target.value }))}
+                    placeholder="Have a pre-sale question or need custom architecture assistance? Our engineering team is ready to help."
+                    className="ab-textarea"
+                  />
+                </div>
+              </div>
 
               {/* FAQs */}
               <div style={{ marginBottom: '2.5rem' }}>

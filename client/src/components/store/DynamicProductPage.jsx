@@ -1903,15 +1903,27 @@ export function DynamicProductPage({ slug, productData: initialData, onNavigate,
       { step: '03', title: 'Follow Documentation', description: 'Step-by-step setup guide for local environment and server.' },
       { step: '04', title: 'Launch to Production', description: 'Deploy to cloud servers or app stores with commercial rights.' }
     ];
-    const steps = Array.isArray(raw) && raw.length > 0 ? raw : defaultSteps;
+    let steps = defaultSteps;
+    let kicker = 'Onboarding Experience';
+    let title = 'What Happens After You Buy?';
+    let subtitle = 'Instant fulfillment with everything needed to immediately begin development.';
+
+    if (Array.isArray(raw) && raw.length > 0) {
+      steps = raw;
+    } else if (raw && typeof raw === 'object') {
+      if (Array.isArray(raw.steps) && raw.steps.length > 0) steps = raw.steps;
+      if (raw.kicker) kicker = raw.kicker;
+      if (raw.title) title = raw.title;
+      if (raw.subtitle) subtitle = raw.subtitle;
+    }
 
     return (
       <section className="pdp-section">
         <div className="pdp-container">
           <div className="pdp-section-header">
-            <span className="pdp-kicker">Onboarding Experience</span>
-            <h2 className="pdp-section-title">What Happens After You Buy?</h2>
-            <p className="pdp-section-subtitle">Instant fulfillment with everything needed to immediately begin development.</p>
+            <span className="pdp-kicker">{kicker}</span>
+            <h2 className="pdp-section-title">{title}</h2>
+            <p className="pdp-section-subtitle">{subtitle}</p>
           </div>
 
           <div className="pdp-timeline-grid">
@@ -2062,16 +2074,22 @@ export function DynamicProductPage({ slug, productData: initialData, onNavigate,
 
   // 21. SECTION 21 — LICENSE TERMS & PERMISSIONS
   const renderLicense = () => {
-    const licData = getSectionData('license') || getSectionData('license_delivery') || {
-      license_type: selectedLicense?.license_name || 'Commercial Single Project License',
-      delivery_method: 'Instant Digital Download',
-      access: 'Lifetime access with continuous updates',
-      support: 'Direct developer assistance',
-      can_customize: 'Yes — full source code modification permitted.',
-      can_deploy: 'Yes — personal or single client commercial deployment.',
-      can_rebrand: 'Yes — 100% white label branding allowed.',
-      can_resell: 'No — redistributing raw source code is prohibited.'
-    };
+    let rawLic = getSectionData('license') || getSectionData('license_delivery');
+    if (typeof rawLic === 'string') {
+      try { rawLic = JSON.parse(rawLic); } catch (e) {}
+    }
+    const licData = (rawLic && typeof rawLic === 'object') ? rawLic : {};
+    const title = licData.title || 'License & Legal Permissions';
+    const subtitle = licData.subtitle || 'Understand exactly what rights and freedoms are included with your purchase.';
+    const canCustomize = licData.can_customize || '✓ Allowed — 100% Full Access';
+    const labelCustomize = licData.label_customize || 'Can I Customize Code?';
+    const canDeploy = licData.can_deploy || '✓ Allowed — Client & Business';
+    const labelDeploy = licData.label_deploy || 'Commercial Deployment?';
+    const canRebrand = licData.can_rebrand || '✓ Allowed — Remove All Brand Tags';
+    const labelRebrand = licData.label_rebrand || 'White Label Branding?';
+    const canResell = licData.can_resell || '✕ Prohibited — Cannot Resell Source';
+    const labelResell = licData.label_resell || 'Raw Code Reselling?';
+    const disclaimer = licData.disclaimer || product.disclaimer || 'All product names, logos, and brands are property of their respective owners. Platform is independently developed and provided for professional production deployment.';
 
     return (
       <section className="pdp-section">
@@ -2082,33 +2100,33 @@ export function DynamicProductPage({ slug, productData: initialData, onNavigate,
                 <ShieldCheck size={24} />
               </div>
               <div>
-                <h2 style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--text-primary)' }}>License & Legal Permissions</h2>
-                <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Understand exactly what rights and freedoms are included with your purchase.</p>
+                <h2 style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--text-primary)' }}>{title}</h2>
+                <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>{subtitle}</p>
               </div>
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1rem' }}>
               <div style={{ padding: '1.25rem', background: 'var(--bg-surface-elevated)', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-subtle)' }}>
-                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase' }}>Can I Customize Code?</div>
-                <div style={{ fontSize: '0.95rem', fontWeight: 700, color: '#10b981', marginTop: '0.35rem' }}>✓ Allowed — 100% Full Access</div>
+                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase' }}>{labelCustomize}</div>
+                <div style={{ fontSize: '0.95rem', fontWeight: 700, color: canCustomize.startsWith('✕') ? '#f43f5e' : '#10b981', marginTop: '0.35rem' }}>{canCustomize}</div>
               </div>
               <div style={{ padding: '1.25rem', background: 'var(--bg-surface-elevated)', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-subtle)' }}>
-                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase' }}>Commercial Deployment?</div>
-                <div style={{ fontSize: '0.95rem', fontWeight: 700, color: '#10b981', marginTop: '0.35rem' }}>✓ Allowed — Client & Business</div>
+                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase' }}>{labelDeploy}</div>
+                <div style={{ fontSize: '0.95rem', fontWeight: 700, color: canDeploy.startsWith('✕') ? '#f43f5e' : '#10b981', marginTop: '0.35rem' }}>{canDeploy}</div>
               </div>
               <div style={{ padding: '1.25rem', background: 'var(--bg-surface-elevated)', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-subtle)' }}>
-                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase' }}>White Label Branding?</div>
-                <div style={{ fontSize: '0.95rem', fontWeight: 700, color: '#10b981', marginTop: '0.35rem' }}>✓ Allowed — Remove All Brand Tags</div>
+                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase' }}>{labelRebrand}</div>
+                <div style={{ fontSize: '0.95rem', fontWeight: 700, color: canRebrand.startsWith('✕') ? '#f43f5e' : '#10b981', marginTop: '0.35rem' }}>{canRebrand}</div>
               </div>
               <div style={{ padding: '1.25rem', background: 'var(--bg-surface-elevated)', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-subtle)' }}>
-                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase' }}>Raw Code Reselling?</div>
-                <div style={{ fontSize: '0.95rem', fontWeight: 700, color: '#f43f5e', marginTop: '0.35rem' }}>✕ Prohibited — Cannot Resell Source</div>
+                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase' }}>{labelResell}</div>
+                <div style={{ fontSize: '0.95rem', fontWeight: 700, color: canResell.startsWith('✓') ? '#10b981' : '#f43f5e', marginTop: '0.35rem' }}>{canResell}</div>
               </div>
             </div>
 
-            {licData.disclaimer && (
+            {disclaimer && (
               <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', borderTop: '1px solid var(--border-subtle)', paddingTop: '1.25rem', lineHeight: 1.6 }}>
-                {licData.disclaimer}
+                {disclaimer}
               </p>
             )}
           </div>
@@ -2171,8 +2189,21 @@ export function DynamicProductPage({ slug, productData: initialData, onNavigate,
 
   // 23. SECTION 23 — REVIEWS / RATINGS
   const renderReviews = () => {
-    const rawRating = product.average_rating || 5.0;
-    const totalReviews = product.review_count || (testimonials ? testimonials.length : 12);
+    let revData = getSectionData('reviews');
+    if (typeof revData === 'string') {
+      try { revData = JSON.parse(revData); } catch (e) {}
+    }
+    const rawRating = (revData && revData.average_rating !== undefined && revData.average_rating !== null && revData.average_rating !== '')
+      ? parseFloat(revData.average_rating)
+      : (product.average_rating || product.rating_avg || 5.0);
+    const totalReviews = (revData && revData.review_count !== undefined && revData.review_count !== null && revData.review_count !== '')
+      ? parseInt(revData.review_count, 10)
+      : (product.review_count !== undefined && product.review_count !== null 
+          ? product.review_count 
+          : (testimonials && testimonials.length > 0 ? testimonials.length : 24));
+    const kicker = revData?.kicker || 'Product Ratings';
+    const title = revData?.title || 'Verified Buyer Reviews';
+    const subtitle = revData?.subtitle || 'Based on verified orders and customer reviews.';
 
     return (
       <section className="pdp-section">
@@ -2180,12 +2211,12 @@ export function DynamicProductPage({ slug, productData: initialData, onNavigate,
           <div className="pdp-card" style={{ padding: '2rem 2.5rem' }}>
             <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: '1.5rem' }}>
               <div>
-                <span className="pdp-kicker">Product Ratings</span>
+                <span className="pdp-kicker">{kicker}</span>
                 <h3 style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--text-primary)', marginTop: '0.25rem' }}>
-                  Verified Buyer Reviews
+                  {title}
                 </h3>
                 <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginTop: '0.25rem' }}>
-                  Based on verified orders and customer reviews.
+                  {subtitle}
                 </p>
               </div>
 
@@ -2308,41 +2339,46 @@ export function DynamicProductPage({ slug, productData: initialData, onNavigate,
 
   // 26. SECTION 26 — CONTACT / SUPPORT
   const renderSupport = () => {
-    const supportData = getSectionData('support') || {
-      email: 'support@rollixia.com',
-      whatsapp: '+1 (800) 555-ROLL',
-      docs_url: product.docs_url || product.doc_url,
-      description: 'Have a pre-sale question or need custom architecture assistance? Our engineering team is ready to help.'
-    };
+    let raw = getSectionData('support');
+    if (typeof raw === 'string') {
+      try { raw = JSON.parse(raw); } catch (e) {}
+    }
+    const supportData = (raw && typeof raw === 'object') ? raw : {};
+    const kicker = supportData.kicker || 'Dedicated Assistance';
+    const title = supportData.title || 'Questions Before Purchasing?';
+    const description = supportData.description || 'Have a pre-sale question or need custom architecture assistance? Our engineering team is ready to help.';
+    const email = supportData.email || 'support@rollixia.com';
+    const whatsapp = supportData.whatsapp || '+1 (800) 555-ROLL';
+    const docsUrl = supportData.docs_url || product.docs_url || product.doc_url;
 
     return (
       <section className="pdp-section">
         <div className="pdp-container">
           <div className="pdp-card" style={{ padding: '2.5rem', textAlign: 'center' }}>
             <div style={{ maxWidth: '640px', margin: '0 auto' }}>
-              <span className="pdp-kicker">Dedicated Assistance</span>
+              <span className="pdp-kicker">{kicker}</span>
               <h2 style={{ fontSize: '1.75rem', fontWeight: 800, color: 'var(--text-primary)', marginTop: '0.25rem', marginBottom: '0.75rem' }}>
-                Questions Before Purchasing?
+                {title}
               </h2>
               <p style={{ color: 'var(--text-secondary)', fontSize: '0.95rem', marginBottom: '2rem' }}>
-                {supportData.description}
+                {description}
               </p>
 
               <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center', flexWrap: 'wrap' }}>
-                {supportData.email && (
-                  <a href={`mailto:${supportData.email}`} className="btn btn-outline btn-md">
+                {email && (
+                  <a href={`mailto:${email}`} className="btn btn-outline btn-md">
                     <Mail size={16} />
                     <span>Email Support</span>
                   </a>
                 )}
-                {supportData.whatsapp && (
-                  <a href={`https://wa.me/${supportData.whatsapp.replace(/[^0-9]/g, '')}`} target="_blank" rel="noreferrer" className="btn btn-outline btn-md">
+                {whatsapp && (
+                  <a href={`https://wa.me/${whatsapp.replace(/[^0-9]/g, '')}`} target="_blank" rel="noreferrer" className="btn btn-outline btn-md">
                     <MessageSquare size={16} />
                     <span>WhatsApp Chat</span>
                   </a>
                 )}
-                {supportData.docs_url && (
-                  <a href={supportData.docs_url} target="_blank" rel="noreferrer" className="btn btn-outline btn-md">
+                {docsUrl && (
+                  <a href={docsUrl} target="_blank" rel="noreferrer" className="btn btn-outline btn-md">
                     <FileCode size={16} />
                     <span>Browse Documentation</span>
                   </a>

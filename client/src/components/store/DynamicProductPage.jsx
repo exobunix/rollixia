@@ -584,14 +584,31 @@ export function DynamicProductPage({ slug, productData: initialData, onNavigate,
                 {product.short_description || product.full_description?.slice(0, 220)}
               </p>
 
-              {/* Feature Highlights */}
+              {/* Feature Badges Grid (Compact Visual Cards) */}
+              {Array.isArray(product.hero_feature_badges) && product.hero_feature_badges.length > 0 && (
+                <div className="pdp-hero-feature-badges">
+                  {product.hero_feature_badges.map((b, bIdx) => (
+                    <div key={bIdx} className="pdp-hero-feature-badge-card">
+                      <div className="pdp-hero-badge-icon-box">
+                        <DynamicIcon name={b.icon || 'Sparkles'} size={15} />
+                      </div>
+                      <div>
+                        <div className="pdp-hero-badge-title">{b.title}</div>
+                        <div className="pdp-hero-badge-desc">{b.description}</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Feature Highlights / Checklist */}
               <div className="pdp-hero-bullets">
-                {heroHighlights.map((hl, idx) => (
+                {(Array.isArray(product.hero_checklist) && product.hero_checklist.length > 0 ? product.hero_checklist : heroHighlights).map((hl, idx) => (
                   <div key={idx} className="pdp-hero-bullet-item">
                     <div className="pdp-bullet-icon">
                       <Check size={12} strokeWidth={3} />
                     </div>
-                    <span>{hl}</span>
+                    <span>{typeof hl === 'string' ? hl : (hl.text || hl.title)}</span>
                   </div>
                 ))}
               </div>
@@ -720,11 +737,23 @@ export function DynamicProductPage({ slug, productData: initialData, onNavigate,
                     <span>{product.cta_text || 'BUY NOW'}</span>
                   </button>
                   <button
-                    onClick={handleAddToCart}
+                    onClick={() => {
+                      if (product.secondary_cta_text && (product.secondary_cta_text.toLowerCase().includes('demo') || product.secondary_cta_text.toLowerCase().includes('preview'))) {
+                        if (product.demo_url || product.live_demo_url) {
+                          window.open(product.demo_url || product.live_demo_url, '_blank');
+                          return;
+                        }
+                      }
+                      handleAddToCart();
+                    }}
                     className="btn btn-secondary btn-lg"
                     style={{ width: '100%', gap: '0.6rem' }}
                   >
-                    <ShoppingBag size={18} />
+                    {product.secondary_cta_text && product.secondary_cta_text.toLowerCase().includes('demo') ? (
+                      <ExternalLink size={18} />
+                    ) : (
+                      <ShoppingBag size={18} />
+                    )}
                     <span>{product.secondary_cta_text || 'ADD TO CART'}</span>
                   </button>
                 </div>
@@ -830,18 +859,16 @@ export function DynamicProductPage({ slug, productData: initialData, onNavigate,
 
                 {/* Trust Indicators */}
                 <div className="pdp-trust-bar">
-                  <span className="pdp-trust-item">
-                    <Lock size={14} style={{ color: 'var(--accent-emerald)' }} />
-                    256-Bit Encrypted Payment
-                  </span>
-                  <span className="pdp-trust-item">
-                    <DownloadCloud size={14} style={{ color: 'var(--primary)' }} />
-                    Instant File Access
-                  </span>
-                  <span className="pdp-trust-item">
-                    <ShieldCheck size={14} style={{ color: 'var(--accent-emerald)' }} />
-                    Commercial Rights
-                  </span>
+                  {(Array.isArray(product.hero_trust_items) && product.hero_trust_items.length > 0 ? product.hero_trust_items : [
+                    { icon: 'Lock', text: '256-Bit Encrypted Payment' },
+                    { icon: 'DownloadCloud', text: 'Instant File Access' },
+                    { icon: 'ShieldCheck', text: 'Commercial Rights' }
+                  ]).map((item, tIdx) => (
+                    <span key={tIdx} className="pdp-trust-item">
+                      <DynamicIcon name={item.icon || 'ShieldCheck'} size={14} style={{ color: 'var(--accent-emerald)' }} />
+                      <span>{item.text || item}</span>
+                    </span>
+                  ))}
                 </div>
               </div>
             </div>
@@ -1101,21 +1128,26 @@ export function DynamicProductPage({ slug, productData: initialData, onNavigate,
   };
 
   // 04. SECTION 04 — COMPLETE PRODUCT ECOSYSTEM
-  const renderEcosystem = () => {
-    let raw = getSectionData('ecosystem');
+  const renderEcosystem = (sec) => {
+    let raw = (sec && sec.content) ? sec.content : getSectionData('ecosystem');
     if (typeof raw === 'string') {
       try { raw = JSON.parse(raw); } catch (e) {}
     }
-    const items = Array.isArray(raw) ? raw : [];
+    const ecoData = (raw && typeof raw === 'object' && !Array.isArray(raw)) ? raw : {};
+    const items = Array.isArray(raw) ? raw : (Array.isArray(ecoData.items) ? ecoData.items : (Array.isArray(ecoData.ecosystem) ? ecoData.ecosystem : []));
     if (!items || items.length === 0) return null;
+
+    const title = sec?.title || ecoData.title || 'Everything You Need to Launch Your Service Marketplace';
+    const subtitle = sec?.subtitle || ecoData.subtitle || 'One complete ecosystem for customers, service professionals and marketplace administrators.';
+    const kicker = sec?.kicker || ecoData.kicker || 'Unified Architecture';
 
     return (
       <section className="pdp-section">
         <div className="pdp-container">
           <div className="pdp-section-header">
-            <span className="pdp-kicker">Unified Architecture</span>
-            <h2 className="pdp-section-title">Complete Product Ecosystem</h2>
-            <p className="pdp-section-subtitle">Every piece of software needed to run your entire operation seamlessly.</p>
+            <span className="pdp-kicker">{kicker}</span>
+            <h2 className="pdp-section-title">{title}</h2>
+            <p className="pdp-section-subtitle">{subtitle}</p>
           </div>
 
           <div className="pdp-ecosystem-grid">
@@ -1126,8 +1158,22 @@ export function DynamicProductPage({ slug, productData: initialData, onNavigate,
                 </div>
                 <h3 className="pdp-ecosystem-title">{item.title}</h3>
                 <p className="pdp-ecosystem-desc">{item.description}</p>
+
+                {Array.isArray(item.features) && item.features.length > 0 && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.45rem', marginTop: '0.85rem', borderTop: '1px solid var(--border-subtle)', paddingTop: '0.85rem' }}>
+                    {item.features.map((feat, fIdx) => (
+                      <div key={fIdx} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.825rem', color: 'var(--text-secondary)' }}>
+                        <div className="pdp-bullet-icon" style={{ width: '16px', height: '16px' }}>
+                          <Check size={10} strokeWidth={3} />
+                        </div>
+                        <span>{feat}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
                 {item.link && (
-                  <a href={item.link} target="_blank" rel="noreferrer" className="pdp-ecosystem-link">
+                  <a href={item.link} target="_blank" rel="noreferrer" className="pdp-ecosystem-link" style={{ marginTop: 'auto', paddingTop: '0.75rem' }}>
                     Explore component <ExternalLink size={12} />
                   </a>
                 )}
@@ -1252,22 +1298,44 @@ export function DynamicProductPage({ slug, productData: initialData, onNavigate,
   };
 
   // 06. SECTION 06 — CUSTOMER / USER EXPERIENCE
-  const renderCustomerExperience = () => {
-    let raw = getSectionData('customer_experience') || getSectionData('showcase') || product.customer_experience || product.showcase;
+  const renderCustomerExperience = (sec) => {
+    let raw = (sec && sec.content) ? sec.content : (getSectionData('customer_experience') || getSectionData('showcase') || product.customer_experience || product.showcase);
     if (typeof raw === 'string') {
       try { raw = JSON.parse(raw); } catch (e) {}
     }
-    const showcaseList = Array.isArray(raw) ? raw : [];
+    const cxData = (raw && typeof raw === 'object' && !Array.isArray(raw)) ? raw : {};
+    const showcaseList = Array.isArray(raw) ? raw : (Array.isArray(cxData.modules) ? cxData.modules : (Array.isArray(cxData.items) ? cxData.items : []));
+    const visualFlow = cxData.visual_flow || (Array.isArray(raw?.visual_flow) ? raw.visual_flow : null);
     if (!showcaseList || showcaseList.length === 0) return null;
+
+    const title = sec?.title || cxData.title || 'Customer Experience — From Booking to Completion';
+    const subtitle = sec?.subtitle || cxData.subtitle || 'Give customers a simple and reliable way to discover services, choose professionals, schedule appointments, make payments and manage every booking from one place.';
+    const kicker = sec?.kicker || cxData.kicker || '03 — CUSTOMER EXPERIENCE';
 
     return (
       <section className="pdp-section">
         <div className="pdp-container">
           <div className="pdp-section-header">
-            <span className="pdp-kicker">User Flow</span>
-            <h2 className="pdp-section-title">Customer & User Experience</h2>
-            <p className="pdp-section-subtitle">Intuitive, frictionless design engineered to maximize user engagement and conversions.</p>
+            <span className="pdp-kicker">{kicker}</span>
+            <h2 className="pdp-section-title">{title}</h2>
+            <p className="pdp-section-subtitle">{subtitle}</p>
           </div>
+
+          {visualFlow && visualFlow.length > 0 && (
+            <div className="pdp-flow-chain">
+              {visualFlow.map((step, sIdx) => (
+                <React.Fragment key={sIdx}>
+                  <div className="pdp-flow-step">
+                    <span className="pdp-flow-num">{sIdx + 1}</span>
+                    <span>{step}</span>
+                  </div>
+                  {sIdx < visualFlow.length - 1 && (
+                    <span className="pdp-flow-arrow">→</span>
+                  )}
+                </React.Fragment>
+              ))}
+            </div>
+          )}
 
           <div>
             {showcaseList.map((item, idx) => {
@@ -1336,21 +1404,26 @@ export function DynamicProductPage({ slug, productData: initialData, onNavigate,
   };
 
   // 07. SECTION 07 — PARTNER / PROVIDER EXPERIENCE
-  const renderPartnerExperience = () => {
-    let raw = getSectionData('partner_experience') || product.partner_experience;
+  const renderPartnerExperience = (sec) => {
+    let raw = (sec && sec.content) ? sec.content : (getSectionData('partner_experience') || product.partner_experience);
     if (typeof raw === 'string') {
       try { raw = JSON.parse(raw); } catch (e) {}
     }
-    const partnerList = Array.isArray(raw) ? raw : [];
+    const partData = (raw && typeof raw === 'object' && !Array.isArray(raw)) ? raw : {};
+    const partnerList = Array.isArray(raw) ? raw : (Array.isArray(partData.modules) ? partData.modules : (Array.isArray(partData.items) ? partData.items : []));
     if (!partnerList || partnerList.length === 0) return null;
+
+    const title = sec?.title || partData.title || 'Smart Partner Management & Job Dispatch';
+    const subtitle = sec?.subtitle || partData.subtitle || 'Manage your entire service-provider network from one powerful system. Assign jobs, monitor availability, manage service areas, track commissions and keep every booking under control.';
+    const kicker = sec?.kicker || partData.kicker || 'Provider Workflow';
 
     return (
       <section className="pdp-section">
         <div className="pdp-container">
           <div className="pdp-section-header">
-            <span className="pdp-kicker">Provider Workflow</span>
-            <h2 className="pdp-section-title">Partner & Provider Experience</h2>
-            <p className="pdp-section-subtitle">Dedicated tools and interfaces empowering partners to fulfill services efficiently.</p>
+            <span className="pdp-kicker">{kicker}</span>
+            <h2 className="pdp-section-title">{title}</h2>
+            <p className="pdp-section-subtitle">{subtitle}</p>
           </div>
 
           <div>
@@ -1414,22 +1487,46 @@ export function DynamicProductPage({ slug, productData: initialData, onNavigate,
   };
 
   // 08. SECTION 08 — ADMIN PANEL / DASHBOARD SHOWCASE
-  const renderAdminExperience = () => {
-    let raw = getSectionData('admin_experience') || product.admin_experience;
+  const renderAdminExperience = (sec) => {
+    let raw = (sec && sec.content) ? sec.content : (getSectionData('admin_experience') || product.admin_experience);
     if (typeof raw === 'string') {
       try { raw = JSON.parse(raw); } catch (e) {}
     }
-    const adminList = Array.isArray(raw) ? raw : [];
-    if (!adminList || adminList.length === 0) return null;
+    const admData = (raw && typeof raw === 'object' && !Array.isArray(raw)) ? raw : {};
+    const adminList = Array.isArray(raw) ? raw : (Array.isArray(admData.modules) ? admData.modules : (Array.isArray(admData.items) ? admData.items : []));
+    const adminHeroImg = admData.hero_image || null;
+    if ((!adminList || adminList.length === 0) && !adminHeroImg) return null;
+
+    const title = sec?.title || admData.title || 'Complete Control of Your Marketplace';
+    const subtitle = sec?.subtitle || admData.subtitle || 'Manage customers, service providers, bookings, payments, commissions, services and marketplace operations from one powerful admin dashboard.';
+    const kicker = sec?.kicker || admData.kicker || 'Mission Control';
 
     return (
       <section className="pdp-section">
         <div className="pdp-container">
           <div className="pdp-section-header">
-            <span className="pdp-kicker">Mission Control</span>
-            <h2 className="pdp-section-title">Admin Dashboard & Operations</h2>
-            <p className="pdp-section-subtitle">Real-time metrics, order routing, user management, and business configuration.</p>
+            <span className="pdp-kicker">{kicker}</span>
+            <h2 className="pdp-section-title">{title}</h2>
+            <p className="pdp-section-subtitle">{subtitle}</p>
           </div>
+
+          {adminHeroImg && (
+            <div
+              onClick={() => openLightbox(adminHeroImg, title)}
+              style={{
+                maxWidth: '1060px',
+                margin: '0 auto 2.5rem',
+                borderRadius: 'var(--radius-xl)',
+                overflow: 'hidden',
+                border: '1px solid rgba(99, 102, 241, 0.25)',
+                boxShadow: 'var(--shadow-lg), 0 0 30px rgba(99, 102, 241, 0.15)',
+                cursor: 'pointer',
+                background: '#060913'
+              }}
+            >
+              <img src={adminHeroImg} alt={title} style={{ width: '100%', height: 'auto', display: 'block' }} />
+            </div>
+          )}
 
           <div className="pdp-grid-3">
             {adminList.map((item, idx) => (
@@ -1458,21 +1555,26 @@ export function DynamicProductPage({ slug, productData: initialData, onNavigate,
   };
 
   // 09. SECTION 09 — KEY FEATURES
-  const renderFeatures = () => {
-    let raw = getSectionData('features');
+  const renderFeatures = (sec) => {
+    let raw = (sec && sec.content) ? sec.content : getSectionData('features');
     if (typeof raw === 'string') {
       try { raw = JSON.parse(raw); } catch (e) {}
     }
-    const featList = Array.isArray(raw) && raw.length > 0 ? raw : (Array.isArray(features) ? features : []);
+    const featData = (raw && typeof raw === 'object' && !Array.isArray(raw)) ? raw : {};
+    const featList = Array.isArray(raw) && raw.length > 0 ? raw : (Array.isArray(featData.features) ? featData.features : (Array.isArray(features) ? features : []));
     if (!featList || featList.length === 0) return null;
+
+    const title = sec?.title || featData.title || 'Everything You Need to Run an On-Demand Marketplace';
+    const subtitle = sec?.subtitle || featData.subtitle || 'Carefully engineered capabilities included out of the box.';
+    const kicker = sec?.kicker || featData.kicker || 'Capabilities';
 
     return (
       <section className="pdp-section">
         <div className="pdp-container">
           <div className="pdp-section-header">
-            <span className="pdp-kicker">Capabilities</span>
-            <h2 className="pdp-section-title">Key Features</h2>
-            <p className="pdp-section-subtitle">Carefully engineered capabilities included out of the box.</p>
+            <span className="pdp-kicker">{kicker}</span>
+            <h2 className="pdp-section-title">{title}</h2>
+            <p className="pdp-section-subtitle">{subtitle}</p>
           </div>
 
           <div className="pdp-grid-3">
@@ -1495,26 +1597,31 @@ export function DynamicProductPage({ slug, productData: initialData, onNavigate,
   };
 
   // 10. SECTION 10 — HOW IT WORKS
-  const renderHowItWorks = () => {
-    let raw = getSectionData('how_it_works');
+  const renderHowItWorks = (sec) => {
+    let raw = (sec && sec.content) ? sec.content : getSectionData('how_it_works');
     if (typeof raw === 'string') {
       try { raw = JSON.parse(raw); } catch (e) {}
     }
+    const hiwData = (raw && typeof raw === 'object' && !Array.isArray(raw)) ? raw : {};
     const defaultSteps = [
       { step: '01', title: 'Choose Product', description: 'Review specifications and select your preferred license tier.', icon: 'ShoppingBag' },
       { step: '02', title: 'Instant Checkout', description: 'Encrypted 256-bit checkout with immediate access confirmation.', icon: 'Lock' },
       { step: '03', title: 'Download Bundle', description: 'Access clean unencrypted source code and documentation.', icon: 'DownloadCloud' },
       { step: '04', title: 'Deploy & Launch', description: 'Follow step-by-step documentation to configure and go live.', icon: 'Zap' }
     ];
-    const steps = Array.isArray(raw) && raw.length > 0 ? raw : defaultSteps;
+    const steps = Array.isArray(raw) && raw.length > 0 ? raw : (Array.isArray(hiwData.steps) ? hiwData.steps : defaultSteps);
+
+    const title = sec?.title || hiwData.title || 'How Your Marketplace Works';
+    const subtitle = sec?.subtitle || hiwData.subtitle || 'From customer booking to partner completion and commission settlement.';
+    const kicker = sec?.kicker || hiwData.kicker || 'Marketplace Workflow';
 
     return (
       <section className="pdp-section">
         <div className="pdp-container">
           <div className="pdp-section-header">
-            <span className="pdp-kicker">Deployment Flow</span>
-            <h2 className="pdp-section-title">How It Works</h2>
-            <p className="pdp-section-subtitle">From purchase to production in clear, structured steps.</p>
+            <span className="pdp-kicker">{kicker}</span>
+            <h2 className="pdp-section-title">{title}</h2>
+            <p className="pdp-section-subtitle">{subtitle}</p>
           </div>
 
           <div className="pdp-timeline-grid">
@@ -1532,11 +1639,12 @@ export function DynamicProductPage({ slug, productData: initialData, onNavigate,
   };
 
   // 11. SECTION 11 — WHAT'S INCLUDED (Grouped checklist)
-  const renderIncluded = () => {
-    let raw = getSectionData('included');
+  const renderIncluded = (sec) => {
+    let raw = (sec && sec.content) ? sec.content : getSectionData('included');
     if (typeof raw === 'string') {
       try { raw = JSON.parse(raw); } catch (e) {}
     }
+    const incData = (raw && typeof raw === 'object' && !Array.isArray(raw)) ? raw : {};
 
     // Default categorized groups if none provided
     const defaultGroups = [
@@ -1572,15 +1680,19 @@ export function DynamicProductPage({ slug, productData: initialData, onNavigate,
       }
     ];
 
-    const groups = Array.isArray(raw) && raw.length > 0 ? raw : defaultGroups;
+    const groups = Array.isArray(raw) && raw.length > 0 ? raw : (Array.isArray(incData.packages) ? incData.packages : (Array.isArray(incData.items) ? incData.items : defaultGroups));
+
+    const title = sec?.title || incData.title || 'What You Receive With Your Purchase';
+    const subtitle = sec?.subtitle || incData.subtitle || 'Get the actual source code and required project files—not screenshots or a UI-only template.';
+    const kicker = sec?.kicker || incData.kicker || 'Deliverables Package';
 
     return (
       <section className="pdp-section">
         <div className="pdp-container">
           <div className="pdp-section-header">
-            <span className="pdp-kicker">Deliverables Package</span>
-            <h2 className="pdp-section-title">What's Included in Your Download</h2>
-            <p className="pdp-section-subtitle">A transparent breakdown of every component, repository, and asset delivered.</p>
+            <span className="pdp-kicker">{kicker}</span>
+            <h2 className="pdp-section-title">{title}</h2>
+            <p className="pdp-section-subtitle">{subtitle}</p>
           </div>
 
           <div className="pdp-included-groups">
@@ -1594,24 +1706,26 @@ export function DynamicProductPage({ slug, productData: initialData, onNavigate,
                   </div>
 
                   {grp.description && (
-                    <p style={{ fontSize: '0.825rem', color: 'var(--text-muted)', marginBottom: '1rem', lineHeight: 1.5 }}>
+                    <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: itemsList.length > 0 ? '1rem' : '0.5rem', lineHeight: 1.55 }}>
                       {grp.description}
                     </p>
                   )}
 
-                  <div className="pdp-included-list">
-                    {itemsList.map((item, iIdx) => {
-                      const itemTitle = typeof item === 'string' ? item : (item.title || item.name);
-                      return (
-                        <div key={iIdx} className="pdp-included-item">
-                          <div className="pdp-included-icon">
-                            <Check size={12} strokeWidth={3} />
+                  {itemsList.length > 0 && (
+                    <div className="pdp-included-list">
+                      {itemsList.map((item, iIdx) => {
+                        const itemTitle = typeof item === 'string' ? item : (item.title || item.name);
+                        return (
+                          <div key={iIdx} className="pdp-included-item">
+                            <div className="pdp-included-icon">
+                              <Check size={12} strokeWidth={3} />
+                            </div>
+                            <span>{itemTitle}</span>
                           </div>
-                          <span>{itemTitle}</span>
-                        </div>
-                      );
-                    })}
-                  </div>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
               );
             })}
@@ -1657,12 +1771,13 @@ export function DynamicProductPage({ slug, productData: initialData, onNavigate,
   };
 
   // 13. SECTION 13 — TECHNOLOGY STACK / SPECIFICATIONS
-  const renderSpecs = () => {
-    let raw = getSectionData('specs');
+  const renderSpecs = (sec) => {
+    let raw = (sec && sec.content) ? sec.content : getSectionData('specs');
     if (typeof raw === 'string') {
       try { raw = JSON.parse(raw); } catch (e) {}
     }
-    let specs = Array.isArray(raw) && raw.length > 0 ? raw : [];
+    const specData = (raw && typeof raw === 'object' && !Array.isArray(raw)) ? raw : {};
+    let specs = Array.isArray(raw) ? raw : (Array.isArray(specData.specs) ? specData.specs : []);
     if (!specs.length && typeof product.technical_specs === 'string') {
       try { specs = JSON.parse(product.technical_specs); } catch (e) {}
     } else if (!specs.length && Array.isArray(product.technical_specs)) {
@@ -1671,13 +1786,18 @@ export function DynamicProductPage({ slug, productData: initialData, onNavigate,
 
     if (!Array.isArray(specs) || specs.length === 0) return null;
 
+    const title = sec?.title || specData.title || 'Built for Customization & Growth';
+    const subtitle = sec?.subtitle || specData.subtitle || 'A modular architecture designed to give developers and businesses a strong foundation for building their own branded service marketplace.';
+    const kicker = sec?.kicker || specData.kicker || 'Engineering & Architecture';
+    const devFriendly = specData.developer_friendly || null;
+
     return (
       <section className="pdp-section">
         <div className="pdp-container">
           <div className="pdp-section-header">
-            <span className="pdp-kicker">Engineering</span>
-            <h2 className="pdp-section-title">Technology Stack & Specifications</h2>
-            <p className="pdp-section-subtitle">Frameworks, database engines, SDKs, and version compatibilities.</p>
+            <span className="pdp-kicker">{kicker}</span>
+            <h2 className="pdp-section-title">{title}</h2>
+            <p className="pdp-section-subtitle">{subtitle}</p>
           </div>
 
           <div className="pdp-table-wrap">
@@ -1692,30 +1812,60 @@ export function DynamicProductPage({ slug, productData: initialData, onNavigate,
               </tbody>
             </table>
           </div>
+
+          {devFriendly && (
+            <div style={{
+              maxWidth: '840px',
+              margin: '2rem auto 0',
+              padding: '1.25rem 1.75rem',
+              background: 'rgba(99, 102, 241, 0.08)',
+              border: '1px solid rgba(99, 102, 241, 0.25)',
+              borderRadius: 'var(--radius-lg)',
+              display: 'flex',
+              alignItems: 'flex-start',
+              gap: '1rem'
+            }}>
+              <Code2 size={24} color="var(--primary)" style={{ flexShrink: 0, marginTop: '2px' }} />
+              <div>
+                <h4 style={{ fontSize: '0.95rem', fontWeight: 800, color: 'var(--text-primary)', marginBottom: '4px' }}>
+                  {devFriendly.title || 'Developer-Friendly'}
+                </h4>
+                <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', lineHeight: 1.5, margin: 0 }}>
+                  {devFriendly.description || 'Clean project structure, reusable components and documented setup to make customization easier.'}
+                </p>
+              </div>
+            </div>
+          )}
         </div>
       </section>
     );
   };
 
-  // 14. SECTION 14 — REQUIREMENTS
-  const renderRequirements = () => {
-    let raw = getSectionData('requirements');
+  // 14. SECTION 14 — REQUIREMENTS / WHAT YOU MAY NEED SEPARATELY
+  const renderRequirements = (sec) => {
+    let raw = (sec && sec.content) ? sec.content : getSectionData('requirements');
     if (typeof raw === 'string') {
       try { raw = JSON.parse(raw); } catch (e) {}
     }
-    const requirements = Array.isArray(raw) ? raw : [];
+    const reqData = (raw && typeof raw === 'object' && !Array.isArray(raw)) ? raw : {};
+    const requirements = Array.isArray(raw) ? raw : (Array.isArray(reqData.items) ? reqData.items : (Array.isArray(reqData.requirements) ? reqData.requirements : []));
     if (!requirements || requirements.length === 0) return null;
+
+    const title = sec?.title || reqData.title || 'What You May Need Separately';
+    const subtitle = sec?.subtitle || reqData.subtitle || 'Third-party service fees and platform accounts are separate unless specifically included in your selected license/package.';
+    const kicker = sec?.kicker || reqData.kicker || 'Prerequisites & Infrastructure';
+    const disclaimer = reqData.disclaimer || 'Third-party service fees and platform accounts are separate unless specifically included in your selected license/package.';
 
     return (
       <section className="pdp-section">
         <div className="pdp-container">
           <div className="pdp-section-header">
-            <span className="pdp-kicker">Prerequisites</span>
-            <h2 className="pdp-section-title">What You Need to Get Started</h2>
-            <p className="pdp-section-subtitle">Required third-party accounts, hosting infrastructure, and environment specifications.</p>
+            <span className="pdp-kicker">{kicker}</span>
+            <h2 className="pdp-section-title">{title}</h2>
+            <p className="pdp-section-subtitle">{subtitle}</p>
           </div>
 
-          <div className="pdp-grid-3">
+          <div className="pdp-grid-4">
             {requirements.map((req, idx) => (
               <div key={idx} className="pdp-card" style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -1734,14 +1884,67 @@ export function DynamicProductPage({ slug, productData: initialData, onNavigate,
               </div>
             ))}
           </div>
+
+          {disclaimer && (
+            <div style={{ textAlign: 'center', marginTop: '2.5rem', maxWidth: '720px', margin: '2.5rem auto 0' }}>
+              <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', lineHeight: 1.5 }}>
+                💡 {disclaimer}
+              </p>
+            </div>
+          )}
+        </div>
+      </section>
+    );
+  };
+
+  // 14B. SERVICE CATEGORIES GRID ("Build a Marketplace for Almost Any Service")
+  const renderCategories = (sec) => {
+    let raw = (sec && sec.content) ? sec.content : getSectionData('categories');
+    if (typeof raw === 'string') {
+      try { raw = JSON.parse(raw); } catch (e) {}
+    }
+    const catData = (raw && typeof raw === 'object' && !Array.isArray(raw)) ? raw : {};
+    const items = Array.isArray(raw) ? raw : (Array.isArray(catData.categories) ? catData.categories : (Array.isArray(catData.items) ? catData.items : []));
+    if (!items || items.length === 0) return null;
+
+    const title = sec?.title || catData.title || 'Build a Marketplace for Almost Any Service';
+    const subtitle = sec?.subtitle || catData.subtitle || 'Customize the categories, services and marketplace configuration according to your business.';
+    const kicker = sec?.kicker || catData.kicker || 'Service Verticals';
+    const bottomNote = catData.bottom_note || 'Customize the categories, services and marketplace configuration according to your business.';
+
+    return (
+      <section className="pdp-section">
+        <div className="pdp-container">
+          <div className="pdp-section-header">
+            <span className="pdp-kicker">{kicker}</span>
+            <h2 className="pdp-section-title">{title}</h2>
+            <p className="pdp-section-subtitle">{subtitle}</p>
+          </div>
+
+          <div className="pdp-categories-grid">
+            {items.map((cat, idx) => (
+              <div key={idx} className="pdp-category-card">
+                <span className="pdp-category-emoji">{cat.emoji || '🔧'}</span>
+                <span className="pdp-category-name">{cat.name || cat.title}</span>
+              </div>
+            ))}
+          </div>
+
+          {bottomNote && (
+            <div style={{ textAlign: 'center', marginTop: '2.5rem', maxWidth: '680px', margin: '2.5rem auto 0' }}>
+              <p style={{ fontSize: '0.925rem', color: 'var(--text-secondary)', fontStyle: 'italic' }}>
+                💡 {bottomNote}
+              </p>
+            </div>
+          )}
         </div>
       </section>
     );
   };
 
   // 15. SECTION 15 — CUSTOMIZATION ("MAKE IT YOURS")
-  const renderCustomization = () => {
-    let raw = getSectionData('customization');
+  const renderCustomization = (sec) => {
+    let raw = (sec && sec.content) ? sec.content : getSectionData('customization');
     if (typeof raw === 'string') {
       try { raw = JSON.parse(raw); } catch (e) {}
     }
@@ -1774,8 +1977,8 @@ export function DynamicProductPage({ slug, productData: initialData, onNavigate,
   };
 
   // 16. SECTION 16 — WHO IS THIS FOR?
-  const renderWhoIsItFor = () => {
-    let raw = getSectionData('who_is_it_for');
+  const renderWhoIsItFor = (sec) => {
+    let raw = (sec && sec.content) ? sec.content : getSectionData('who_is_it_for');
     if (typeof raw === 'string') {
       try { raw = JSON.parse(raw); } catch (e) {}
     }
@@ -1807,25 +2010,31 @@ export function DynamicProductPage({ slug, productData: initialData, onNavigate,
     );
   };
 
-  // 17. SECTION 17 — USE CASES
-  const renderUseCases = () => {
-    let raw = getSectionData('use_cases');
+  // 17. SECTION 17 — USE CASES & BUSINESS MODELS
+  const renderUseCases = (sec) => {
+    let raw = (sec && sec.content) ? sec.content : (getSectionData('business_models') || getSectionData('use_cases'));
     if (typeof raw === 'string') {
       try { raw = JSON.parse(raw); } catch (e) {}
     }
-    const useCases = Array.isArray(raw) ? raw : [];
+    const useCaseData = (raw && typeof raw === 'object' && !Array.isArray(raw)) ? raw : {};
+    const useCases = Array.isArray(raw) ? raw : (Array.isArray(useCaseData.models) ? useCaseData.models : (Array.isArray(useCaseData.items) ? useCaseData.items : (Array.isArray(useCaseData.use_cases) ? useCaseData.use_cases : [])));
     if (!useCases || useCases.length === 0) return null;
+
+    const title = sec?.title || useCaseData.title || 'Built for Multiple Business Models';
+    const subtitle = sec?.subtitle || useCaseData.subtitle || 'Tailored deployment scenarios across various industry niches.';
+    const kicker = sec?.kicker || useCaseData.kicker || 'Business Models';
+    const bottomText = useCaseData.bottom_text || 'One platform. Multiple ways to build a service business.';
 
     return (
       <section className="pdp-section">
         <div className="pdp-container">
           <div className="pdp-section-header">
-            <span className="pdp-kicker">Application</span>
-            <h2 className="pdp-section-title">Built for Multiple Business Models</h2>
-            <p className="pdp-section-subtitle">Tailored deployment scenarios across various industry niches.</p>
+            <span className="pdp-kicker">{kicker}</span>
+            <h2 className="pdp-section-title">{title}</h2>
+            <p className="pdp-section-subtitle">{subtitle}</p>
           </div>
 
-          <div className="pdp-grid-3">
+          <div className="pdp-grid-4">
             {useCases.map((uc, idx) => (
               <div key={idx} className="pdp-card">
                 <div className="pdp-card-icon">
@@ -1836,77 +2045,140 @@ export function DynamicProductPage({ slug, productData: initialData, onNavigate,
               </div>
             ))}
           </div>
+
+          {bottomText && (
+            <div style={{ textAlign: 'center', marginTop: '2.5rem' }}>
+              <p style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--primary)', letterSpacing: '0.02em' }}>
+                ✨ {bottomText}
+              </p>
+            </div>
+          )}
         </div>
       </section>
     );
   };
 
   // 18. SECTION 18 — WHY THIS PRODUCT / WHY NOT BUILD FROM SCRATCH
-  const renderComparison = () => {
-    let raw = getSectionData('comparison');
+  const renderComparison = (sec) => {
+    let raw = (sec && sec.content) ? sec.content : getSectionData('comparison');
     if (typeof raw === 'string') {
       try { raw = JSON.parse(raw); } catch (e) {}
     }
-    const rows = Array.isArray(raw) ? raw : [];
-    if (!rows || rows.length === 0) return null;
+    const compData = (raw && typeof raw === 'object' && !Array.isArray(raw)) ? raw : {};
+    const rows = Array.isArray(raw) ? raw : (Array.isArray(compData.rows) ? compData.rows : []);
+    const scratchItems = Array.isArray(compData.scratch_items) ? compData.scratch_items : null;
+    const serviceproItems = Array.isArray(compData.servicepro_items) ? compData.servicepro_items : null;
+
+    const title = sec?.title || compData.title || 'Why Build Everything From Scratch?';
+    const subtitle = sec?.subtitle || compData.subtitle || 'Start with a complete marketplace foundation and customize it for your business.';
+    const kicker = sec?.kicker || compData.kicker || 'Value Comparison';
+    const bottomStatement = compData.bottom_statement || 'Customize the foundation. Add your brand. Launch your marketplace.';
 
     return (
       <section className="pdp-section">
         <div className="pdp-container">
           <div className="pdp-section-header">
-            <span className="pdp-kicker">Value Comparison</span>
-            <h2 className="pdp-section-title">Why Start With This Product?</h2>
-            <p className="pdp-section-subtitle">Compare starting with our production code versus developing from scratch.</p>
+            <span className="pdp-kicker">{kicker}</span>
+            <h2 className="pdp-section-title">{title}</h2>
+            <p className="pdp-section-subtitle">{subtitle}</p>
           </div>
 
-          <div className="pdp-comparison-table-wrap">
-            <table className="pdp-comparison-table">
-              <thead>
-                <tr>
-                  <th style={{ width: '38%' }}>Evaluation Metric</th>
-                  <th className="highlight-col" style={{ width: '31%' }}>{product.title} (Ready to Deploy)</th>
-                  <th style={{ width: '31%' }}>Custom Build From Zero</th>
-                </tr>
-              </thead>
-              <tbody>
-                {rows.map((r, idx) => (
-                  <tr key={idx}>
-                    <td style={{ fontWeight: 700, color: 'var(--text-primary)' }}>{r.feature || r.label}</td>
-                    <td className="highlight-col">
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: '#10b981' }}>
-                        <CheckCircle size={15} />
-                        <span>{r.product_value || r.ours || 'Included Out of Box'}</span>
-                      </div>
-                    </td>
-                    <td>
-                      <span style={{ color: 'var(--text-muted)' }}>{r.scratch_value || r.theirs || 'Build & Test Yourself'}</span>
-                    </td>
+          {scratchItems && serviceproItems ? (
+            <div className="pdp-comparison-cards-grid">
+              <div className="pdp-comparison-card-scratch">
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', borderBottom: '1px solid rgba(239, 68, 68, 0.2)', paddingBottom: '1rem' }}>
+                  <span style={{ fontSize: '1.25rem' }}>❌</span>
+                  <div>
+                    <h3 style={{ fontSize: '1.15rem', fontWeight: 800, color: '#f87171' }}>BUILD FROM SCRATCH</h3>
+                    <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>High complexity, lengthy timelines & continuous maintenance</p>
+                  </div>
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
+                  {scratchItems.map((item, idx) => (
+                    <div key={idx} className="pdp-comparison-item" style={{ color: '#fca5a5' }}>
+                      <X size={16} color="#ef4444" style={{ flexShrink: 0 }} />
+                      <span>{item}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="pdp-comparison-card-servicepro">
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', borderBottom: '1px solid rgba(16, 185, 129, 0.25)', paddingBottom: '1rem' }}>
+                  <span style={{ fontSize: '1.25rem' }}>✓</span>
+                  <div>
+                    <h3 style={{ fontSize: '1.15rem', fontWeight: 800, color: '#34d399' }}>START WITH SERVICEPRO</h3>
+                    <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>Complete foundation, launch-ready architecture & documentation</p>
+                  </div>
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
+                  {serviceproItems.map((item, idx) => (
+                    <div key={idx} className="pdp-comparison-item" style={{ color: '#6ee7b7' }}>
+                      <CheckCircle size={16} color="#10b981" style={{ flexShrink: 0 }} />
+                      <span>{item}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="pdp-comparison-table-wrap">
+              <table className="pdp-comparison-table">
+                <thead>
+                  <tr>
+                    <th style={{ width: '38%' }}>Evaluation Metric</th>
+                    <th className="highlight-col" style={{ width: '31%' }}>{product.title} (Ready to Deploy)</th>
+                    <th style={{ width: '31%' }}>Custom Build From Zero</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody>
+                  {rows.map((r, idx) => (
+                    <tr key={idx}>
+                      <td style={{ fontWeight: 700, color: 'var(--text-primary)' }}>{r.feature || r.label}</td>
+                      <td className="highlight-col">
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: '#10b981' }}>
+                          <CheckCircle size={15} />
+                          <span>{r.product_value || r.ours || 'Included Out of Box'}</span>
+                        </div>
+                      </td>
+                      <td>
+                        <span style={{ color: 'var(--text-muted)' }}>{r.scratch_value || r.theirs || 'Build & Test Yourself'}</span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          {bottomStatement && (
+            <div style={{ textAlign: 'center', marginTop: '2.5rem', padding: '1.5rem', background: 'rgba(99, 102, 241, 0.08)', borderRadius: 'var(--radius-lg)', border: '1px solid rgba(99, 102, 241, 0.25)', maxWidth: '740px', margin: '2.5rem auto 0' }}>
+              <h3 style={{ fontSize: '1.25rem', fontWeight: 800, color: '#ffffff', letterSpacing: '-0.01em' }}>
+                {bottomStatement}
+              </h3>
+            </div>
+          )}
         </div>
       </section>
     );
   };
 
   // 19. SECTION 19 — AFTER PURCHASE
-  const renderAfterPurchase = () => {
-    let raw = getSectionData('after_purchase');
+  const renderAfterPurchase = (sec) => {
+    let raw = (sec && sec.content) ? sec.content : getSectionData('after_purchase');
     if (typeof raw === 'string') {
       try { raw = JSON.parse(raw); } catch (e) {}
     }
     const defaultSteps = [
       { step: '01', title: 'Complete Purchase', description: 'Immediate receipt with private download link and license key.' },
-      { step: '02', title: 'Download Source Code', description: 'Access GitHub repo or direct ZIP archive with clean files.' },
+      { step: '02', title: 'Download Source Code', description: 'Access clean ZIP archive with unencrypted project files.' },
       { step: '03', title: 'Follow Documentation', description: 'Step-by-step setup guide for local environment and server.' },
       { step: '04', title: 'Launch to Production', description: 'Deploy to cloud servers or app stores with commercial rights.' }
     ];
     let steps = defaultSteps;
     let kicker = 'Onboarding Experience';
-    let title = 'What Happens After You Buy?';
-    let subtitle = 'Instant fulfillment with everything needed to immediately begin development.';
+    let title = 'What Happens After You Purchase?';
+    let subtitle = 'A clear, step-by-step path from purchase to launching your live marketplace.';
 
     if (Array.isArray(raw) && raw.length > 0) {
       steps = raw;
@@ -1916,6 +2188,9 @@ export function DynamicProductPage({ slug, productData: initialData, onNavigate,
       if (raw.title) title = raw.title;
       if (raw.subtitle) subtitle = raw.subtitle;
     }
+
+    if (sec?.title) title = sec.title;
+    if (sec?.subtitle) subtitle = sec.subtitle;
 
     return (
       <section className="pdp-section">
@@ -1941,14 +2216,23 @@ export function DynamicProductPage({ slug, productData: initialData, onNavigate,
   };
 
   // 20. SECTION 20 — PRICING & LICENSES
-  const renderPricing = () => {
+  const renderPricing = (sec) => {
+    let raw = (sec && sec.content) ? sec.content : getSectionData('pricing');
+    if (typeof raw === 'string') {
+      try { raw = JSON.parse(raw); } catch (e) {}
+    }
+    const priceData = (raw && typeof raw === 'object' && !Array.isArray(raw)) ? raw : {};
+    const title = sec?.title || priceData.title || 'Choose the Right License for Your Business';
+    const subtitle = sec?.subtitle || priceData.subtitle || 'Get the complete ServicePro source code with the license that fits your deployment needs.';
+    const kicker = sec?.kicker || priceData.kicker || 'Simple Transparent Pricing';
+
     return (
       <section id="section-pricing" className="pdp-section">
         <div className="pdp-container">
           <div className="pdp-section-header">
-            <span className="pdp-kicker">Simple Transparent Pricing</span>
-            <h2 className="pdp-section-title">Choose Your License Plan</h2>
-            <p className="pdp-section-subtitle">No recurring subscriptions or hidden royalties. Full ownership for your project.</p>
+            <span className="pdp-kicker">{kicker}</span>
+            <h2 className="pdp-section-title">{title}</h2>
+            <p className="pdp-section-subtitle">{subtitle}</p>
           </div>
 
           <div className={`pdp-pricing-plans-grid ${licenses && licenses.length === 1 ? 'is-single-plan' : ''}`}>
@@ -1961,7 +2245,7 @@ export function DynamicProductPage({ slug, productData: initialData, onNavigate,
                 const featuresList = Array.isArray(lic.features) ? lic.features : [
                   'Full Unencrypted Source Code',
                   'Commercial Deployment Rights',
-                  'Lifetime Code Updates',
+                  'Included Updates',
                   'Direct Technical Support',
                   'Comprehensive Documentation'
                 ];
@@ -1986,6 +2270,25 @@ export function DynamicProductPage({ slug, productData: initialData, onNavigate,
                     )}
 
                     <div>
+                      {lic.badge && (
+                        <div style={{ alignSelf: 'flex-start', marginBottom: '0.65rem' }}>
+                          <span style={{
+                            display: 'inline-flex',
+                            padding: '0.25rem 0.65rem',
+                            background: isSel ? 'rgba(99, 102, 241, 0.2)' : 'rgba(255, 255, 255, 0.08)',
+                            border: `1px solid ${isSel ? 'var(--primary)' : 'var(--border-subtle)'}`,
+                            borderRadius: 'var(--radius-full)',
+                            fontSize: '0.72rem',
+                            fontWeight: 800,
+                            letterSpacing: '0.06em',
+                            textTransform: 'uppercase',
+                            color: isSel ? 'var(--primary)' : 'var(--text-secondary)'
+                          }}>
+                            {lic.badge}
+                          </span>
+                        </div>
+                      )}
+
                       <h3 className="pdp-plan-card-title" style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--text-primary)', marginBottom: '0.5rem' }}>{licName}</h3>
                       <p className="pdp-plan-card-desc" style={{ fontSize: '0.85rem', color: 'var(--text-muted)', minHeight: '38px', marginBottom: '1.5rem' }}>
                         {lic.description || 'Standard production license with commercial client permissions.'}
@@ -2015,6 +2318,14 @@ export function DynamicProductPage({ slug, productData: initialData, onNavigate,
                           </div>
                         ))}
                       </div>
+
+                      {(lic.license_note || lic.note) && (
+                        <div style={{ marginTop: '1.25rem', padding: '0.65rem 0.85rem', background: 'rgba(255, 255, 255, 0.04)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-subtle)' }}>
+                          <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', lineHeight: 1.45, display: 'block' }}>
+                            ℹ️ {lic.license_note || lic.note}
+                          </span>
+                        </div>
+                      )}
                     </div>
 
                     <div style={{ marginTop: '2rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
@@ -2027,7 +2338,7 @@ export function DynamicProductPage({ slug, productData: initialData, onNavigate,
                         style={{ width: '100%', gap: '0.5rem' }}
                       >
                         <Zap size={18} fill="currentColor" />
-                        <span>BUY THIS LICENSE</span>
+                        <span>{lic.cta_text || 'BUY THIS LICENSE'}</span>
                       </button>
                       <button
                         onClick={() => {
@@ -2289,42 +2600,66 @@ export function DynamicProductPage({ slug, productData: initialData, onNavigate,
   };
 
   // 25. SECTION 25 — FINAL CTA
-  const renderFinalCta = () => {
-    const finalData = getSectionData('final_cta') || {
-      heading: 'Ready to Launch Your Solution?',
-      subheading: `Get ${product.title} today with full unencrypted source code and standard commercial deployment license.`,
-      cta_text: product.cta_text || 'BUY NOW'
+  const renderFinalCta = (sec) => {
+    let raw = (sec && sec.content) ? sec.content : getSectionData('final_cta');
+    if (typeof raw === 'string') {
+      try { raw = JSON.parse(raw); } catch (e) {}
+    }
+    const finalData = (raw && typeof raw === 'object') ? raw : {
+      heading: 'Ready to Launch Your Own Service Marketplace?',
+      subheading: 'Get the complete ServicePro source code and start building your branded on-demand service marketplace today.',
+      cta_text: 'GET FULL SOURCE CODE →',
+      secondary_cta_text: 'VIEW LIVE DEMO',
+      ecosystem_strip: 'Customer App • Partner App • Website • Admin Panel • Backend'
     };
+
+    const heading = sec?.title || finalData.heading || 'Ready to Launch Your Own Service Marketplace?';
+    const subheading = sec?.subtitle || finalData.subheading || 'Get the complete ServicePro source code and start building your branded on-demand service marketplace today.';
+    const ctaText = finalData.cta_text || product.cta_text || 'GET FULL SOURCE CODE →';
+    const secCtaText = finalData.secondary_cta_text || product.secondary_cta_text || 'VIEW LIVE DEMO';
+    const ecosystemStrip = finalData.ecosystem_strip || null;
 
     return (
       <section className="pdp-section">
         <div className="pdp-container">
           <div className="pdp-conversion-banner" style={{ padding: '4rem 2rem' }}>
             <h2 style={{ fontSize: 'clamp(1.8rem, 3.5vw, 2.75rem)', fontWeight: 800, color: '#fff', letterSpacing: '-0.02em', marginBottom: '0.75rem' }}>
-              {finalData.heading}
+              {heading}
             </h2>
-            <p style={{ color: 'var(--text-secondary)', fontSize: '1rem', maxWidth: '600px', margin: '0 auto 2rem' }}>
-              {finalData.subheading}
+            <p style={{ color: 'var(--text-secondary)', fontSize: '1rem', maxWidth: '640px', margin: '0 auto 2rem', lineHeight: 1.6 }}>
+              {subheading}
             </p>
 
-            <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center', flexWrap: 'wrap', maxWidth: '460px', margin: '0 auto' }}>
+            <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center', flexWrap: 'wrap', maxWidth: '480px', margin: '0 auto' }}>
               <button
                 onClick={handleBuyNow}
                 className="btn btn-primary btn-lg"
                 style={{ flex: '1 1 200px', gap: '0.6rem' }}
               >
                 <Zap size={18} fill="currentColor" />
-                <span>{finalData.cta_text || 'BUY NOW'}</span>
+                <span>{ctaText}</span>
               </button>
               <button
-                onClick={handleAddToCart}
+                onClick={() => {
+                  if (secCtaText.toLowerCase().includes('demo') && (product.demo_url || product.live_demo_url)) {
+                    window.open(product.demo_url || product.live_demo_url, '_blank');
+                    return;
+                  }
+                  handleAddToCart();
+                }}
                 className="btn btn-secondary btn-lg"
                 style={{ flex: '1 1 200px', gap: '0.6rem' }}
               >
-                <ShoppingBag size={18} />
-                <span>ADD TO CART</span>
+                {secCtaText.toLowerCase().includes('demo') ? <ExternalLink size={18} /> : <ShoppingBag size={18} />}
+                <span>{secCtaText}</span>
               </button>
             </div>
+
+            {ecosystemStrip && (
+              <div style={{ marginTop: '1.75rem', fontSize: '0.875rem', color: '#a5b4fc', fontWeight: 600, letterSpacing: '0.04em' }}>
+                {ecosystemStrip}
+              </div>
+            )}
 
             <div className="pdp-trust-bar" style={{ justifyContent: 'center', gap: '2rem', marginTop: '2.5rem' }}>
               <span className="pdp-trust-item"><Lock size={14} style={{ color: 'var(--accent-emerald)' }} /> Secure Checkout</span>
@@ -2455,6 +2790,7 @@ export function DynamicProductPage({ slug, productData: initialData, onNavigate,
     admin_experience: renderAdminExperience,
     features: renderFeatures,
     how_it_works: renderHowItWorks,
+    categories: renderCategories,
     included: renderIncluded,
     source_code: renderSourceCode,
     specs: renderSpecs,
@@ -2462,6 +2798,7 @@ export function DynamicProductPage({ slug, productData: initialData, onNavigate,
     customization: renderCustomization,
     who_is_it_for: renderWhoIsItFor,
     use_cases: renderUseCases,
+    business_models: renderUseCases,
     comparison: renderComparison,
     after_purchase: renderAfterPurchase,
     pricing: renderPricing,
@@ -2605,7 +2942,7 @@ export function DynamicProductPage({ slug, productData: initialData, onNavigate,
 
         const renderer = sectionRendererMap[secType];
         if (!renderer) return null;
-        return <React.Fragment key={`${secType}-${sec.id || idx}`}>{renderer()}</React.Fragment>;
+        return <React.Fragment key={`${secType}-${sec.id || idx}`}>{renderer(sec)}</React.Fragment>;
       })}
 
       {/* Sticky Bottom Purchase Bar */}

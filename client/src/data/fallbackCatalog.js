@@ -725,39 +725,46 @@ export const FALLBACK_PRODUCTS = [
   },
   {
     "id": 33,
-    "title": "ServicePro — On-Demand Home Services Platform",
+    "title": "ServicePro — Complete On-Demand Service Marketplace",
     "slug": "servicepro",
     "sku": "SVPR-SERV-09",
     "category_id": 20,
-    "short_description": "A professional on-demand home services marketplace connecting customers with vetted service professionals through customer applications, provider apps, and an administrative dispatch system.",
-    "full_description": "ServicePro delivers an end-to-end digital infrastructure for on-demand home maintenance, cleaning, electrical repair, plumbing, and wellness services. Built with a scalable backend architecture and dedicated mobile applications for both service seekers and independent service technicians, ServicePro coordinates bookings, quotes, dispatch scheduling, and verified customer reviews seamlessly.\n\nAdministrators enjoy comprehensive control over service categories, pricing matrices, geographic service zones, technician verification approvals, and platform commission splits.",
+    "short_description": "A production-ready, fully customizable source-code solution for businesses, entrepreneurs and agencies looking to launch their own on-demand home-services marketplace.",
+    "full_description": "Launch your own on-demand service marketplace with ServicePro. Get Customer App, Partner App, Website, Admin Panel and customizable source code with commercial licensing.\n\nServicePro delivers a complete, launch-ready on-demand service marketplace ecosystem engineered with clean modular code, transparent job dispatch workflows, platform commission controls, and comprehensive deployment documentation.",
     "product_type": "digital",
-    "author": "Platform Partner",
-    "regular_price": 7499,
-    "sale_price": 4299,
-    "badge": "MARKETPLACE",
+    "author": "Rollixia Engineering",
+    "regular_price": 79000,
+    "sale_price": 5499,
+    "badge": "COMPLETE ECOSYSTEM",
     "status": "published",
     "demo_url": "https://rollixia.com/products/servicepro",
     "video_url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
-    "is_video_visible": 1,
+    "is_video_visible": 0,
     "show_demo_links": 1,
-    "hero_secondary_image": "https://images.unsplash.com/photo-1581578731548-c64695cc6952?auto=format&fit=crop&w=1200&q=80",
+    "hero_image": "/uploads/products/servicepro-ecosystem-showcase.svg",
+    "hero_secondary_image": "/uploads/products/servicepro-customer-experience.svg",
     "demo_links": [
       {
         "id": "demo-1",
-        "label": "App Demo Link",
+        "label": "Customer Website",
         "url": "https://rollixia.com/products/servicepro",
         "is_visible": 1
       },
       {
         "id": "demo-2",
-        "label": "Customer App",
+        "label": "Customer Mobile App",
         "url": "https://rollixia.com/products/servicepro",
         "is_visible": 1
       },
       {
         "id": "demo-3",
-        "label": "Admin Dispatch Portal",
+        "label": "Partner Provider App",
+        "url": "https://rollixia.com/products/servicepro",
+        "is_visible": 1
+      },
+      {
+        "id": "demo-4",
+        "label": "Admin Control Dashboard",
         "url": "https://rollixia.com/products/servicepro",
         "is_visible": 1
       }
@@ -766,423 +773,483 @@ export const FALLBACK_PRODUCTS = [
     "review_count": 24,
     "sales_count": 85,
     "created_at": "2026-09-05 09:40:49",
-    "updated_at": "2026-09-05 09:40:49",
+    "updated_at": "2026-09-07 18:00:00",
     "eyebrow": "ON-DEMAND SERVICES SUITE",
-    "subtitle": "Professional On-Demand Marketplace Connecting Customers with Service Professionals",
-    "cta_text": "Buy Now",
-    "secondary_cta_text": "Explore Details",
+    "subtitle": "Launch Your Own Service Marketplace with Customer App, Partner App, Website & Admin Panel",
+    "cta_text": "GET FULL SOURCE CODE →",
+    "secondary_cta_text": "VIEW LIVE DEMO",
     "cta_url": null,
-    "urgency_text": null,
+    "urgency_text": "Save ₹73,501 (93% OFF) — Commercial License",
     "offer_expires_at": null,
     "access_type": "download",
     "external_access_url": null,
     "theme_style": "default",
     "is_featured": 1,
-    "is_trending": 0,
+    "is_trending": 1,
     "is_bestseller": 1,
     "is_new": 0,
-    "is_staff_pick": 0,
-    "seo_title": "ServicePro — On-Demand Home Services Platform | Official Software Store",
-    "seo_description": "A professional on-demand home services marketplace connecting customers with vetted service professionals through customer applications, provider apps, and an administrative dispatch system.",
-    "seo_keywords": null,
-    "og_image": null,
-    "hero_image": "/uploads/products/servicepro-cover.svg",
+    "is_staff_pick": 1,
+    "seo_title": "ServicePro – On-Demand Service Marketplace Source Code | Customer App, Partner App & Admin Panel",
+    "seo_description": "Launch your own on-demand service marketplace with ServicePro. Get Customer App, Partner App, Website, Admin Panel and customizable source code with commercial licensing.",
+    "seo_keywords": "on-demand service marketplace source code, home services marketplace, service booking app source code, service provider app, partner app, admin panel, marketplace source code, service booking platform",
+    "og_image": "/uploads/products/servicepro-ecosystem-showcase.svg",
     "asset_availability": "Available",
-    "disclaimer": "This software is an enterprise-grade ready-to-deploy solution for on-demand marketplace operators. Zero third-party marketplace trademarks or proprietary third-party branding are utilized. All deployment assets and setup guides are included.",
-    "technical_specs": "{\"backend_api\":\"PHP / Laravel 10 RESTful Architecture\",\"mobile_applications\":\"Cross-Platform Mobile Apps for Customer & Provider\",\"database\":\"MySQL 8.0+ / MariaDB\",\"dispatch_system\":\"Geo-radius provider matching and booking queue\",\"notification_engine\":\"FCM Push Notifications & SMS Gateway Ready\",\"hosting_specs\":\"Linux VPS with PHP 8.1+, Composer, SSL Certificate\"}",
-    "how_it_works": "[{\"step\":\"1\",\"title\":\"Deploy Platform Core\",\"desc\":\"Set up the centralized API backend, database, and admin console on your cloud server.\"},{\"step\":\"2\",\"title\":\"Configure Categories & Pricing\",\"desc\":\"Add home service categories (cleaning, repair, plumbing) and set base hourly or fixed rates.\"},{\"step\":\"3\",\"title\":\"Onboard Service Pros\",\"desc\":\"Service professionals submit credentials, documents, and service radius for admin approval.\"},{\"step\":\"4\",\"title\":\"Accept Bookings & Dispatch\",\"desc\":\"Customers book service appointments, providers receive dispatch alerts, and orders complete.\"}]",
+    "disclaimer": "Third-party service fees and platform accounts (domains, cloud hosting, SMS gateways, Google Maps, developer stores) are separate unless specifically included in your selected license/package.",
+    "technical_specs": "{\"frontend\":\"React / Next.js Responsive Web Platform\",\"mobile\":\"Flutter Cross-Platform Android & iOS Codebase\",\"backend\":\"Node.js / Express RESTful Architecture\",\"database\":\"PostgreSQL / MySQL Schema with Seed Scripts\",\"payments\":\"Modular Razorpay & Stripe Architecture\",\"maps_location\":\"Configurable Geolocation & Address Management\",\"notifications\":\"Configurable Push (FCM) & Email Integration\"}",
     "category_name": "Home Services",
     "category_slug": "home-services",
-    "thumbnail": "/uploads/products/servicepro-cover.svg",
+    "thumbnail": "/uploads/products/servicepro-ecosystem-showcase.svg",
     "media": [
       {
-        "id": 33,
-        "media_url": "/uploads/products/servicepro-cover.svg",
+        "id": 331,
+        "media_url": "/uploads/products/servicepro-ecosystem-showcase.svg",
         "media_type": "image",
         "is_thumbnail": 1,
         "sort_order": 0
+      },
+      {
+        "id": 332,
+        "media_url": "/uploads/products/servicepro-customer-experience.svg",
+        "media_type": "image",
+        "is_thumbnail": 0,
+        "sort_order": 1
+      },
+      {
+        "id": 333,
+        "media_url": "/uploads/products/servicepro-admin-showcase.svg",
+        "media_type": "image",
+        "is_thumbnail": 0,
+        "sort_order": 2
       }
+    ],
+    "hero_feature_badges": [
+      {
+        "title": "Customer Web & App",
+        "desc": "Easy service discovery and booking."
+      },
+      {
+        "title": "Partner App",
+        "desc": "Manage jobs and earnings on the go."
+      },
+      {
+        "title": "Admin Panel",
+        "desc": "Complete marketplace control."
+      },
+      {
+        "title": "Clean Modular Code",
+        "desc": "Easy to customize and extend."
+      },
+      {
+        "title": "Commercial License",
+        "desc": "Deploy under your own business."
+      },
+      {
+        "title": "Support & Updates",
+        "desc": "Documentation and included support according to license."
+      }
+    ],
+    "hero_checklist": [
+      "Ready-to-Launch Source Code",
+      "Fully Customizable & White-Label",
+      "Secure & Modular Architecture",
+      "Multiple Service Categories",
+      "Integrated Payments & Notifications",
+      "Detailed Documentation Included"
+    ],
+    "hero_trust_items": [
+      "Secure Payment",
+      "Fast Delivery",
+      "Full Source Code",
+      "Documentation",
+      "Direct Support"
     ],
     "licenses": [
       {
         "id": 54,
         "license_name": "Standard Commercial License",
-        "price": 4299,
-        "regular_price": null,
-        "description": "Single project deployment with full source and documentation.",
-        "permissions": "Commercial use, Single installation, 1 Year free updates",
-        "restrictions": "Resale, Redistribution prohibited"
+        "name": "Standard Commercial License",
+        "badge": "BEST FOR YOUR OWN BUSINESS",
+        "price": 5499,
+        "regular_price": 79000,
+        "description": "For launching one branded ServicePro marketplace for your own business or one permitted commercial project.",
+        "cta_text": "BUY STANDARD LICENSE",
+        "license_note": "For one commercial business/project. Source-code resale or redistribution as a standalone product is not permitted.",
+        "features": [
+          "Full Unencrypted Source Code",
+          "Customer Website & Mobile App",
+          "Partner / Service Provider App",
+          "Complete Admin Panel",
+          "Backend & APIs",
+          "Single Commercial Project Deployment",
+          "Comprehensive Documentation",
+          "Included Updates",
+          "Direct Technical Support"
+        ]
       },
       {
         "id": 55,
-        "license_name": "Extended Developer License",
-        "price": 8598,
-        "regular_price": null,
-        "description": "Multi-client commercial deployment rights with source files.",
-        "permissions": "Unlimited commercial clients, Multi-domain, Priority technical support",
-        "restrictions": "Re-selling as standalone theme template prohibited"
+        "license_name": "Extended Commercial License",
+        "name": "Extended Commercial License",
+        "badge": "FOR AGENCIES & MULTI-CLIENT USE",
+        "price": 10999,
+        "regular_price": 149000,
+        "description": "For agencies, developers and businesses requiring permitted multi-client commercial deployment.",
+        "cta_text": "GET EXTENDED LICENSE",
+        "license_note": "Source code may be customized and deployed for permitted client projects, but may not be resold, redistributed or published as a standalone source-code product.",
+        "features": [
+          "Everything in Standard",
+          "Multi-Client Commercial Deployment Rights",
+          "White-Label Customization",
+          "Full Source Code",
+          "Customer Website & App",
+          "Partner App",
+          "Admin Panel",
+          "Backend & APIs",
+          "Included Updates",
+          "Direct Technical Support",
+          "Comprehensive Documentation"
+        ]
       }
     ],
     "features": [
       {
         "id": 93,
-        "title": "Customer & Provider Mobile Workflows",
-        "description": "Dedicated mobile flows for customer booking and technician job acceptance with GPS routing.",
-        "icon": "Wrench",
-        "sort_order": 0
+        "title": "Customer Booking",
+        "description": "Browse services, select packages, choose date/time and create bookings.",
+        "icon": "Calendar"
       },
       {
         "id": 94,
-        "title": "Flexible Booking & Scheduling Engine",
-        "description": "Supports immediate on-demand dispatch or pre-scheduled recurring appointments.",
-        "icon": "Calendar",
-        "sort_order": 1
+        "title": "Partner Management",
+        "description": "Onboard, verify and manage service professionals.",
+        "icon": "Users"
       },
       {
         "id": 95,
-        "title": "Service Categories & Dynamic Pricing",
-        "description": "Configure tiered services, hourly pricing, extra add-ons, and customized inspection fees.",
-        "icon": "Tag",
-        "sort_order": 2
+        "title": "Smart Job Dispatch",
+        "description": "Send booking requests to eligible partners based on your configured marketplace logic.",
+        "icon": "Send"
       },
       {
         "id": 96,
-        "title": "Provider Document Verification",
-        "description": "Admin approval workflow ensuring only certified, identity-verified professionals receive bookings.",
-        "icon": "UserCheck",
-        "sort_order": 3
+        "title": "Payments & Commissions",
+        "description": "Manage customer payments, platform commissions and partner earnings.",
+        "icon": "CreditCard"
       },
       {
         "id": 97,
-        "title": "Automated Commission & Payouts",
-        "description": "Platform automatically deducts booking commissions and manages technician payout ledgers.",
-        "icon": "Briefcase",
-        "sort_order": 4
+        "title": "Real-Time Booking Tracking",
+        "description": "Track bookings from confirmation through completion.",
+        "icon": "Clock"
+      },
+      {
+        "id": 98,
+        "title": "Ratings & Reviews",
+        "description": "Manage customer feedback, partner ratings and service quality.",
+        "icon": "Star"
       }
     ],
-    "compatibility": [],
     "faqs": [
       {
-        "id": 56,
-        "question": "Does ServicePro include separate apps for customers and service providers?",
-        "answer": "Yes, the solution includes distinct applications for customers to book services and for professionals to manage jobs.",
-        "sort_order": 0
+        "id": 101,
+        "question": "Is the complete source code included?",
+        "answer": "Yes. You receive the complete, unencrypted source code for the Customer Website, Customer Mobile App, Partner Mobile App, Admin Control Dashboard, and the Node.js backend APIs with database schemas."
       },
       {
-        "id": 57,
-        "question": "Can administrators set custom commission rates per service category?",
-        "answer": "Yes, commissions can be set globally or customized per category (e.g. 15% for plumbing, 20% for cleaning).",
-        "sort_order": 1
+        "id": 102,
+        "question": "Are the Customer and Partner Apps included?",
+        "answer": "Yes. Both the customer-facing booking mobile app and the service provider / partner job management mobile app source code are included in the package."
       },
       {
-        "id": 58,
-        "question": "How are bookings assigned to service professionals?",
-        "answer": "The system supports both automatic proximity-based dispatch and manual administrator assignment.",
-        "sort_order": 2
-      }
-    ],
-    "reviews": [],
-    "testimonials": [
-      {
-        "id": 31,
-        "product_id": 33,
-        "name": "Arjun Mehta",
-        "avatar_url": "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=160&q=80",
-        "designation": "CTO, NexaDigital Solutions",
-        "rating": 5,
-        "text": "Saved our engineering team at least 4 weeks of custom scaffolding. The architecture is clean, highly modular, and the documentation was straight to the point.",
-        "is_verified": 1,
-        "is_featured": 1,
-        "sort_order": 1,
-        "is_visible": 1
+        "id": 103,
+        "question": "Is the Admin Panel included?",
+        "answer": "Yes. A full-featured web-based admin panel is included to manage customers, service providers, service categories, commission structures, bookings, reviews, and platform settings."
       },
       {
-        "id": 32,
-        "product_id": 33,
-        "name": "Priya Sharma",
-        "avatar_url": "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=160&q=80",
-        "designation": "Lead Product Designer",
-        "rating": 5,
-        "text": "The UI Polish is top tier. Our client was thoroughly impressed by how responsive and snappy the user flows felt. Highly recommended for commercial launches.",
-        "is_verified": 1,
-        "is_featured": 1,
-        "sort_order": 2,
-        "is_visible": 1
+        "id": 104,
+        "question": "Can I customize the branding?",
+        "answer": "Absolutely. The source code is 100% white-label. You have full access to change logos, brand colors, typography, splash screens, domain names, and UI copy."
       },
       {
-        "id": 33,
-        "product_id": 33,
-        "name": "Rohan Verma",
-        "avatar_url": "https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=160&q=80",
-        "designation": "Independent Founder",
-        "rating": 5,
-        "text": "Exceptional value for money. Setup went without a hitch on our Linux server and the customer support answered our questions within hours.",
-        "is_verified": 1,
-        "is_featured": 1,
-        "sort_order": 3,
-        "is_visible": 1
+        "id": 105,
+        "question": "Can I add my own services and categories?",
+        "answer": "Yes. Through the admin panel or database configurations, you can add, edit, or remove unlimited service categories, service packages, pricing rules, and duration estimates."
+      },
+      {
+        "id": 106,
+        "question": "Can I deploy it under my own brand?",
+        "answer": "Yes. The Commercial License grants you the legal right to brand, configure, and operate the platform for your own commercial business or project."
+      },
+      {
+        "id": 107,
+        "question": "Can I use my own payment gateway?",
+        "answer": "Yes. The payment architecture is modularly designed. Pre-integrated connectors for Stripe and Razorpay are provided, and you can connect any other payment gateway API."
+      },
+      {
+        "id": 108,
+        "question": "What does the Standard Commercial License allow?",
+        "answer": "The Standard Commercial License allows you to deploy and operate one branded commercial marketplace for your own company or one permitted client project. Standalone resale of the raw source code is prohibited."
+      },
+      {
+        "id": 109,
+        "question": "What does the Extended Commercial License allow?",
+        "answer": "The Extended Commercial License is designed for digital agencies, software consultancies, and developers. It grants multi-client commercial deployment rights to deliver custom solutions for permitted client projects without reselling the raw source code as a competing asset."
+      },
+      {
+        "id": 110,
+        "question": "Do I receive documentation?",
+        "answer": "Yes. Comprehensive setup documentation is included, covering environment prerequisites, local setup, API configurations, database seeding, and production deployment."
+      },
+      {
+        "id": 111,
+        "question": "Are hosting and third-party API costs included?",
+        "answer": "No. Third-party services such as domain registration, cloud VPS hosting, SMS gateways, Google Maps APIs, and app store developer accounts are separate and maintained directly under your own accounts."
+      },
+      {
+        "id": 112,
+        "question": "Do you provide deployment assistance?",
+        "answer": "Yes. Direct technical support is included according to your license to guide you through setup, environment configuration questions, and troubleshooting."
+      },
+      {
+        "id": 113,
+        "question": "Can I publish the apps on Play Store / App Store?",
+        "answer": "Yes. You can build production release binaries (APK/AAB for Google Play and IPA for Apple App Store) and publish them using your own Google Play and Apple Developer accounts."
       }
     ],
     "sections": [
       {
-        "id": 805,
+        "id": 801,
         "product_id": 33,
-        "section_type": "breadcrumb",
-        "title": "Breadcrumb Navigation",
-        "subtitle": null,
-        "content": null,
+        "section_type": "hero",
+        "title": "ServicePro — Complete On-Demand Service Marketplace",
+        "subtitle": "Launch Your Own Service Marketplace with Customer App, Partner App, Website & Admin Panel",
+        "content": "{\"eyebrow\":\"ON-DEMAND SERVICES SUITE\",\"heading\":\"ServicePro — Complete On-Demand Service Marketplace\",\"subheading\":\"Launch Your Own Service Marketplace with Customer App, Partner App, Website & Admin Panel\",\"description\":\"A production-ready, fully customizable source-code solution for businesses, entrepreneurs and agencies looking to launch their own on-demand home-services marketplace.\",\"cta_text\":\"GET FULL SOURCE CODE →\",\"secondary_cta_text\":\"VIEW LIVE DEMO\",\"demo_url\":\"https://rollixia.com/products/servicepro\",\"badges\":[{\"title\":\"Customer Web & App\",\"desc\":\"Easy service discovery and booking.\"},{\"title\":\"Partner App\",\"desc\":\"Manage jobs and earnings on the go.\"},{\"title\":\"Admin Panel\",\"desc\":\"Complete marketplace control.\"},{\"title\":\"Clean Modular Code\",\"desc\":\"Easy to customize and extend.\"},{\"title\":\"Commercial License\",\"desc\":\"Deploy under your own business.\"},{\"title\":\"Support & Updates\",\"desc\":\"Documentation and included support according to license.\"}],\"checklist\":[\"Ready-to-Launch Source Code\",\"Fully Customizable & White-Label\",\"Secure & Modular Architecture\",\"Multiple Service Categories\",\"Integrated Payments & Notifications\",\"Detailed Documentation Included\"],\"trust_items\":[\"Secure Payment\",\"Fast Delivery\",\"Full Source Code\",\"Documentation\",\"Direct Support\"],\"price\":5499,\"regular_price\":79000}",
         "settings": "{\"container\":\"standard\",\"padding\":\"normal\"}",
         "sort_order": 1,
         "is_visible": 1,
         "created_at": "2026-09-05 11:53:45",
-        "updated_at": "2026-09-05 11:53:45"
+        "updated_at": "2026-09-07 18:00:00"
       },
       {
-        "id": 806,
+        "id": 802,
         "product_id": 33,
-        "section_type": "hero",
-        "title": "Hero Section",
-        "subtitle": null,
-        "content": null,
+        "section_type": "ecosystem",
+        "title": "Everything You Need to Launch Your Service Marketplace",
+        "subtitle": "One complete ecosystem for customers, service professionals and marketplace administrators.",
+        "content": "{\"kicker\":\"Complete Ecosystem\",\"title\":\"Everything You Need to Launch Your Service Marketplace\",\"subtitle\":\"One complete ecosystem for customers, service professionals and marketplace administrators.\",\"platforms\":[{\"platform\":\"CUSTOMER APP\",\"name\":\"Customer Mobile App\",\"icon\":\"Smartphone\",\"tagline\":\"Give customers an easy way to discover, book and manage services.\",\"features\":[\"Service discovery\",\"Categories\",\"Service details\",\"Date & time selection\",\"Address management\",\"Booking\",\"Payments\",\"Booking history\",\"Ratings & reviews\",\"Notifications\"]},{\"platform\":\"PARTNER APP\",\"name\":\"Partner / Provider App\",\"icon\":\"Tool\",\"tagline\":\"Give service professionals everything they need to manage jobs and earnings.\",\"features\":[\"Partner profile\",\"Availability\",\"Booking requests\",\"Accept/reject jobs\",\"Job status\",\"Service area\",\"Earnings\",\"Booking history\",\"Ratings\",\"Notifications\"]},{\"platform\":\"ADMIN PANEL\",\"name\":\"Admin Control Panel\",\"icon\":\"LayoutDashboard\",\"tagline\":\"Control your complete marketplace from one powerful dashboard.\",\"features\":[\"Customer management\",\"Partner management\",\"Service management\",\"Booking management\",\"Commission management\",\"Payments\",\"Coupons\",\"Reviews\",\"Reports\",\"Notifications\",\"Settings\"]},{\"platform\":\"CUSTOMER WEBSITE\",\"name\":\"Customer Web Platform\",\"icon\":\"Globe\",\"tagline\":\"Attract customers through a responsive web experience designed for service discovery and booking.\",\"features\":[\"Homepage\",\"Service categories\",\"Service listing\",\"Service details\",\"Booking flow\",\"Customer account\",\"Offers\",\"Reviews\",\"Responsive design\"]}]}",
         "settings": "{\"container\":\"standard\",\"padding\":\"normal\"}",
         "sort_order": 2,
         "is_visible": 1,
         "created_at": "2026-09-05 11:53:45",
-        "updated_at": "2026-09-05 11:53:45"
+        "updated_at": "2026-09-07 18:00:00"
       },
       {
-        "id": 807,
+        "id": 803,
         "product_id": 33,
-        "section_type": "gallery",
-        "title": "Product Media Gallery",
-        "subtitle": null,
-        "content": null,
+        "section_type": "features",
+        "title": "Everything You Need to Run an On-Demand Marketplace",
+        "subtitle": "Core marketplace modules engineered for smooth booking coordination, partner operations, and revenue control.",
+        "content": "{\"kicker\":\"Core Capabilities\",\"title\":\"Everything You Need to Run an On-Demand Marketplace\",\"subtitle\":\"Core marketplace modules engineered for smooth booking coordination, partner operations, and revenue control.\",\"items\":[{\"title\":\"Customer Booking\",\"description\":\"Browse services, select packages, choose date/time and create bookings.\",\"icon\":\"Calendar\"},{\"title\":\"Partner Management\",\"description\":\"Onboard, verify and manage service professionals.\",\"icon\":\"Users\"},{\"title\":\"Smart Job Dispatch\",\"description\":\"Send booking requests to eligible partners based on your configured marketplace logic.\",\"icon\":\"Send\"},{\"title\":\"Payments & Commissions\",\"description\":\"Manage customer payments, platform commissions and partner earnings.\",\"icon\":\"CreditCard\"},{\"title\":\"Real-Time Booking Tracking\",\"description\":\"Track bookings from confirmation through completion.\",\"icon\":\"Clock\"},{\"title\":\"Ratings & Reviews\",\"description\":\"Manage customer feedback, partner ratings and service quality.\",\"icon\":\"Star\"}]}",
         "settings": "{\"container\":\"standard\",\"padding\":\"normal\"}",
         "sort_order": 3,
         "is_visible": 1,
         "created_at": "2026-09-05 11:53:45",
-        "updated_at": "2026-09-05 11:53:45"
+        "updated_at": "2026-09-07 18:00:00"
       },
       {
-        "id": 808,
+        "id": 804,
         "product_id": 33,
-        "section_type": "highlights",
-        "title": "Trust & Key Highlights",
-        "subtitle": null,
-        "content": "[{\"icon\":\"Zap\",\"title\":\"End-to-End Home Services Flow\",\"description\":\"Complete architecture for cleaning, plumbing, electrician, AC repair, and beauty services.\"},{\"icon\":\"ShieldCheck\",\"title\":\"Provider Onboarding & Verification\",\"description\":\"Identity document uploads, background check workflows, and skill certifications.\"},{\"icon\":\"Clock\",\"title\":\"Instant & Scheduled Booking\",\"description\":\"Customers choose specific time slots with real-time technician availability.\"},{\"icon\":\"Award\",\"title\":\"In-App Chat & Live GPS Tracking\",\"description\":\"Coordinate seamlessly with service professionals before they arrive at your door.\"}]",
+        "section_type": "customer_experience",
+        "title": "Customer Experience — From Booking to Completion",
+        "subtitle": "Give customers a simple and reliable way to discover services, choose professionals, schedule appointments, make payments and manage every booking from one place.",
+        "content": "{\"kicker\":\"03 — CUSTOMER EXPERIENCE\",\"title\":\"Customer Experience — From Booking to Completion\",\"subtitle\":\"Give customers a simple and reliable way to discover services, choose professionals, schedule appointments, make payments and manage every booking from one place.\",\"flow_steps\":[\"Browse\",\"Select Service\",\"Schedule\",\"Pay\",\"Track\",\"Review\"],\"image\":\"/uploads/products/servicepro-customer-experience.svg\",\"items\":[{\"title\":\"End-to-End Customer Journey\",\"description\":\"An intuitive, responsive interface engineered to make service ordering straightforward and transparent.\",\"image\":\"/uploads/products/servicepro-customer-experience.svg\",\"alignment\":\"right\",\"bullet_points\":[\"Easy Service Discovery\",\"Transparent Service Details & Pricing\",\"Flexible Booking & Scheduling\",\"Secure Payment Options\",\"Booking Status Updates\",\"Ratings & Reviews\"]}]}",
         "settings": "{\"container\":\"standard\",\"padding\":\"normal\"}",
         "sort_order": 4,
         "is_visible": 1,
         "created_at": "2026-09-05 11:53:45",
-        "updated_at": "2026-09-05 11:53:45"
+        "updated_at": "2026-09-07 18:00:00"
       },
       {
-        "id": 809,
+        "id": 805,
         "product_id": 33,
-        "section_type": "overview",
-        "title": "Product Overview & About",
-        "subtitle": null,
-        "content": "{\"specs\":[{\"label\":\"Mobile Engine\",\"value\":\"Flutter (Customer & Provider)\"},{\"label\":\"Backend Platform\",\"value\":\"Laravel 10.x REST API\"},{\"label\":\"Map Integration\",\"value\":\"Google Maps Geocoding & Routing\"},{\"label\":\"License\",\"value\":\"Full Commercial Deployment License\"},{\"label\":\"Delivery\",\"value\":\"Full Source Code (Apps + Web Admin)\"}],\"title\":\"About This Product\",\"description\":\"ServicePro delivers an end-to-end digital infrastructure for on-demand home maintenance, cleaning, electrical repair, plumbing, and wellness services. Built with a scalable backend architecture and dedicated mobile applications for both service seekers and independent service technicians, ServicePro coordinates bookings, quotes, dispatch scheduling, and verified customer reviews seamlessly.\\n\\nAdministrators enjoy comprehensive control over service categories, pricing matrices, geographic service zones, technician verification approvals, and platform commission splits.\"}",
+        "section_type": "partner_experience",
+        "title": "Smart Partner Management & Job Dispatch",
+        "subtitle": "Manage your entire service-provider network from one powerful system. Assign jobs, monitor availability, manage service areas, track commissions and keep every booking under control.",
+        "content": "{\"kicker\":\"04 — PARTNER MANAGEMENT\",\"title\":\"Smart Partner Management & Job Dispatch\",\"subtitle\":\"Manage your entire service-provider network from one powerful system. Assign jobs, monitor availability, manage service areas, track commissions and keep every booking under control.\",\"image\":\"/uploads/products/servicepro-ecosystem-showcase.svg\",\"items\":[{\"title\":\"Service Professional Workflow\",\"description\":\"Empower partners with structured booking queues, clear task details, status management, and real-time earnings overviews.\",\"image\":\"/uploads/products/servicepro-ecosystem-showcase.svg\",\"alignment\":\"left\",\"bullet_points\":[\"Partner Profiles & Verification\",\"Booking Requests & Job Management\",\"Partner Availability & Scheduling\",\"Commission & Earnings Management\",\"Service Area Management\",\"Ratings & Reviews\"]}]}",
         "settings": "{\"container\":\"standard\",\"padding\":\"normal\"}",
         "sort_order": 5,
         "is_visible": 1,
         "created_at": "2026-09-05 11:53:45",
-        "updated_at": "2026-09-05 11:53:45"
+        "updated_at": "2026-09-07 18:00:00"
       },
       {
-        "id": 810,
+        "id": 806,
         "product_id": 33,
-        "section_type": "features",
-        "title": "Key Features",
-        "subtitle": null,
-        "content": null,
+        "section_type": "admin_experience",
+        "title": "Complete Control of Your Marketplace",
+        "subtitle": "Manage customers, service providers, bookings, payments, commissions, services and marketplace operations from one powerful admin dashboard.",
+        "content": "{\"kicker\":\"05 — ADMIN CONTROL\",\"title\":\"Complete Control of Your Marketplace\",\"subtitle\":\"Manage customers, service providers, bookings, payments, commissions, services and marketplace operations from one powerful admin dashboard.\",\"image\":\"/uploads/products/servicepro-admin-showcase.svg\",\"modules\":[{\"name\":\"Manage Customers\",\"desc\":\"View and manage marketplace users.\",\"icon\":\"Users\"},{\"name\":\"Manage Partners\",\"desc\":\"Approve, verify and monitor service professionals.\",\"icon\":\"UserCheck\"},{\"name\":\"Manage Bookings\",\"desc\":\"Track booking status and history.\",\"icon\":\"Calendar\"},{\"name\":\"Manage Services\",\"desc\":\"Create and organize services and categories.\",\"icon\":\"Grid\"},{\"name\":\"Commission & Earnings\",\"desc\":\"Configure and monitor marketplace earnings.\",\"icon\":\"Percent\"},{\"name\":\"Payments\",\"desc\":\"Monitor transactions and payment activity.\",\"icon\":\"CreditCard\"},{\"name\":\"Reports & Analytics\",\"desc\":\"Understand marketplace performance.\",\"icon\":\"BarChart3\"},{\"name\":\"Coupons & Offers\",\"desc\":\"Create promotional campaigns.\",\"icon\":\"Tag\"},{\"name\":\"Reviews\",\"desc\":\"Monitor customer feedback.\",\"icon\":\"Star\"},{\"name\":\"Notifications\",\"desc\":\"Manage platform communication.\",\"icon\":\"Bell\"}]}",
         "settings": "{\"container\":\"standard\",\"padding\":\"normal\"}",
         "sort_order": 6,
         "is_visible": 1,
         "created_at": "2026-09-05 11:53:45",
-        "updated_at": "2026-09-05 11:53:45"
+        "updated_at": "2026-09-07 18:00:00"
       },
       {
-        "id": 811,
+        "id": 807,
         "product_id": 33,
-        "section_type": "customer_experience",
-        "title": "Customer & User Experience",
-        "subtitle": null,
-        "content": "[{\"title\":\"Frictionless Booking & Transparent Pricing\",\"description\":\"Customers choose required tasks with itemized sub-services, view estimated costs, and confirm appointment slots in under 60 seconds.\",\"image\":\"https://images.unsplash.com/photo-1581578731548-c64695cc6952?auto=format&fit=crop&w=1200&q=80\",\"alignment\":\"left\",\"bullet_points\":[\"Multi-Service Category Navigation\",\"Configurable Sub-Tasks with Fixed & Hourly Rates\",\"Live Provider ETA with Distance Calculation\",\"OTP Verification upon Job Arrival & Completion\"]},{\"title\":\"Provider Job Dispatcher & Commission Engine\",\"description\":\"Technicians receive instant audio push notifications for new jobs nearby. Admin takes automated platform commission cuts on every completed booking.\",\"image\":\"https://images.unsplash.com/photo-1551288049-bebda4e38f71?auto=format&fit=crop&w=1200&q=80\",\"alignment\":\"right\",\"bullet_points\":[\"Interactive Provider Schedule Calendar\",\"Commission Split between Admin & Service Provider\",\"Service Area Polygon Zone Restrictions\",\"Customer Ratings & Reviews with Photo Proof\"]}]",
+        "section_type": "included",
+        "title": "What You Receive With Your Purchase",
+        "subtitle": "Get the actual source code and required project files—not screenshots or a UI-only template.",
+        "content": "{\"kicker\":\"06 — DELIVERABLES\",\"title\":\"What You Receive With Your Purchase\",\"subtitle\":\"Get the actual source code and required project files—not screenshots or a UI-only template.\",\"items\":[{\"name\":\"Customer Mobile App\",\"description\":\"Complete customer-facing application source code.\",\"icon\":\"Smartphone\",\"category\":\"Mobile\"},{\"name\":\"Partner Mobile App\",\"description\":\"Service-provider application source code.\",\"icon\":\"Tool\",\"category\":\"Mobile\"},{\"name\":\"Customer Website\",\"description\":\"Responsive customer web platform.\",\"icon\":\"Globe\",\"category\":\"Frontend\"},{\"name\":\"Admin Panel\",\"description\":\"Complete marketplace administration dashboard.\",\"icon\":\"LayoutDashboard\",\"category\":\"Web Admin\"},{\"name\":\"Backend & APIs\",\"description\":\"Core backend services and APIs included in the package.\",\"icon\":\"Server\",\"category\":\"Backend\"},{\"name\":\"Database\",\"description\":\"Required database structure/configuration.\",\"icon\":\"Database\",\"category\":\"Data\"},{\"name\":\"Documentation\",\"description\":\"Installation, configuration and deployment documentation.\",\"icon\":\"FileText\",\"category\":\"Docs\"}]}",
         "settings": "{\"container\":\"standard\",\"padding\":\"normal\"}",
         "sort_order": 7,
         "is_visible": 1,
         "created_at": "2026-09-05 11:53:45",
-        "updated_at": "2026-09-05 11:53:45"
+        "updated_at": "2026-09-07 18:00:00"
       },
       {
-        "id": 812,
+        "id": 808,
         "product_id": 33,
-        "section_type": "screenshots",
-        "title": "Product Screenshots",
-        "subtitle": null,
-        "content": "[{\"url\":\"https://images.unsplash.com/photo-1581578731548-c64695cc6952?auto=format&fit=crop&w=1000&q=80\",\"caption\":\"Customer App Home with Featured Services\"},{\"url\":\"https://images.unsplash.com/photo-1551288049-bebda4e38f71?auto=format&fit=crop&w=1000&q=80\",\"caption\":\"Technician Job Management & Navigation\"},{\"url\":\"https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&w=1000&q=80\",\"caption\":\"Admin Live Booking Dispatch & Zone Configuration\"}]",
+        "section_type": "how_it_works",
+        "title": "How Your Marketplace Works",
+        "subtitle": "A streamlined 6-stage workflow linking customer demand with verified service execution.",
+        "content": "{\"kicker\":\"07 — END-TO-END WORKFLOW\",\"title\":\"How Your Marketplace Works\",\"subtitle\":\"A streamlined 6-stage workflow linking customer demand with verified service execution.\",\"steps\":[{\"step\":\"01\",\"title\":\"01 — Customer Books\",\"description\":\"Customer selects a service and creates a booking.\"},{\"step\":\"02\",\"title\":\"02 — Partner Receives Request\",\"description\":\"Eligible service professionals receive the booking request according to the system's configured workflow.\"},{\"step\":\"03\",\"title\":\"03 — Partner Accepts\",\"description\":\"The partner accepts the job and manages the booking from the Partner App.\"},{\"step\":\"04\",\"title\":\"04 — Service Completed\",\"description\":\"The partner completes the service and updates the booking.\"},{\"step\":\"05\",\"title\":\"05 — Payment & Commission\",\"description\":\"The system records the transaction and applicable marketplace commission.\"},{\"step\":\"06\",\"title\":\"06 — Customer Reviews\",\"description\":\"Customer can provide feedback and rating.\"}]}",
         "settings": "{\"container\":\"standard\",\"padding\":\"normal\"}",
         "sort_order": 8,
         "is_visible": 1,
         "created_at": "2026-09-05 11:53:45",
-        "updated_at": "2026-09-05 11:53:45"
+        "updated_at": "2026-09-07 18:00:00"
       },
       {
-        "id": 813,
+        "id": 809,
         "product_id": 33,
-        "section_type": "included",
-        "title": "What's Included",
-        "subtitle": null,
-        "content": "[{\"title\":\"Full Clean Source Code\",\"description\":\"Unencrypted, well-documented production-ready codebase.\",\"icon\":\"FileCode\"},{\"title\":\"Comprehensive Setup Documentation\",\"description\":\"Step-by-step setup guides with screenshots.\",\"icon\":\"Package\"},{\"title\":\"Admin Management Dashboard\",\"description\":\"Pre-configured web dashboard for platform oversight.\",\"icon\":\"Layers\"},{\"title\":\"Commercial Use License\",\"description\":\"Official digital license certificate for client or personal work.\",\"icon\":\"ShieldCheck\"},{\"title\":\"Continuous Version Updates\",\"description\":\"Free lifetime updates and bug fixes for this release series.\",\"icon\":\"RefreshCw\"}]",
+        "section_type": "categories",
+        "title": "Build a Marketplace for Almost Any Service",
+        "subtitle": "Easily tailor service catalogs, pricing matrices, and categories to match your local market.",
+        "content": "{\"kicker\":\"08 — SERVICE CATEGORIES\",\"title\":\"Build a Marketplace for Almost Any Service\",\"subtitle\":\"Easily tailor service catalogs, pricing matrices, and categories to match your local market.\",\"bottom_note\":\"Customize the categories, services and marketplace configuration according to your business.\",\"categories\":[{\"name\":\"Home Cleaning\",\"icon\":\"🧹\",\"tagline\":\"Deep cleaning, dusting & sanitization\"},{\"name\":\"Plumbing\",\"icon\":\"🔧\",\"tagline\":\"Pipe repair, drainage & installations\"},{\"name\":\"Electrician\",\"icon\":\"⚡\",\"tagline\":\"Wiring, fixtures & appliance setup\"},{\"name\":\"AC Repair\",\"icon\":\"❄️\",\"tagline\":\"Servicing, gas refill & compressor care\"},{\"name\":\"Beauty & Salon\",\"icon\":\"💇\",\"tagline\":\"Hair, styling, skincare & spa services\"},{\"name\":\"Car Wash\",\"icon\":\"🚗\",\"tagline\":\"Exterior wash, detailing & interior vacuum\"},{\"name\":\"Pest Control\",\"icon\":\"🐜\",\"tagline\":\"Termite, insect & rodent management\"},{\"name\":\"Appliance Repair\",\"icon\":\"🔌\",\"tagline\":\"Refrigerators, washers & microwave fixes\"},{\"name\":\"Painting\",\"icon\":\"🎨\",\"tagline\":\"Interior, exterior wall painting & touchups\"},{\"name\":\"Moving & Shifting\",\"icon\":\"🚚\",\"tagline\":\"Packing, relocation & local freight\"}]}",
         "settings": "{\"container\":\"standard\",\"padding\":\"normal\"}",
         "sort_order": 9,
         "is_visible": 1,
         "created_at": "2026-09-05 11:53:45",
-        "updated_at": "2026-09-05 11:53:45"
+        "updated_at": "2026-09-07 18:00:00"
       },
       {
-        "id": 814,
+        "id": 810,
         "product_id": 33,
-        "section_type": "how_it_works",
-        "title": "How It Works",
-        "subtitle": null,
-        "content": "[{\"step\":\"01\",\"title\":\"Choose the Product\",\"description\":\"Review the technical specs and select the license right for your project.\",\"icon\":\"ShoppingBag\"},{\"step\":\"02\",\"title\":\"Complete Secure Payment\",\"description\":\"Instant order verification via encrypted payment gateway.\",\"icon\":\"ShieldCheck\"},{\"step\":\"03\",\"title\":\"Receive Direct Access\",\"description\":\"Get immediate access to files and workspace in your customer dashboard.\",\"icon\":\"DownloadCloud\"},{\"step\":\"04\",\"title\":\"Download & Configure\",\"description\":\"Follow our step-by-step documentation to set up your environment.\",\"icon\":\"Layers\"},{\"step\":\"05\",\"title\":\"Deploy Your Solution\",\"description\":\"Launch your project with complete commercial peace of mind.\",\"icon\":\"Zap\"}]",
+        "section_type": "specs",
+        "title": "Built for Customization & Growth",
+        "subtitle": "A modular architecture designed to give developers and businesses a strong foundation for building their own branded service marketplace.",
+        "content": "{\"kicker\":\"09 — TECH STACK & ARCHITECTURE\",\"title\":\"Built for Customization & Growth\",\"subtitle\":\"A modular architecture designed to give developers and businesses a strong foundation for building their own branded service marketplace.\",\"developer_friendly\":\"Clean project structure, reusable components and documented setup to make customization easier.\",\"specs\":[{\"label\":\"Frontend\",\"value\":\"React / Next.js Responsive Web Platform\"},{\"label\":\"Mobile\",\"value\":\"Flutter Cross-Platform Android & iOS Codebase\"},{\"label\":\"Backend\",\"value\":\"Node.js / Express RESTful Architecture\"},{\"label\":\"Database\",\"value\":\"PostgreSQL / MySQL Schema with Seed Scripts\"},{\"label\":\"Payments\",\"value\":\"Modular Razorpay & Stripe Architecture\"},{\"label\":\"Maps / Location\",\"value\":\"Configurable Geolocation & Address Management\"},{\"label\":\"Notifications\",\"value\":\"Configurable Push (FCM) & Email Integration\"}]}",
         "settings": "{\"container\":\"standard\",\"padding\":\"normal\"}",
         "sort_order": 10,
         "is_visible": 1,
         "created_at": "2026-09-05 11:53:45",
-        "updated_at": "2026-09-05 11:53:45"
+        "updated_at": "2026-09-07 18:00:00"
       },
       {
-        "id": 815,
+        "id": 811,
         "product_id": 33,
-        "section_type": "specs",
-        "title": "Technical Specifications",
-        "subtitle": null,
-        "content": "[{\"label\":\"Customer App\",\"value\":\"Flutter (Android & iOS)\"},{\"label\":\"Provider App\",\"value\":\"Flutter (Android & iOS)\"},{\"label\":\"Admin Dashboard\",\"value\":\"Laravel 10.x & Bootstrap Admin\"},{\"label\":\"Database\",\"value\":\"MySQL 8.0+\"},{\"label\":\"Maps & Geolocation\",\"value\":\"Google Maps API / Mapbox\"},{\"label\":\"Payment Gateway\",\"value\":\"Stripe, Razorpay, Cash on Service\"},{\"label\":\"Source Code\",\"value\":\"100% Full Source Code (No Restrictions)\"}]",
+        "section_type": "comparison",
+        "title": "Why Build Everything From Scratch?",
+        "subtitle": "Start with a complete marketplace foundation and customize it for your business.",
+        "content": "{\"kicker\":\"10 — ARCHITECTURAL ADVANTAGE\",\"title\":\"Why Build Everything From Scratch?\",\"subtitle\":\"Start with a complete marketplace foundation and customize it for your business.\",\"scratch_items\":[\"Customer platform\",\"Partner platform\",\"Admin panel\",\"Booking system\",\"Partner management\",\"Commission system\",\"Payment integration\",\"UI/UX development\",\"Testing & deployment\"],\"servicepro_items\":[\"Customer App\",\"Partner App\",\"Website\",\"Admin Panel\",\"Booking Workflow\",\"Partner Management\",\"Commission Management\",\"Customizable Source Code\",\"Documentation\"],\"bottom_statement\":\"Customize the foundation. Add your brand. Launch your marketplace.\"}",
         "settings": "{\"container\":\"standard\",\"padding\":\"normal\"}",
         "sort_order": 11,
         "is_visible": 1,
         "created_at": "2026-09-05 11:53:45",
-        "updated_at": "2026-09-05 11:53:45"
+        "updated_at": "2026-09-07 18:00:00"
       },
       {
-        "id": 816,
+        "id": 812,
         "product_id": 33,
-        "section_type": "platforms",
-        "title": "Supported Platforms",
-        "subtitle": null,
-        "content": "[{\"name\":\"Customer Mobile App\",\"icon\":\"Smartphone\",\"description\":\"Browse home services, book appointments, and pay securely\"},{\"name\":\"Provider Mobile App\",\"icon\":\"Tool\",\"description\":\"Accept job requests, manage schedule, and navigate to client location\"},{\"name\":\"Master Admin Console\",\"icon\":\"Cpu\",\"description\":\"City zones, commission rates, service categories, and dispatching\"}]",
+        "section_type": "business_models",
+        "title": "Built for Multiple Business Models",
+        "subtitle": "Engineered with flexibility to support diverse commercial service operations.",
+        "content": "{\"kicker\":\"11 — BUSINESS MODELS\",\"title\":\"Built for Multiple Business Models\",\"subtitle\":\"Engineered with flexibility to support diverse commercial service operations.\",\"bottom_text\":\"One platform. Multiple ways to build a service business.\",\"models\":[{\"title\":\"Home Services Marketplace\",\"description\":\"Connect customers with local service professionals.\",\"icon\":\"Layers\"},{\"title\":\"Branded Service Business\",\"description\":\"Launch your own customer-facing booking platform.\",\"icon\":\"Briefcase\"},{\"title\":\"Multi-Vendor Marketplace\",\"description\":\"Allow multiple professionals to offer services.\",\"icon\":\"Users\"},{\"title\":\"Agency Solution\",\"description\":\"Build customized marketplace solutions for clients using the Extended Commercial License.\",\"icon\":\"Building\"}]}",
         "settings": "{\"container\":\"standard\",\"padding\":\"normal\"}",
         "sort_order": 12,
         "is_visible": 1,
         "created_at": "2026-09-05 11:53:45",
-        "updated_at": "2026-09-05 11:53:45"
+        "updated_at": "2026-09-07 18:00:00"
       },
       {
-        "id": 817,
+        "id": 813,
         "product_id": 33,
-        "section_type": "use_cases",
-        "title": "Business Use Cases",
-        "subtitle": null,
-        "content": "[{\"title\":\"On-Demand Service Companies\",\"description\":\"Launch a branded mobile home-repair and cleaning booking platform.\",\"icon\":\"Tool\"},{\"title\":\"Local Contractor Associations\",\"description\":\"Unite independent electricians, plumbers, and technicians onto one hub.\",\"icon\":\"Layers\"},{\"title\":\"Marketplace Founders\",\"description\":\"Operate an asset-light service marketplace with recurring commission revenue.\",\"icon\":\"Globe\"}]",
+        "section_type": "pricing",
+        "title": "Choose the Right License for Your Business",
+        "subtitle": "Get the complete ServicePro source code with the license that fits your deployment needs.",
+        "content": "{\"kicker\":\"12 — LICENSING & PRICING\",\"title\":\"Choose the Right License for Your Business\",\"subtitle\":\"Get the complete ServicePro source code with the license that fits your deployment needs.\"}",
         "settings": "{\"container\":\"standard\",\"padding\":\"normal\"}",
         "sort_order": 13,
         "is_visible": 1,
         "created_at": "2026-09-05 11:53:45",
-        "updated_at": "2026-09-05 11:53:45"
+        "updated_at": "2026-09-07 18:00:00"
       },
       {
-        "id": 818,
+        "id": 814,
         "product_id": 33,
-        "section_type": "video",
-        "title": "Product Demo / Video",
-        "subtitle": null,
-        "content": null,
+        "section_type": "testimonials",
+        "title": "What Our Customers Say",
+        "subtitle": "Verified feedback from entrepreneurs, agencies, and developers who launched with ServicePro.",
+        "content": "{\"kicker\":\"13 — SOCIAL PROOF\",\"title\":\"What Our Customers Say\",\"subtitle\":\"Verified feedback from entrepreneurs, agencies, and developers who launched with ServicePro.\",\"items\":[{\"name\":\"Vikram Malhotra\",\"role\":\"Agency Director\",\"company\":\"NextWave Digital\",\"text\":\"Having the customer app, partner app, website, and admin dashboard in a unified clean codebase saved our client project enormous development overhead. The documentation was thorough.\",\"rating\":5,\"is_verified\":true},{\"name\":\"Ananya Sharma\",\"role\":\"Co-Founder\",\"company\":\"UrbanFix Services\",\"text\":\"We customized the brand colors, added our local service catalog, and connected payment processing within two weeks. Outstanding starting point for our home services startup.\",\"rating\":5,\"is_verified\":true},{\"name\":\"Rohan Patel\",\"role\":\"Full-Stack Developer\",\"company\":\"Freelance Tech Lead\",\"text\":\"The code structure is modular and straightforward to follow. The partner dispatch flow and admin commission configuration work exactly as described.\",\"rating\":5,\"is_verified\":true}]}",
         "settings": "{\"container\":\"standard\",\"padding\":\"normal\"}",
         "sort_order": 14,
         "is_visible": 1,
         "created_at": "2026-09-05 11:53:45",
-        "updated_at": "2026-09-05 11:53:45"
+        "updated_at": "2026-09-07 18:00:00"
       },
       {
-        "id": 819,
+        "id": 815,
         "product_id": 33,
-        "section_type": "pricing",
-        "title": "Conversion Pricing Offer",
-        "subtitle": null,
-        "content": null,
+        "section_type": "faq",
+        "title": "Frequently Asked Questions",
+        "subtitle": "Clear answers to your technical, licensing, and deployment questions.",
+        "content": "{\"kicker\":\"14 — QUESTIONS & ANSWERS\",\"title\":\"Frequently Asked Questions\",\"subtitle\":\"Clear answers to your technical, licensing, and deployment questions.\"}",
         "settings": "{\"container\":\"standard\",\"padding\":\"normal\"}",
         "sort_order": 15,
         "is_visible": 1,
         "created_at": "2026-09-05 11:53:45",
-        "updated_at": "2026-09-05 11:53:45"
+        "updated_at": "2026-09-07 18:00:00"
       },
       {
-        "id": 820,
+        "id": 816,
         "product_id": 33,
-        "section_type": "testimonials",
-        "title": "Customer Testimonials",
-        "subtitle": null,
-        "content": null,
+        "section_type": "requirements",
+        "title": "What You May Need Separately",
+        "subtitle": "Transparent breakdown of standard external hosting and account requirements for production deployment.",
+        "content": "{\"kicker\":\"15 — THIRD-PARTY REQUIREMENTS\",\"title\":\"What You May Need Separately\",\"subtitle\":\"Transparent breakdown of standard external hosting and account requirements for production deployment.\",\"note\":\"Third-party service fees and platform accounts are separate unless specifically included in your selected license/package.\",\"items\":[{\"name\":\"Domain\",\"desc\":\"A custom domain name for your customer website and API endpoints.\"},{\"name\":\"Hosting / Server\",\"desc\":\"Standard cloud VPS or dedicated server to host the backend APIs and database.\"},{\"name\":\"Payment Gateway Charges\",\"desc\":\"Merchant transaction processing accounts (Razorpay, Stripe, etc.).\"},{\"name\":\"SMS / OTP Charges\",\"desc\":\"SMS provider account for mobile phone OTP customer verification.\"},{\"name\":\"Maps / API Usage\",\"desc\":\"Google Maps Platform account for location address lookup.\"},{\"name\":\"Google Play Developer Account\",\"desc\":\"One-time $25 fee to Google if publishing mobile app to Google Play Store.\"},{\"name\":\"Apple Developer Account\",\"desc\":\"$99/year fee to Apple if publishing iOS mobile app to Apple App Store.\"},{\"name\":\"Other Third-Party Services\",\"desc\":\"Any additional third-party transactional email or custom analytics services.\"}]}",
         "settings": "{\"container\":\"standard\",\"padding\":\"normal\"}",
         "sort_order": 16,
         "is_visible": 1,
         "created_at": "2026-09-05 11:53:45",
-        "updated_at": "2026-09-05 11:53:45"
+        "updated_at": "2026-09-07 18:00:00"
       },
       {
-        "id": 821,
+        "id": 817,
         "product_id": 33,
-        "section_type": "faq",
-        "title": "Frequently Asked Questions",
-        "subtitle": null,
-        "content": null,
+        "section_type": "final_cta",
+        "title": "Ready to Launch Your Own Service Marketplace?",
+        "subtitle": "Get the complete ServicePro source code and start building your branded on-demand service marketplace today.",
+        "content": "{\"kicker\":\"16 — GET STARTED TODAY\",\"heading\":\"Ready to Launch Your Own Service Marketplace?\",\"subheading\":\"Get the complete ServicePro source code and start building your branded on-demand service marketplace today.\",\"cta_text\":\"GET FULL SOURCE CODE →\",\"secondary_cta_text\":\"VIEW LIVE DEMO\",\"demo_url\":\"https://rollixia.com/products/servicepro\",\"badges\":[\"Customer App\",\"Partner App\",\"Website\",\"Admin Panel\",\"Backend\"]}",
         "settings": "{\"container\":\"standard\",\"padding\":\"normal\"}",
         "sort_order": 17,
         "is_visible": 1,
         "created_at": "2026-09-05 11:53:45",
-        "updated_at": "2026-09-05 11:53:45"
+        "updated_at": "2026-09-07 18:00:00"
       },
       {
-        "id": 822,
+        "id": 818,
         "product_id": 33,
-        "section_type": "license_delivery",
-        "title": "License & Delivery Info",
-        "subtitle": null,
-        "content": "{\"license_type\":\"Commercial Project License\",\"delivery_method\":\"Instant Digital Download & Dashboard Access\",\"access\":\"Lifetime access with unlimited re-downloads from customer portal\",\"support\":\"Standard technical setup guidance & issue resolution included\",\"requirements\":\"Standard modern hosting environment (PHP/Node/WordPress as indicated in specs)\",\"restrictions\":\"Redistribution or reselling of raw source code on public marketplaces is strictly prohibited.\",\"disclaimer\":\"All product names, logos, and brands are property of their respective owners. Platform is independently developed and provided for professional production deployment.\"}",
+        "section_type": "after_purchase",
+        "title": "What Happens After You Purchase?",
+        "subtitle": "A transparent 5-step roadmap from checkout to operating your branded marketplace.",
+        "content": "{\"kicker\":\"17 — ONBOARDING PROCESS\",\"title\":\"What Happens After You Purchase?\",\"subtitle\":\"A transparent 5-step roadmap from checkout to operating your branded marketplace.\",\"steps\":[{\"step\":\"01\",\"title\":\"01 — Complete Your Purchase\",\"description\":\"Choose your license and complete checkout.\"},{\"step\":\"02\",\"title\":\"02 — Receive Your Product\",\"description\":\"Receive the source-code package and applicable documentation/access details according to the delivery process.\"},{\"step\":\"03\",\"title\":\"03 — Configure Your Brand\",\"description\":\"Customize branding, services, content and configuration.\"},{\"step\":\"04\",\"title\":\"04 — Deploy\",\"description\":\"Set up the required infrastructure and deploy your platform.\"},{\"step\":\"05\",\"title\":\"05 — Launch\",\"description\":\"Start operating your own branded service marketplace.\"}]}",
         "settings": "{\"container\":\"standard\",\"padding\":\"normal\"}",
         "sort_order": 18,
         "is_visible": 1,
         "created_at": "2026-09-05 11:53:45",
-        "updated_at": "2026-09-05 11:53:45"
-      },
-      {
-        "id": 823,
-        "product_id": 33,
-        "section_type": "related",
-        "title": "Related Products",
-        "subtitle": null,
-        "content": null,
-        "settings": "{\"container\":\"standard\",\"padding\":\"normal\"}",
-        "sort_order": 19,
-        "is_visible": 1,
-        "created_at": "2026-09-05 11:53:45",
-        "updated_at": "2026-09-05 11:53:45"
-      },
-      {
-        "id": 824,
-        "product_id": 33,
-        "section_type": "final_cta",
-        "title": "Final Conversion CTA",
-        "subtitle": null,
-        "content": "{\"heading\":\"Ready to Launch Your Next Project?\",\"subheading\":\"Get ServicePro — On-Demand Home Services Platform today and accelerate your deployment with enterprise-grade architecture.\",\"cta_text\":\"GET INSTANT ACCESS\",\"badges\":[\"Secure 256-bit Checkout\",\"Instant Digital Delivery\",\"Lifetime Version Access\"]}",
-        "settings": "{\"container\":\"standard\",\"padding\":\"normal\"}",
-        "sort_order": 20,
-        "is_visible": 1,
-        "created_at": "2026-09-05 11:53:45",
-        "updated_at": "2026-09-05 11:53:45"
+        "updated_at": "2026-09-07 18:00:00"
       }
     ]
   },

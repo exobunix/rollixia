@@ -463,57 +463,59 @@ async function seedProductLandingData() {
     },
     'servicepro': {
       platforms: [
-        { name: 'Customer Mobile App', icon: 'Smartphone', description: 'Browse home services, book appointments, and pay securely' },
-        { name: 'Provider Mobile App', icon: 'Tool', description: 'Accept job requests, manage schedule, and navigate to client location' },
-        { name: 'Master Admin Console', icon: 'Cpu', description: 'City zones, commission rates, service categories, and dispatching' }
+        { name: 'Customer Mobile App', icon: 'Smartphone', description: 'Give customers an easy way to discover, book and manage services' },
+        { name: 'Partner Mobile App', icon: 'Tool', description: 'Give service professionals everything they need to manage jobs and earnings' },
+        { name: 'Admin Control Panel', icon: 'LayoutDashboard', description: 'Control your complete marketplace from one powerful dashboard' },
+        { name: 'Customer Web Platform', icon: 'Globe', description: 'Attract customers through a responsive web experience designed for service discovery' }
       ],
       highlights: [
-        { icon: 'Zap', title: 'End-to-End Home Services Flow', description: 'Complete architecture for cleaning, plumbing, electrician, AC repair, and beauty services.' },
-        { icon: 'ShieldCheck', title: 'Provider Onboarding & Verification', description: 'Identity document uploads, background check workflows, and skill certifications.' },
-        { icon: 'Clock', title: 'Instant & Scheduled Booking', description: 'Customers choose specific time slots with real-time technician availability.' },
-        { icon: 'Award', title: 'In-App Chat & Live GPS Tracking', description: 'Coordinate seamlessly with service professionals before they arrive at your door.' }
+        { icon: 'Calendar', title: 'Customer Booking Flow', description: 'Browse services, select packages, choose date/time and create bookings.' },
+        { icon: 'Users', title: 'Partner Management', description: 'Onboard, verify and manage service professionals.' },
+        { icon: 'Send', title: 'Smart Job Dispatch', description: 'Send booking requests to eligible partners based on your configured marketplace logic.' },
+        { icon: 'CreditCard', title: 'Payments & Commissions', description: 'Manage customer payments, platform commissions and partner earnings.' }
       ],
       overview_specs: [
-        { label: 'Mobile Engine', value: 'Flutter (Customer & Provider)' },
-        { label: 'Backend Platform', value: 'Laravel 10.x REST API' },
-        { label: 'Map Integration', value: 'Google Maps Geocoding & Routing' },
-        { label: 'License', value: 'Full Commercial Deployment License' },
-        { label: 'Delivery', value: 'Full Source Code (Apps + Web Admin)' }
+        { label: 'Frontend', value: 'React / Next.js Responsive Web' },
+        { label: 'Mobile Engine', value: 'Flutter Cross-Platform Codebase' },
+        { label: 'Backend API', value: 'Node.js RESTful Architecture' },
+        { label: 'Database', value: 'PostgreSQL / MySQL Relational Schema' },
+        { label: 'License', value: 'Commercial Project Licensing' }
       ],
       showcase: [
         {
-          title: 'Frictionless Booking & Transparent Pricing',
-          description: 'Customers choose required tasks with itemized sub-services, view estimated costs, and confirm appointment slots in under 60 seconds.',
-          image: 'https://images.unsplash.com/photo-1581578731548-c64695cc6952?auto=format&fit=crop&w=1200&q=80',
+          title: 'Customer Experience — From Booking to Completion',
+          description: 'Give customers a simple and reliable way to discover services, choose professionals, schedule appointments, make payments and manage every booking from one place.',
+          image: '/uploads/products/servicepro-customer-experience.svg',
           alignment: 'left',
-          bullet_points: ['Multi-Service Category Navigation', 'Configurable Sub-Tasks with Fixed & Hourly Rates', 'Live Provider ETA with Distance Calculation', 'OTP Verification upon Job Arrival & Completion']
+          bullet_points: ['Easy Service Discovery', 'Transparent Service Details & Pricing', 'Flexible Booking & Scheduling', 'Secure Payment Options', 'Booking Status Updates', 'Ratings & Reviews']
         },
         {
-          title: 'Provider Job Dispatcher & Commission Engine',
-          description: 'Technicians receive instant audio push notifications for new jobs nearby. Admin takes automated platform commission cuts on every completed booking.',
-          image: 'https://images.unsplash.com/photo-1551288049-bebda4e38f71?auto=format&fit=crop&w=1200&q=80',
+          title: 'Smart Partner Management & Job Dispatch',
+          description: 'Manage your entire service-provider network from one powerful system. Assign jobs, monitor availability, manage service areas, track commissions and keep every booking under control.',
+          image: '/uploads/products/servicepro-ecosystem-showcase.svg',
           alignment: 'right',
-          bullet_points: ['Interactive Provider Schedule Calendar', 'Commission Split between Admin & Service Provider', 'Service Area Polygon Zone Restrictions', 'Customer Ratings & Reviews with Photo Proof']
+          bullet_points: ['Partner Profiles & Verification', 'Booking Requests & Job Management', 'Partner Availability & Scheduling', 'Commission & Earnings Management', 'Service Area Management', 'Ratings & Reviews']
         }
       ],
       screenshots: [
-        { url: 'https://images.unsplash.com/photo-1581578731548-c64695cc6952?auto=format&fit=crop&w=1000&q=80', caption: 'Customer App Home with Featured Services' },
-        { url: 'https://images.unsplash.com/photo-1551288049-bebda4e38f71?auto=format&fit=crop&w=1000&q=80', caption: 'Technician Job Management & Navigation' },
-        { url: 'https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&w=1000&q=80', caption: 'Admin Live Booking Dispatch & Zone Configuration' }
+        { url: '/uploads/products/servicepro-ecosystem-showcase.svg', caption: 'Complete ServicePro Ecosystem' },
+        { url: '/uploads/products/servicepro-customer-experience.svg', caption: 'Customer Booking & Ordering Flow' },
+        { url: '/uploads/products/servicepro-admin-showcase.svg', caption: 'Master Administrative Command Console' }
       ],
       use_cases: [
-        { title: 'On-Demand Service Companies', description: 'Launch a branded mobile home-repair and cleaning booking platform.', icon: 'Tool' },
-        { title: 'Local Contractor Associations', description: 'Unite independent electricians, plumbers, and technicians onto one hub.', icon: 'Layers' },
-        { title: 'Marketplace Founders', description: 'Operate an asset-light service marketplace with recurring commission revenue.', icon: 'Globe' }
+        { title: 'Home Services Marketplace', description: 'Connect customers with local service professionals.', icon: 'Layers' },
+        { title: 'Branded Service Business', description: 'Launch your own customer-facing booking platform.', icon: 'Briefcase' },
+        { title: 'Multi-Vendor Marketplace', description: 'Allow multiple professionals to offer services.', icon: 'Users' },
+        { title: 'Agency Solution', description: 'Build customized marketplace solutions for clients using the Extended Commercial License.', icon: 'Building' }
       ],
       specs: [
-        { label: 'Customer App', value: 'Flutter (Android & iOS)' },
-        { label: 'Provider App', value: 'Flutter (Android & iOS)' },
-        { label: 'Admin Dashboard', value: 'Laravel 10.x & Bootstrap Admin' },
-        { label: 'Database', value: 'MySQL 8.0+' },
-        { label: 'Maps & Geolocation', value: 'Google Maps API / Mapbox' },
-        { label: 'Payment Gateway', value: 'Stripe, Razorpay, Cash on Service' },
-        { label: 'Source Code', value: '100% Full Source Code (No Restrictions)' }
+        { label: 'Frontend', value: 'React / Next.js Responsive Web Platform' },
+        { label: 'Mobile', value: 'Flutter Cross-Platform Android & iOS Codebase' },
+        { label: 'Backend', value: 'Node.js / Express RESTful Architecture' },
+        { label: 'Database', value: 'PostgreSQL / MySQL Schema with Seed Scripts' },
+        { label: 'Payments', value: 'Modular Razorpay & Stripe Architecture' },
+        { label: 'Maps / Location', value: 'Configurable Geolocation & Address Management' },
+        { label: 'Notifications', value: 'Configurable Push (FCM) & Email Integration' }
       ],
       video: null
     }

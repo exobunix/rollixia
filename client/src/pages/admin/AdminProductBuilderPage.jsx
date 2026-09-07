@@ -2179,14 +2179,18 @@ export function AdminProductBuilderPage({ productId: propProductId, onBack, onSa
                         height: '160px',
                         borderRadius: 'var(--radius-sm)',
                         overflow: 'hidden',
-                        background: '#0a0e1a',
-                        border: '1px solid var(--border-subtle)'
+                        background: '#060913',
+                        border: '1px solid var(--border-subtle)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        padding: '4px'
                       }}>
                         {item.image ? (
                           <img
                             src={item.image}
                             alt={item.title || 'Showcase Image'}
-                            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                            style={{ width: '100%', height: '100%', maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }}
                             onError={(e) => {
                               e.currentTarget.onerror = null;
                               e.currentTarget.src = 'https://images.unsplash.com/photo-1551288049-bebda4e38f71?auto=format&fit=crop&w=600&q=80';
@@ -2307,14 +2311,18 @@ export function AdminProductBuilderPage({ productId: propProductId, onBack, onSa
                         height: '160px',
                         borderRadius: 'var(--radius-sm)',
                         overflow: 'hidden',
-                        background: '#0a0e1a',
-                        border: '1px solid var(--border-subtle)'
+                        background: '#060913',
+                        border: '1px solid var(--border-subtle)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        padding: '4px'
                       }}>
                         {item.image ? (
                           <img
                             src={item.image}
                             alt={item.title || 'Partner Image'}
-                            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                            style={{ width: '100%', height: '100%', maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }}
                             onError={(e) => {
                               e.currentTarget.onerror = null;
                               e.currentTarget.src = 'https://images.unsplash.com/photo-1551288049-bebda4e38f71?auto=format&fit=crop&w=600&q=80';

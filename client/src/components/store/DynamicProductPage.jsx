@@ -1437,9 +1437,9 @@ export function DynamicProductPage({ slug, productData: initialData, onNavigate,
                 {item.image && (
                   <div
                     onClick={() => openLightbox(item.image, item.title)}
-                    style={{ aspectRatio: '16/10', borderRadius: 'var(--radius-md)', overflow: 'hidden', background: '#000', cursor: 'pointer' }}
+                    style={{ aspectRatio: '16/10', borderRadius: 'var(--radius-md)', overflow: 'hidden', background: 'radial-gradient(135deg, rgba(30, 41, 59, 0.75) 0%, rgba(10, 15, 30, 0.95) 100%)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0.35rem' }}
                   >
-                    <img src={item.image} alt={item.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    <img src={item.image} alt={item.title} style={{ width: '100%', height: '100%', maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }} />
                   </div>
                 )}
                 <h3 className="pdp-card-title" style={{ marginTop: '0.5rem' }}>{item.title}</h3>

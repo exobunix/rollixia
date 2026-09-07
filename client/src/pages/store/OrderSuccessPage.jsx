@@ -6,6 +6,7 @@ import { formatCurrency, formatDate, formatDateTime, formatFileSize } from '../.
 import { useCurrency } from '../../context/CurrencyContext';
 import { useToast } from '../../context/ToastContext';
 import { downloadEntitledDeliverable } from '../../utils/fileStorage';
+import { trackPixelEvent } from '../../utils/metaPixel';
 
 export function OrderSuccessPage({ orderNumber, onNavigate }) {
   const [orderData, setOrderData] = useState(null);
@@ -28,6 +29,20 @@ export function OrderSuccessPage({ orderNumber, onNavigate }) {
         .finally(() => setLoading(false));
     }
   }, [orderNumber]);
+
+  // Track Meta Pixel Purchase event once order details are successfully retrieved
+  useEffect(() => {
+    if (orderData && orderData.order) {
+      const { order, items = [] } = orderData;
+      trackPixelEvent('Purchase', {
+        value: Number(order.total_amount) || 0,
+        currency: order.currency || 'USD',
+        content_type: 'product',
+        content_ids: items.map(i => String(i.product_id || i.productId || '')).filter(Boolean),
+        num_items: items.length
+      });
+    }
+  }, [orderData]);
 
   if (loading) {
     return (

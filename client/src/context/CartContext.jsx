@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { apiRequest } from '../utils/api';
 import { useToast } from './ToastContext';
+import { trackPixelEvent } from '../utils/metaPixel';
 
 const CartContext = createContext();
 
@@ -97,6 +98,15 @@ export function CartProvider({ children }) {
     setItems(prev => [...prev, newItem]);
     addToast(`Added "${product.title}" to your cart!`, 'success');
     if (openDrawer) setIsCartOpen(true);
+
+    // Track Meta Pixel AddToCart event
+    trackPixelEvent('AddToCart', {
+      content_name: product.title,
+      content_ids: [String(product.id)],
+      content_type: 'product',
+      value: Number(newItem.price) || 0,
+      currency: 'USD'
+    });
   };
 
   const removeFromCart = (productId, licenseId = null) => {

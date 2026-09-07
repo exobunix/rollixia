@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from './context/AuthContext';
 import { useCart } from './context/CartContext';
+import { trackPixelPageView } from './utils/metaPixel';
 
 // Storefront Components & Pages
 import { Header } from './components/common/Header';
@@ -232,6 +233,16 @@ export function App() {
       window.removeEventListener('hashchange', handleLocationChange);
     };
   }, [setIsCartOpen]);
+
+  // Track Meta Pixel PageView on client-side route transitions
+  const isInitialMount = useRef(true);
+  useEffect(() => {
+    if (isInitialMount.current) {
+      isInitialMount.current = false;
+      return;
+    }
+    trackPixelPageView();
+  }, [currentRoute]);
 
   // Programmatic navigation helper using HTML5 pushState (no '#')
   const navigate = (page, params = {}) => {

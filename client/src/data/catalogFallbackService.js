@@ -552,17 +552,55 @@ export function simulateGetOrder(orderNumber) {
 export function simulateGetMyOrders() {
   try {
     const existing = JSON.parse(localStorage.getItem('rollixia_orders') || '[]');
+    const orderFiles = (() => {
+      try {
+        const raw = localStorage.getItem('rollixia_order_files');
+        return raw ? JSON.parse(raw) : {};
+      } catch (e) { return {}; }
+    })();
+
     if (Array.isArray(existing) && existing.length > 0) {
-      return existing.map(item => ({
-        id: item.order?.id || Date.now(),
-        order_number: item.order?.order_number || 'ORD-ROX-001',
-        total_amount: item.order?.total_amount || 0,
-        currency: item.order?.currency || 'INR',
-        payment_status: item.order?.payment_status || 'paid',
-        order_status: item.order?.order_status || 'completed',
-        created_at: item.order?.created_at || new Date().toISOString(),
-        items: Array.isArray(item.items) ? item.items : []
-      }));
+      return existing.map(item => {
+        const orderId = item.order?.id;
+        const orderNumber = item.order?.order_number;
+        const customFile = (orderId && orderFiles[String(orderId)]) || (orderNumber && orderFiles[String(orderNumber)]);
+
+        let downloads = Array.isArray(item.downloads) ? [...item.downloads] : [];
+        if (customFile) {
+          downloads = [
+            {
+              id: 101,
+              order_id: orderId,
+              file_name: customFile.fileName,
+              file_size: customFile.fileSize,
+              product_title: customFile.productTitle || item.items?.[0]?.product_title || 'Digital Deliverable',
+              token: customFile.token || `DL_TOKEN_${Date.now()}`
+            }
+          ];
+        } else if (downloads.length === 0 && Array.isArray(item.items) && item.items.length > 0) {
+          downloads = item.items.map((it, idx) => ({
+            id: 100 + idx,
+            order_id: orderId,
+            product_id: it.product_id || it.productId || 1,
+            product_title: it.product_title || it.title || 'Digital Deliverable',
+            file_name: `${(it.product_title || 'package').toLowerCase().replace(/[^a-z0-9]/g, '-')}-deliverable.zip`,
+            file_size: 15485760,
+            token: `DL_TOKEN_${Date.now()}_${idx}`
+          }));
+        }
+
+        return {
+          id: item.order?.id || Date.now(),
+          order_number: item.order?.order_number || 'ORD-ROX-001',
+          total_amount: item.order?.total_amount || 0,
+          currency: item.order?.currency || 'INR',
+          payment_status: item.order?.payment_status || 'paid',
+          order_status: item.order?.order_status || 'completed',
+          created_at: item.order?.created_at || new Date().toISOString(),
+          items: Array.isArray(item.items) ? item.items : [],
+          downloads
+        };
+      });
     }
   } catch (e) {}
   return [];
@@ -577,11 +615,41 @@ export function simulateGetMyDownloads() {
         return raw ? JSON.parse(raw) : [];
       } catch (e) { return []; }
     })();
+    const orderFiles = (() => {
+      try {
+        const raw = localStorage.getItem('rollixia_order_files');
+        return raw ? JSON.parse(raw) : {};
+      } catch (e) { return {}; }
+    })();
 
     if (Array.isArray(existing) && existing.length > 0) {
       const allDownloads = [];
       existing.forEach(entry => {
         const orderDate = entry.order?.created_at || new Date().toISOString();
+        const orderId = entry.order?.id;
+        const orderNumber = entry.order?.order_number;
+        const customFile = (orderId && orderFiles[String(orderId)]) || (orderNumber && orderFiles[String(orderNumber)]);
+
+        if (customFile) {
+          allDownloads.push({
+            download_id: Date.now() + Math.floor(Math.random() * 1000),
+            order_id: orderId,
+            order_number: orderNumber,
+            product_id: 1,
+            product_title: customFile.productTitle || 'Custom Order Deliverable',
+            product_slug: 'digital-deliverable',
+            file_name: customFile.fileName,
+            file_size: customFile.fileSize,
+            license_name: 'Commercial Production License',
+            purchased_version: 'Custom Release',
+            latest_version: 'Custom Release',
+            purchase_date: customFile.updatedAt || orderDate,
+            downloads_remaining: 10,
+            token: customFile.token || `DL_TOKEN_${Date.now()}`,
+            has_update: false
+          });
+        }
+
         if (Array.isArray(entry.downloads)) {
           entry.downloads.forEach(dl => {
             const attachedFile = adminFiles.find(f =>
@@ -592,6 +660,7 @@ export function simulateGetMyDownloads() {
             allDownloads.push({
               download_id: dl.id || Date.now(),
               order_id: dl.order_id || entry.order?.id,
+              order_number: orderNumber,
               product_id: dl.product_id,
               file_id: dl.file_id || (attachedFile ? attachedFile.id : null),
               product_title: dl.product_title || 'Digital Product',
@@ -736,6 +805,23 @@ export function handleFallbackRoute(endpoint, options = {}, requestBody = null) 
     const raw = clean.replace(/^products\//, '');
     const product = getFallbackProductBySlug(raw);
     if (product) return product;
+  }
+  if (clean === 'orders/notifications') {
+    try {
+      return JSON.parse(localStorage.getItem('rollixia_customer_notifications') || '[]');
+    } catch (e) { return []; }
+  }
+  if (clean.startsWith('orders/notifications/') && clean.endsWith('/read')) {
+    const notifId = clean.replace(/^orders\/notifications\//, '').replace(/\/read$/, '');
+    try {
+      const notifs = JSON.parse(localStorage.getItem('rollixia_customer_notifications') || '[]');
+      const target = notifs.find(n => String(n.id) === String(notifId));
+      if (target) {
+        target.is_read = true;
+        localStorage.setItem('rollixia_customer_notifications', JSON.stringify(notifs));
+      }
+    } catch (e) {}
+    return { success: true };
   }
   if (clean === 'orders/my-orders') {
     return simulateGetMyOrders();

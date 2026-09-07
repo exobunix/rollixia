@@ -722,21 +722,94 @@ export function handleAdminFallbackRoute(clean, method, options = {}, requestBod
 
   if (clean.startsWith('admin/orders/') && clean.endsWith('/send-file') && method === 'POST') {
     const targetOrderId = clean.replace(/^admin\/orders\//, '').replace(/\/send-file$/, '');
-    const recipient = requestBody?.recipientEmail || 'customer';
+    const fileObj = extractFormFile(requestBody);
+    const recipient = extractFormValue(requestBody, 'recipientEmail') || 'customer';
+    const customMessage = extractFormValue(requestBody, 'customMessage') || '';
+    const allOrders = getFallbackAdminOrders().orders;
+    const targetOrder = allOrders.find(o => String(o.id) === String(targetOrderId) || o.order_number === targetOrderId) || allOrders[0];
+    const targetTitle = (targetOrder && targetOrder.items_summary) || 'Apex — Enterprise SaaS Next.js 14 Template';
+
+    let fileName = (fileObj && (fileObj.name || fileObj.originalname)) || 'apex-saas-dashboard-v2.1.0.zip';
+    let fileSize = (fileObj && fileObj.size) || 15485760;
+
+    // If file was uploaded by admin, store in IndexedDB
+    if (fileObj && typeof fileObj === 'object' && (fileObj.size > 0 || fileObj.name)) {
+      const meta = {
+        fileName,
+        fileSize,
+        fileType: fileObj.type || 'application/octet-stream',
+        version: '1.0.0-custom',
+        orderId: targetOrderId,
+        orderNumber: targetOrder?.order_number,
+        productTitle: targetTitle
+      };
+      storeDeliverableBlob(targetOrderId, fileObj, meta);
+      storeDeliverableBlob(`order_${targetOrderId}`, fileObj, meta);
+      if (targetOrder?.order_number) {
+        storeDeliverableBlob(targetOrder.order_number, fileObj, meta);
+      }
+    }
+
+    // Save deliverable to rollixia_order_files map
+    const orderFiles = getStored('rollixia_order_files', {});
+    orderFiles[String(targetOrderId)] = {
+      orderId: targetOrderId,
+      orderNumber: targetOrder?.order_number,
+      productTitle: targetTitle,
+      fileName,
+      fileSize,
+      token: `DL_TOKEN_${Date.now()}`,
+      updatedAt: new Date().toISOString()
+    };
+    setStored('rollixia_order_files', orderFiles);
+
+    // Create customer notification
+    const notifications = getStored('rollixia_customer_notifications', []);
+    const newNotif = {
+      id: Date.now(),
+      user_email: recipient,
+      order_id: targetOrderId,
+      order_number: targetOrder?.order_number,
+      product_id: 1,
+      product_title: targetTitle,
+      file_name: fileName,
+      message: `Your file for "${targetTitle}" (Order #${targetOrder?.order_number || targetOrderId}) is ready to download now!`,
+      download_url: `https://rollixia.com/api/downloads/file/DL_TOKEN_${Date.now()}`,
+      is_read: false,
+      created_at: new Date().toISOString()
+    };
+    notifications.unshift(newNotif);
+    setStored('rollixia_customer_notifications', notifications);
+
+    // Dispatch global window event for real-time reactivity across tabs/components
+    if (typeof window !== 'undefined') {
+      try {
+        window.dispatchEvent(new CustomEvent('rollixia_file_delivered', {
+          detail: newNotif
+        }));
+      } catch (e) {}
+    }
+
+    // Log to admin activity logs
     const logs = getStored(STORAGE_KEYS.LOGS, []);
     logs.unshift({
       id: Date.now(),
       action: 'PRODUCT_FILE_SENT',
       target: 'order',
       target_id: targetOrderId,
-      details: `Product file deliverable dispatched to ${recipient}`,
+      details: `Product file "${fileName}" delivered to ${recipient}`,
       timestamp: new Date().toISOString()
     });
     setStored(STORAGE_KEYS.LOGS, logs);
+
     return {
       success: true,
-      message: `Product file deliverable successfully sent to ${recipient}!`,
+      message: fileObj
+        ? `New deliverable "${fileName}" uploaded and sent to ${recipient}!`
+        : `Product file deliverable successfully sent to ${recipient}!`,
       recipientEmail: recipient,
+      fileName,
+      productTitle: targetTitle,
       downloadUrl: `https://rollixia.com/api/downloads/file/DL_TOKEN_${Date.now()}`
     };
   }
@@ -754,6 +827,13 @@ export function handleAdminFallbackRoute(clean, method, options = {}, requestBod
     const all = getFallbackAdminOrders().orders;
     const target = all.find(o => String(o.id) === String(orderId) || o.order_number === orderId) || all[0];
     const targetTitle = (target && target.items_summary) || 'Apex — Enterprise SaaS Next.js 14 Template';
+    
+    // Check if a custom file was uploaded for this order
+    const orderFiles = getStored('rollixia_order_files', {});
+    const customUploaded = orderFiles[String(orderId)] || (target && orderFiles[String(target.id)]);
+    const activeFileName = customUploaded ? customUploaded.fileName : 'apex-saas-dashboard-v2.1.0.zip';
+    const activeFileSize = customUploaded ? customUploaded.fileSize : 15485760;
+
     return {
       order: target,
       items: [
@@ -771,12 +851,12 @@ export function handleAdminFallbackRoute(clean, method, options = {}, requestBod
           product_id: 1,
           product_title: targetTitle,
           product_slug: 'apex-saas-dashboard',
-          file_name: 'apex-saas-dashboard-v2.1.0.zip',
-          file_size: 15485760,
-          version: '2.1.0',
+          file_name: activeFileName,
+          file_size: activeFileSize,
+          version: customUploaded ? 'Custom Release' : '2.1.0',
           download_count: 0,
           max_downloads: 10,
-          token: `DL_TOKEN_${Date.now()}`,
+          token: customUploaded ? customUploaded.token : `DL_TOKEN_${Date.now()}`,
           expires_at: new Date(Date.now() + 48 * 3600 * 1000).toISOString()
         }
       ]

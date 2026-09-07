@@ -12,7 +12,10 @@ import {
   Lock,
   CheckCircle,
   AlertTriangle,
-  FileText
+  FileText,
+  Bell,
+  X,
+  Package
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useCurrency } from '../../context/CurrencyContext';
@@ -33,6 +36,7 @@ export function CustomerDashboardPage({ initialTab = 'orders', onNavigate }) {
   const [downloads, setDownloads] = useState([]);
   const [wishlist, setWishlist] = useState([]);
   const [tickets, setTickets] = useState([]);
+  const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
 
   // Profile Form
@@ -45,6 +49,22 @@ export function CustomerDashboardPage({ initialTab = 'orders', onNavigate }) {
   const [ticketMessage, setTicketMessage] = useState('');
   const [selectedTicket, setSelectedTicket] = useState(null);
   const [ticketReply, setTicketReply] = useState('');
+
+  const loadNotifications = () => {
+    apiRequest('/api/orders/notifications')
+      .then(res => {
+        const list = Array.isArray(res) ? res : (res?.notifications || []);
+        setNotifications(list);
+      })
+      .catch(() => {
+        try {
+          const local = JSON.parse(localStorage.getItem('rollixia_customer_notifications') || '[]');
+          setNotifications(local);
+        } catch (e) {
+          setNotifications([]);
+        }
+      });
+  };
 
   useEffect(() => {
     if (!user) {
@@ -70,10 +90,44 @@ export function CustomerDashboardPage({ initialTab = 'orders', onNavigate }) {
       setWishlist([]);
       setTickets([]);
     }).finally(() => setLoading(false));
+
+    loadNotifications();
+
+    const handleFileDelivered = (e) => {
+      if (e.detail) {
+        setNotifications(prev => [e.detail, ...prev]);
+        addToast(`🔔 Your file for "${e.detail.product_title}" is ready! Download it from My Orders.`, 'success', 8000);
+      }
+    };
+    window.addEventListener('rollixia_file_delivered', handleFileDelivered);
+    return () => window.removeEventListener('rollixia_file_delivered', handleFileDelivered);
   }, [user]);
 
   const handleDownloadFile = async (dl) => {
     await downloadEntitledDeliverable(dl, addToast);
+  };
+
+  const handleDownloadFromNotification = async (notif) => {
+    if (!notif) return;
+    await downloadEntitledDeliverable({
+      product_id: notif.product_id,
+      product_title: notif.product_title,
+      file_name: notif.file_name,
+      token: notif.download_url?.split('/file/')[1] || null
+    }, addToast);
+    handleDismissNotification(notif.id);
+  };
+
+  const handleDismissNotification = async (id) => {
+    setNotifications(prev => prev.filter(n => String(n.id) !== String(id)));
+    try {
+      await apiRequest(`/api/orders/notifications/${id}/read`, { method: 'PATCH' });
+    } catch (e) {}
+    try {
+      const local = JSON.parse(localStorage.getItem('rollixia_customer_notifications') || '[]');
+      const updated = local.map(n => String(n.id) === String(id) ? { ...n, is_read: true } : n);
+      localStorage.setItem('rollixia_customer_notifications', JSON.stringify(updated));
+    } catch (e) {}
   };
 
   const handleUpdateProfile = async (e) => {
@@ -187,6 +241,69 @@ export function CustomerDashboardPage({ initialTab = 'orders', onNavigate }) {
             </div>
           </div>
         </div>
+
+        {/* Real-time Order File Notification Banner */}
+        {notifications.filter(n => !n.is_read).length > 0 && (
+          <div style={{
+            background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.18) 0%, rgba(99, 102, 241, 0.18) 100%)',
+            border: '1px solid #10b981',
+            borderRadius: 'var(--radius-xl)',
+            padding: '1.25rem 1.75rem',
+            marginBottom: '2rem',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            flexWrap: 'wrap',
+            gap: '1.25rem',
+            boxShadow: '0 8px 30px rgba(16, 185, 129, 0.15)'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+              <div style={{
+                width: '44px',
+                height: '44px',
+                borderRadius: '50%',
+                background: 'rgba(16, 185, 129, 0.25)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: '#10b981',
+                flexShrink: 0
+              }}>
+                <Bell size={22} />
+              </div>
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '3px' }}>
+                  <span className="badge" style={{ background: '#10b981', color: '#000', fontWeight: 800, fontSize: '0.72rem' }}>
+                    NEW FILE DELIVERED
+                  </span>
+                  <strong style={{ color: '#fff', fontSize: '1.05rem' }}>
+                    {notifications.filter(n => !n.is_read)[0].product_title}
+                  </strong>
+                </div>
+                <p style={{ margin: 0, fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
+                  {notifications.filter(n => !n.is_read)[0].message || `Your ordered file is ready to download now.`}
+                </p>
+              </div>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <button
+                onClick={() => handleDownloadFromNotification(notifications.filter(n => !n.is_read)[0])}
+                className="btn btn-success"
+                style={{ fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '0.6rem 1.25rem' }}
+              >
+                <DownloadCloud size={16} /> Download File Now
+              </button>
+              <button
+                onClick={() => handleDismissNotification(notifications.filter(n => !n.is_read)[0].id)}
+                className="btn btn-secondary btn-sm"
+                style={{ padding: '0.6rem' }}
+                title="Dismiss notification"
+              >
+                <X size={16} />
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Dashboard Tabs Bar */}
         <div style={{
@@ -401,6 +518,94 @@ export function CustomerDashboardPage({ initialTab = 'orders', onNavigate }) {
                               <span style={{ fontWeight: 600 }}>{formatCurrency(it.price, currency)}</span>
                             </div>
                           ))}
+                        </div>
+
+                        {/* Order Deliverables & Direct Download Files */}
+                        <div style={{
+                          marginTop: '1.25rem',
+                          paddingTop: '1rem',
+                          borderTop: '1px solid var(--border-subtle)',
+                          background: 'rgba(255, 255, 255, 0.02)',
+                          padding: '1rem',
+                          borderRadius: '8px'
+                        }}>
+                          <div style={{
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center',
+                            marginBottom: '10px'
+                          }}>
+                            <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                              Available Deliverable Files for this Order
+                            </span>
+                            <span className="badge" style={{ background: 'rgba(16, 185, 129, 0.2)', color: '#10b981', fontSize: '0.72rem' }}>
+                              Verified Digital Asset
+                            </span>
+                          </div>
+
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                            {(Array.isArray(o?.downloads) && o.downloads.length > 0
+                              ? o.downloads
+                              : (Array.isArray(o?.items) ? o.items : [])
+                            ).map((dlItem, idx) => {
+                              const title = dlItem.product_title || dlItem.title || 'Digital Deliverable Package';
+                              const fileName = dlItem.file_name || `${title.toLowerCase().replace(/[^a-z0-9]/g, '-')}-deliverable.zip`;
+                              return (
+                                <div
+                                  key={dlItem.id || idx}
+                                  style={{
+                                    display: 'flex',
+                                    justifyContent: 'space-between',
+                                    alignItems: 'center',
+                                    padding: '10px 14px',
+                                    background: 'var(--bg-surface-elevated)',
+                                    borderRadius: '8px',
+                                    border: '1px solid var(--border-subtle)',
+                                    flexWrap: 'wrap',
+                                    gap: '10px'
+                                  }}
+                                >
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                    <div style={{
+                                      width: '32px',
+                                      height: '32px',
+                                      borderRadius: '6px',
+                                      background: 'rgba(16, 185, 129, 0.15)',
+                                      display: 'flex',
+                                      alignItems: 'center',
+                                      justifyContent: 'center',
+                                      color: '#10b981'
+                                    }}>
+                                      <CheckCircle size={16} />
+                                    </div>
+                                    <div>
+                                      <div style={{ fontWeight: 700, fontSize: '0.9rem', color: 'var(--text-primary)' }}>
+                                        {title}
+                                      </div>
+                                      <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', fontFamily: 'monospace' }}>
+                                        {fileName}
+                                      </div>
+                                    </div>
+                                  </div>
+
+                                  <button
+                                    onClick={() => handleDownloadFile(dlItem.token ? dlItem : { product_title: title, file_name: fileName, product_id: dlItem.product_id, order_id: o.id })}
+                                    className="btn btn-success btn-sm"
+                                    style={{
+                                      fontWeight: 700,
+                                      fontSize: '0.825rem',
+                                      padding: '7px 16px',
+                                      display: 'inline-flex',
+                                      alignItems: 'center',
+                                      gap: '6px'
+                                    }}
+                                  >
+                                    <DownloadCloud size={15} /> Download File
+                                  </button>
+                                </div>
+                              );
+                            })}
+                          </div>
                         </div>
                       </div>
                     ))}

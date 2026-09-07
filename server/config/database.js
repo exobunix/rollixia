@@ -309,6 +309,21 @@ function initSchema(db) {
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     );
 
+    CREATE TABLE IF NOT EXISTS customer_notifications (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER REFERENCES users(id),
+      customer_email TEXT,
+      order_id INTEGER REFERENCES orders(id),
+      order_number TEXT,
+      product_id INTEGER,
+      product_title TEXT,
+      file_name TEXT,
+      message TEXT,
+      download_url TEXT,
+      is_read INTEGER DEFAULT 0,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+
     CREATE TABLE IF NOT EXISTS site_settings (
       key TEXT PRIMARY KEY,
       value TEXT

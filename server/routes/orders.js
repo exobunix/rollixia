@@ -196,7 +196,7 @@ router.get('/my-orders', authenticateUser, async (req, res) => {
       [req.user.id, req.user.email]
     );
 
-    // Attach items to each order
+    // Attach items and downloads to each order
     const enrichedOrders = orders.map(order => {
       const items = db.query(
         `SELECT oi.*, p.slug,
@@ -206,12 +206,53 @@ router.get('/my-orders', authenticateUser, async (req, res) => {
          WHERE oi.order_id = ?`,
         [order.id]
       );
-      return { ...order, items };
+
+      const downloads = db.query(
+        `SELECT d.*, pf.file_name, pf.version, pf.file_size, p.title as product_title, p.slug as product_slug,
+                p.access_type, p.external_access_url
+         FROM downloads d
+         JOIN product_files pf ON pf.id = d.product_file_id
+         JOIN products p ON p.id = pf.product_id
+         WHERE d.order_id = ?`,
+        [order.id]
+      );
+
+      return { ...order, items, downloads };
     });
 
     res.json(enrichedOrders);
   } catch (err) {
     res.status(500).json({ error: 'Failed to fetch customer orders' });
+  }
+});
+
+// GET /api/orders/notifications (Fetch deliverable file notifications)
+router.get('/notifications', authenticateUser, async (req, res) => {
+  try {
+    const db = await getDatabase();
+    const notifications = db.query(
+      `SELECT * FROM customer_notifications
+       WHERE (user_id = ? OR customer_email = ?)
+       ORDER BY id DESC LIMIT 20`,
+      [req.user.id, req.user.email]
+    );
+    res.json(notifications);
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to fetch notifications' });
+  }
+});
+
+// PATCH /api/orders/notifications/:id/read
+router.patch('/notifications/:id/read', authenticateUser, async (req, res) => {
+  try {
+    const db = await getDatabase();
+    db.run(
+      `UPDATE customer_notifications SET is_read = 1 WHERE id = ? AND (user_id = ? OR customer_email = ?)`,
+      [req.params.id, req.user.id, req.user.email]
+    );
+    res.json({ success: true, message: 'Notification marked as read' });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to update notification' });
   }
 });
 

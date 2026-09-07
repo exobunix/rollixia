@@ -7,6 +7,7 @@ import {
   Eye,
   X,
   DownloadCloud,
+  UploadCloud,
   Send,
   Copy,
   Check,
@@ -17,7 +18,7 @@ import {
 import { apiRequest } from '../../utils/api';
 import { useToast } from '../../context/ToastContext';
 import { formatCurrency, formatDateTime } from '../../utils/formatters';
-import { downloadEntitledDeliverable } from '../../utils/fileStorage';
+import { downloadEntitledDeliverable, storeDeliverableBlob } from '../../utils/fileStorage';
 
 export function AdminOrdersPage() {
   const [orders, setOrders] = useState([]);
@@ -34,8 +35,10 @@ export function AdminOrdersPage() {
   const [selectedFileId, setSelectedFileId] = useState('all');
   const [customMessage, setCustomMessage] = useState('');
   const [renewWindow, setRenewWindow] = useState(true);
+  const [uploadFile, setUploadFile] = useState(null);
   const [isSendingFile, setIsSendingFile] = useState(false);
   const [copiedId, setCopiedId] = useState(null);
+  const fileInputRef = React.useRef(null);
 
   const { addToast } = useToast();
 
@@ -107,6 +110,7 @@ export function AdminOrdersPage() {
     setRecipientEmail(rawOrder.customer_email || '');
     setCustomMessage('');
     setRenewWindow(true);
+    setUploadFile(null);
     setSelectedFileId(preselectedDownload ? String(preselectedDownload.id) : 'all');
 
     // If we already have items & downloads from selectedOrder
@@ -147,20 +151,58 @@ export function AdminOrdersPage() {
 
     setIsSendingFile(true);
     try {
-      const payload = {
-        recipientEmail: recipientEmail.trim(),
-        productFileId: selectedFileId,
-        customMessage: customMessage.trim(),
-        renewWindow
-      };
+      const targetTitle = sendFileOrderDetails?.items?.[0]?.product_title || 'Digital Deliverable Package';
 
-      const res = await apiRequest(`/api/admin/orders/${orderId}/send-file`, {
-        method: 'POST',
-        body: JSON.stringify(payload)
-      });
+      let res = null;
+      if (uploadFile) {
+        // 1. Store deliverable blob locally in IndexedDB so customer can immediately download in client
+        try {
+          const meta = {
+            fileName: uploadFile.name,
+            fileSize: uploadFile.size,
+            fileType: uploadFile.type,
+            orderId,
+            orderNumber: sendFileOrder?.order_number,
+            productTitle: targetTitle
+          };
+          await storeDeliverableBlob(orderId, uploadFile, meta);
+          await storeDeliverableBlob(`order_${orderId}`, uploadFile, meta);
+          if (sendFileOrder?.order_number) {
+            await storeDeliverableBlob(sendFileOrder.order_number, uploadFile, meta);
+          }
+        } catch (storeErr) {
+          console.warn('IndexedDB deliverable store error:', storeErr);
+        }
 
-      addToast(res?.message || `Product file successfully sent to ${recipientEmail}!`, 'success');
+        // 2. Prepare FormData for multipart upload
+        const formData = new FormData();
+        formData.append('file', uploadFile);
+        formData.append('recipientEmail', recipientEmail.trim());
+        formData.append('productFileId', selectedFileId);
+        formData.append('customMessage', customMessage.trim());
+        formData.append('renewWindow', renewWindow);
+
+        res = await apiRequest(`/api/admin/orders/${orderId}/send-file`, {
+          method: 'POST',
+          body: formData
+        });
+      } else {
+        const payload = {
+          recipientEmail: recipientEmail.trim(),
+          productFileId: selectedFileId,
+          customMessage: customMessage.trim(),
+          renewWindow
+        };
+
+        res = await apiRequest(`/api/admin/orders/${orderId}/send-file`, {
+          method: 'POST',
+          body: JSON.stringify(payload)
+        });
+      }
+
+      addToast(res?.message || (uploadFile ? `Uploaded & sent "${uploadFile.name}" to ${recipientEmail}!` : `Product file successfully sent to ${recipientEmail}!`), 'success');
       setSendFileModalOpen(false);
+      setUploadFile(null);
 
       // Refresh order view if modal is open
       if (selectedOrder && selectedOrder.order?.id === orderId) {
@@ -545,11 +587,12 @@ export function AdminOrdersPage() {
               {/* Product Deliverable Selection */}
               <div>
                 <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: '6px', color: 'var(--text-primary)' }}>
-                  Select Deliverable File Package:
+                  Select Existing Deliverable File Package:
                 </label>
                 <select
                   value={selectedFileId}
                   onChange={(e) => setSelectedFileId(e.target.value)}
+                  disabled={Boolean(uploadFile)}
                   style={{
                     width: '100%',
                     padding: '9px 12px',
@@ -558,7 +601,8 @@ export function AdminOrdersPage() {
                     borderRadius: '8px',
                     color: 'var(--text-primary)',
                     fontSize: '0.875rem',
-                    outline: 'none'
+                    outline: 'none',
+                    opacity: uploadFile ? 0.6 : 1
                   }}
                 >
                   <option value="all">📦 All Purchased Assets in Order</option>
@@ -571,6 +615,88 @@ export function AdminOrdersPage() {
                     <option value="1">Apex — Enterprise SaaS Next.js 14 Template (apex-saas-dashboard-v2.1.0.zip)</option>
                   )}
                 </select>
+                {uploadFile && (
+                  <span style={{ fontSize: '0.72rem', color: '#10b981', marginTop: '3px', display: 'block' }}>
+                    Overridden by uploaded custom file below.
+                  </span>
+                )}
+              </div>
+
+              {/* Upload Deliverable File Box */}
+              <div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                  <label style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+                    Or Upload Custom File to Deliver:
+                  </label>
+                  {uploadFile && (
+                    <button
+                      type="button"
+                      onClick={() => setUploadFile(null)}
+                      style={{ background: 'transparent', border: 'none', color: '#f43f5e', fontSize: '0.75rem', cursor: 'pointer', fontWeight: 600 }}
+                    >
+                      Clear Upload
+                    </button>
+                  )}
+                </div>
+
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  onChange={(e) => {
+                    if (e.target.files && e.target.files[0]) {
+                      setUploadFile(e.target.files[0]);
+                    }
+                  }}
+                  style={{ display: 'none' }}
+                />
+
+                {uploadFile ? (
+                  <div style={{
+                    padding: '12px 14px',
+                    background: 'rgba(16, 185, 129, 0.12)',
+                    border: '1px solid #10b981',
+                    borderRadius: '8px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between'
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                      <FileCheck size={22} color="#10b981" />
+                      <div>
+                        <div style={{ fontWeight: 700, fontSize: '0.875rem', color: '#fff' }}>{uploadFile.name}</div>
+                        <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                          {(uploadFile.size / (1024 * 1024)).toFixed(2)} MB • Ready to deliver for this order
+                        </span>
+                      </div>
+                    </div>
+                    <span className="badge" style={{ background: '#10b981', color: '#000', fontWeight: 800, fontSize: '0.7rem' }}>
+                      NEW FILE
+                    </span>
+                  </div>
+                ) : (
+                  <div
+                    onClick={() => fileInputRef.current?.click()}
+                    style={{
+                      border: '2px dashed var(--border-medium)',
+                      borderRadius: '8px',
+                      padding: '16px',
+                      textAlign: 'center',
+                      cursor: 'pointer',
+                      background: 'var(--bg-surface-elevated)',
+                      transition: 'all 0.2s'
+                    }}
+                    onMouseEnter={(e) => e.currentTarget.style.borderColor = 'var(--primary)'}
+                    onMouseLeave={(e) => e.currentTarget.style.borderColor = 'var(--border-medium)'}
+                  >
+                    <UploadCloud size={24} color="var(--primary)" style={{ margin: '0 auto 6px auto' }} />
+                    <div style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+                      Click to choose file to upload & deliver
+                    </div>
+                    <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                      ZIP, RAR, PDF, DMG, APK • User will be able to download it directly from My Orders
+                    </span>
+                  </div>
+                )}
               </div>
 
               {/* Custom Admin Note */}

@@ -107,8 +107,10 @@ router.get('/:id', async (req, res) => {
   }
 });
 
-// POST /api/admin/orders/:id/send-file (Send Product File / Deliverable to Customer)
-router.post('/:id/send-file', async (req, res) => {
+const { uploadProtected } = require('../../middleware/upload');
+
+// POST /api/admin/orders/:id/send-file (Send or Upload Product File / Deliverable to Customer)
+router.post('/:id/send-file', uploadProtected.single('file'), async (req, res) => {
   try {
     const { recipientEmail, productFileId, customMessage, renewWindow = true } = req.body;
     const db = await getDatabase();
@@ -119,6 +121,57 @@ router.post('/:id/send-file', async (req, res) => {
     const targetEmail = (recipientEmail && recipientEmail.trim()) || order.customer_email;
     if (!targetEmail) {
       return res.status(400).json({ error: 'Valid recipient email address is required' });
+    }
+
+    const orderItems = db.query('SELECT * FROM order_items WHERE order_id = ?', [order.id]);
+    const firstItem = orderItems[0] || {};
+    let targetProductId = firstItem.product_id || 1;
+
+    // 1. If a new deliverable file is uploaded with the request
+    let uploadedFileRecord = null;
+    if (req.file) {
+      const originalName = req.file.originalname;
+      const storedPath = req.file.filename;
+      const fileSize = req.file.size;
+      const version = req.body.version || '1.0.0-custom';
+
+      const fileRes = db.run(
+        `INSERT INTO product_files (product_id, version, file_name, file_size, file_path, changelog, is_active)
+         VALUES (?, ?, ?, ?, ?, ?, 1)`,
+        [
+          targetProductId,
+          version,
+          originalName,
+          fileSize,
+          storedPath,
+          customMessage || 'Deliverable package uploaded directly by administrator for order'
+        ]
+      );
+      uploadedFileRecord = {
+        id: fileRes.lastInsertRowid,
+        product_id: targetProductId,
+        file_name: originalName,
+        file_size: fileSize,
+        version
+      };
+
+      // Create or update download entitlement for this order
+      const token = generateDownloadToken(order.id, order.user_id || 0, uploadedFileRecord.id);
+      const expiresAt = new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString();
+
+      const existingDl = db.get('SELECT id FROM downloads WHERE order_id = ? LIMIT 1', [order.id]);
+      if (existingDl) {
+        db.run(
+          `UPDATE downloads SET product_file_id = ?, token = ?, expires_at = ?, max_downloads = 10, download_count = 0 WHERE id = ?`,
+          [uploadedFileRecord.id, token, expiresAt, existingDl.id]
+        );
+      } else {
+        db.run(
+          `INSERT INTO downloads (order_id, user_id, product_file_id, token, expires_at, max_downloads, download_count)
+           VALUES (?, ?, ?, ?, ?, 10, 0)`,
+          [order.id, order.user_id || 0, uploadedFileRecord.id, token, expiresAt]
+        );
+      }
     }
 
     // Retrieve downloads for this order
@@ -137,9 +190,9 @@ router.post('/:id/send-file', async (req, res) => {
       downloads.forEach(d => { d.expires_at = expiresAt; });
     }
 
-    // Filter target download if specific file requested
+    // Filter target download if specific file requested and no new file was uploaded
     let targetDownloads = downloads;
-    if (productFileId && productFileId !== 'all') {
+    if (!req.file && productFileId && productFileId !== 'all') {
       const filtered = downloads.filter(d => String(d.product_file_id) === String(productFileId) || String(d.id) === String(productFileId));
       if (filtered.length > 0) targetDownloads = filtered;
     }
@@ -150,13 +203,29 @@ router.post('/:id/send-file', async (req, res) => {
       ? `${origin}/api/downloads/file/${primaryDl.token}`
       : `${origin}/dashboard`;
 
-    const productTitle = targetDownloads.length > 1
-      ? `${targetDownloads.length} Digital Products Package`
-      : (primaryDl.product_title || 'Digital Deliverable Package');
+    const productTitle = firstItem.product_title || primaryDl.product_title || 'Digital Deliverable Package';
+    const fileName = req.file ? req.file.originalname : (primaryDl.file_name || 'deliverable.zip');
 
-    const fileName = targetDownloads.length > 1
-      ? targetDownloads.map(d => d.file_name).join(', ')
-      : (primaryDl.file_name || 'package.zip');
+    // Create in-app customer notification for this order and product
+    try {
+      db.run(
+        `INSERT INTO customer_notifications (user_id, customer_email, order_id, order_number, product_id, product_title, file_name, message, download_url, is_read)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0)`,
+        [
+          order.user_id || 0,
+          targetEmail,
+          order.id,
+          order.order_number,
+          targetProductId,
+          productTitle,
+          fileName,
+          `Your deliverable file "${fileName}" for "${productTitle}" (Order #${order.order_number}) is ready to download now!`,
+          downloadUrl
+        ]
+      );
+    } catch (notifErr) {
+      console.warn('Customer notification insert warning:', notifErr.message);
+    }
 
     // Send email with file details and download links
     const emailResult = await sendProductFileEmail({
@@ -176,13 +245,18 @@ router.post('/:id/send-file', async (req, res) => {
       recipientEmail: targetEmail,
       productTitle,
       fileName,
-      downloadUrl
+      downloadUrl,
+      isUploadedCustomFile: Boolean(req.file)
     });
 
     res.json({
       success: true,
-      message: `Product file package sent successfully to ${targetEmail}`,
+      message: req.file
+        ? `New deliverable file "${fileName}" uploaded and sent to ${targetEmail}!`
+        : `Product file package sent successfully to ${targetEmail}`,
       recipientEmail: targetEmail,
+      fileName,
+      productTitle,
       downloadUrl,
       emailResult
     });

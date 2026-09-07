@@ -1,5 +1,6 @@
 import { FALLBACK_CATEGORIES, FALLBACK_PRODUCTS } from './fallbackCatalog.js';
 import { handleAdminFallbackRoute } from './adminFallbackService.js';
+import { getProductImageOverrides } from '../utils/imageCompressor.js';
 
 export { FALLBACK_CATEGORIES, FALLBACK_PRODUCTS };
 
@@ -15,25 +16,40 @@ function enrichProductBadge(p) {
 }
 
 export function getEffectiveProducts() {
+  const map = new Map();
+  FALLBACK_PRODUCTS.forEach(p => map.set(String(p.id), { ...p }));
+
   try {
     if (typeof window !== 'undefined' && window.localStorage) {
       const stored = localStorage.getItem('rollixia_admin_products');
       if (stored) {
         const parsed = JSON.parse(stored);
         if (Array.isArray(parsed) && parsed.length > 0) {
-          const map = new Map();
-          FALLBACK_PRODUCTS.forEach(p => map.set(String(p.id), { ...p }));
           parsed.forEach(p => {
-            const key = String(p.id);
-            const existing = map.get(key) || {};
-            map.set(key, { ...existing, ...p });
+            if (p && p.id) {
+              const key = String(p.id);
+              const existing = map.get(key) || {};
+              map.set(key, { ...existing, ...p });
+            }
           });
-          return Array.from(map.values()).map(enrichProductBadge);
         }
       }
     }
   } catch (e) {}
-  return FALLBACK_PRODUCTS.map(enrichProductBadge);
+
+  // Merge direct dedicated image overrides
+  return Array.from(map.values()).map(p => {
+    const imgOverrides = getProductImageOverrides(p.id, p.slug);
+    if (imgOverrides) {
+      return enrichProductBadge({
+        ...p,
+        hero_image: imgOverrides.hero_image || p.hero_image,
+        hero_secondary_image: imgOverrides.hero_secondary_image !== undefined ? imgOverrides.hero_secondary_image : p.hero_secondary_image,
+        thumbnail: imgOverrides.thumbnail || p.thumbnail || imgOverrides.hero_image || p.hero_image
+      });
+    }
+    return enrichProductBadge(p);
+  });
 }
 
 export function getFallbackFeatured() {
@@ -205,36 +221,48 @@ export function getFallbackProductBySlug(slug) {
     }
   ];
 
+  const imgOverrides = getProductImageOverrides(p.id, p.slug);
+  const effectiveHero = imgOverrides?.hero_image || p.hero_image;
+  const effectiveSecondary = imgOverrides?.hero_secondary_image !== undefined ? imgOverrides.hero_secondary_image : p.hero_secondary_image;
+  const effectiveThumbnail = imgOverrides?.thumbnail || p.thumbnail || effectiveHero;
+
   let effectiveMedia = Array.isArray(p.media) && p.media.length > 0 ? [...p.media] : [];
-  if (p.hero_image) {
-    const isCustomHero = !p.hero_image.endsWith('-cover.svg');
+  if (effectiveHero) {
+    const isCustomHero = !effectiveHero.endsWith('-cover.svg');
     if (isCustomHero) {
       effectiveMedia = effectiveMedia.filter(m => !m.media_url || !m.media_url.endsWith('-cover.svg'));
     }
     const thumbIdx = effectiveMedia.findIndex(m => m.is_thumbnail === 1 || m.is_thumbnail === true);
     if (thumbIdx >= 0) {
-      effectiveMedia[thumbIdx] = { ...effectiveMedia[thumbIdx], media_url: p.hero_image };
+      effectiveMedia[thumbIdx] = { ...effectiveMedia[thumbIdx], media_url: effectiveHero };
     } else {
-      effectiveMedia.unshift({ id: 1, media_url: p.hero_image, is_thumbnail: 1, media_type: 'image' });
+      effectiveMedia.unshift({ id: 1, media_url: effectiveHero, is_thumbnail: 1, media_type: 'image' });
     }
   }
-  if (p.hero_secondary_image && !effectiveMedia.some(m => m.media_url === p.hero_secondary_image)) {
-    effectiveMedia.push({ id: 2, media_url: p.hero_secondary_image, is_thumbnail: 0, media_type: 'image' });
+  if (effectiveSecondary && !effectiveMedia.some(m => m.media_url === effectiveSecondary)) {
+    effectiveMedia.push({ id: 2, media_url: effectiveSecondary, is_thumbnail: 0, media_type: 'image' });
   }
+
+  const mergedP = {
+    ...p,
+    hero_image: effectiveHero,
+    hero_secondary_image: effectiveSecondary,
+    thumbnail: effectiveThumbnail
+  };
 
   return {
     product: {
-      ...p,
+      ...mergedP,
       regular_price: p.regular_price,
       sale_price: p.sale_price,
       licenses: effectiveLicenses,
       technical_specs: parsedTechnicalSpecs
     },
-    ...p,
+    ...mergedP,
     regular_price: p.regular_price,
     sale_price: p.sale_price,
     technical_specs: parsedTechnicalSpecs,
-    media: effectiveMedia.length > 0 ? effectiveMedia : (p.hero_image ? [{ media_url: p.hero_image, is_thumbnail: 1 }] : []),
+    media: effectiveMedia.length > 0 ? effectiveMedia : (effectiveHero ? [{ media_url: effectiveHero, is_thumbnail: 1 }] : []),
     licenses: effectiveLicenses,
     pricingPlans: effectiveLicenses,
     features: p.features || [],

@@ -62,6 +62,7 @@ import { formatCurrency } from '../../utils/formatters';
 import { apiRequest } from '../../utils/api';
 import { Badge, StarRating } from '../../components/common/Badge';
 import { getFallbackProductBySlug, getFallbackRelated } from '../../data/catalogFallbackService.js';
+import { getProductImageOverrides } from '../../utils/imageCompressor.js';
 
 // Helper to render dynamic Lucide icons from string names
 function DynamicIcon({ name, size = 20, className = '', style }) {
@@ -390,18 +391,23 @@ export function DynamicProductPage({ slug, productData: initialData, onNavigate,
   const discountPct = hasDiscount ? Math.round(((regularPrice - currentPrice) / regularPrice) * 100) : 0;
   const savingsAmount = hasDiscount ? regularPrice - currentPrice : 0;
 
+  const imgOverrides = getProductImageOverrides(product.id, product.slug) || getProductImageOverrides(null, cleanSlug);
+  const effectiveHero = imgOverrides?.hero_image || product.hero_image;
+  const effectiveSecondary = imgOverrides?.hero_secondary_image !== undefined ? imgOverrides.hero_secondary_image : product.hero_secondary_image;
+  const effectiveThumb = imgOverrides?.thumbnail || product.thumbnail || effectiveHero;
+
   // Build Media Gallery
   const galleryImages = [];
-  if (product.hero_image) galleryImages.push({ media_url: product.hero_image, caption: product.title });
-  if (product.hero_secondary_image && product.hero_secondary_image !== product.hero_image) {
-    galleryImages.push({ media_url: product.hero_secondary_image, caption: `${product.title} — Secondary Showcase` });
+  if (effectiveHero) galleryImages.push({ media_url: effectiveHero, caption: product.title });
+  if (effectiveSecondary && effectiveSecondary !== effectiveHero) {
+    galleryImages.push({ media_url: effectiveSecondary, caption: `${product.title} — Secondary Showcase` });
   }
-  if (product.thumbnail && product.thumbnail !== product.hero_image && product.thumbnail !== product.hero_secondary_image) {
-    galleryImages.push({ media_url: product.thumbnail, caption: product.title });
+  if (effectiveThumb && effectiveThumb !== effectiveHero && effectiveThumb !== effectiveSecondary) {
+    galleryImages.push({ media_url: effectiveThumb, caption: product.title });
   }
   media.forEach(m => {
     if (m && m.media_url && !galleryImages.some(g => g.media_url === m.media_url)) {
-      if (product.hero_image && product.hero_image !== m.media_url && m.media_url.endsWith('-cover.svg')) {
+      if (effectiveHero && effectiveHero !== m.media_url && m.media_url.endsWith('-cover.svg')) {
         return;
       }
       galleryImages.push(m);
@@ -842,8 +848,12 @@ export function DynamicProductPage({ slug, productData: initialData, onNavigate,
 
             {/* RIGHT: Large Mockup Frame(s) - Supports Dual Mockup to fill vertical blank space */}
             {(() => {
-              const primaryHeroImg = product.hero_image || currentGalleryImg?.media_url || 'https://images.unsplash.com/photo-1551288049-bebda4e38f71?auto=format&fit=crop&w=1200&q=80';
-              const secondaryHeroImg = product.hero_secondary_image || (Array.isArray(product.media) && product.media.length > 1 ? product.media[1].media_url : null);
+              const imgOverrides = getProductImageOverrides(product.id, product.slug) || getProductImageOverrides(null, cleanSlug);
+              const effectiveHeroImg = imgOverrides?.hero_image || product.hero_image;
+              const effectiveSecondaryImg = imgOverrides?.hero_secondary_image !== undefined ? imgOverrides.hero_secondary_image : product.hero_secondary_image;
+
+              const primaryHeroImg = effectiveHeroImg || currentGalleryImg?.media_url || 'https://images.unsplash.com/photo-1551288049-bebda4e38f71?auto=format&fit=crop&w=1200&q=80';
+              const secondaryHeroImg = effectiveSecondaryImg || (Array.isArray(product.media) && product.media.length > 1 ? product.media[1].media_url : null);
 
               return (
                 <div className="pdp-hero-right" style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>

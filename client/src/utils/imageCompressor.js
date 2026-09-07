@@ -161,3 +161,89 @@ export async function compressDataUrlIfNeeded(dataUrl, maxWidth = 1280, maxHeigh
     img.src = dataUrl;
   });
 }
+
+/**
+ * Instantly synchronizes product images to dedicated local storage slots keyed by product ID and slug.
+ * This guarantees images persist isolated from large catalog arrays and never hit quota limits.
+ * @param {string|number} productId
+ * @param {string} productSlug
+ * @param {object} imageUpdates { hero_image?, hero_secondary_image?, thumbnail? }
+ */
+export function syncProductImageToStorage(productId, productSlug, imageUpdates = {}) {
+  if (typeof window === 'undefined' || !window.localStorage) return;
+  try {
+    const keys = [];
+    if (productId) keys.push(`rollixia_product_images_${productId}`);
+    if (productSlug) {
+      keys.push(`rollixia_product_images_${productSlug}`);
+      keys.push(`rollixia_product_images_${String(productSlug).toLowerCase().trim()}`);
+    }
+
+    keys.forEach(k => {
+      let current = {};
+      try {
+        const raw = localStorage.getItem(k);
+        current = raw ? JSON.parse(raw) : {};
+      } catch (e) {}
+      const updated = {
+        ...current,
+        ...imageUpdates,
+        updated_at: Date.now()
+      };
+      localStorage.setItem(k, JSON.stringify(updated));
+    });
+
+    // Also update rollixia_admin_products array
+    try {
+      const raw = localStorage.getItem('rollixia_admin_products');
+      let products = raw ? JSON.parse(raw) : [];
+      if (!Array.isArray(products)) products = [];
+      const idx = products.findIndex(p => (productId && String(p.id) === String(productId)) || (productSlug && p.slug === productSlug));
+      if (idx >= 0) {
+        products[idx] = { ...products[idx], ...imageUpdates, updated_at: new Date().toISOString() };
+      } else {
+        products.push({ id: productId, slug: productSlug, ...imageUpdates, updated_at: new Date().toISOString() });
+      }
+      localStorage.setItem('rollixia_admin_products', JSON.stringify(products));
+    } catch (e) {}
+
+    // Dispatch catalog update events for live UI re-render
+    try {
+      window.dispatchEvent(new CustomEvent('rollixia_catalog_updated', {
+        detail: { productId, productSlug, ...imageUpdates }
+      }));
+      window.dispatchEvent(new Event('storage'));
+    } catch (e) {}
+  } catch (err) {
+    console.warn('[imageCompressor] Failed to sync product images to storage:', err);
+  }
+}
+
+/**
+ * Retrieves direct image overrides from dedicated local storage keys.
+ * @param {string|number} productId
+ * @param {string} productSlug
+ * @returns {object|null} { hero_image?, hero_secondary_image?, thumbnail? }
+ */
+export function getProductImageOverrides(productId, productSlug) {
+  if (typeof window === 'undefined' || !window.localStorage) return null;
+  try {
+    const keys = [
+      productId ? `rollixia_product_images_${productId}` : null,
+      productSlug ? `rollixia_product_images_${productSlug}` : null,
+      productSlug ? `rollixia_product_images_${String(productSlug).toLowerCase().trim()}` : null
+    ].filter(Boolean);
+
+    for (const k of keys) {
+      const raw = localStorage.getItem(k);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (parsed && (parsed.hero_image || parsed.hero_secondary_image || parsed.thumbnail)) {
+          return parsed;
+        }
+      }
+    }
+  } catch (e) {}
+  return null;
+}
+

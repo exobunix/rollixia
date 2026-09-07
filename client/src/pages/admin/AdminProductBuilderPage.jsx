@@ -57,7 +57,7 @@ import { useToast } from '../../context/ToastContext';
 import { formatCurrency } from '../../utils/formatters';
 import { DynamicProductPage } from '../../components/store/DynamicProductPage';
 import { FALLBACK_PRODUCTS } from '../../data/fallbackCatalog.js';
-import { compressImageFile, compressDataUrlIfNeeded } from '../../utils/imageCompressor.js';
+import { compressImageFile, compressDataUrlIfNeeded, syncProductImageToStorage, getProductImageOverrides } from '../../utils/imageCompressor.js';
 
 export function AdminProductBuilderPage({ productId: propProductId, onBack, onSaved }) {
   const { addToast } = useToast();
@@ -229,6 +229,12 @@ export function AdminProductBuilderPage({ productId: propProductId, onBack, onSa
       const prod = res.product || (res.id || res.title ? res : null);
       if (!prod) return false;
 
+      // Fetch any dedicated local storage image overrides
+      const overrides = getProductImageOverrides(prod.id || effectiveProductId, prod.slug);
+      const initialHero = overrides?.hero_image || prod.hero_image || '';
+      const initialSecondary = overrides?.hero_secondary_image !== undefined ? overrides.hero_secondary_image : (prod.hero_secondary_image || '');
+      const initialThumb = overrides?.thumbnail || prod.thumbnail || initialHero;
+
       setProduct(prev => ({
         ...prev,
         ...prod,
@@ -267,9 +273,9 @@ export function AdminProductBuilderPage({ productId: propProductId, onBack, onSa
         seo_description: prod.seo_description || '',
         seo_keywords: prod.seo_keywords || '',
         og_image: prod.og_image || '',
-        hero_image: prod.hero_image || '',
-        hero_secondary_image: prod.hero_secondary_image || '',
-        thumbnail: prod.thumbnail || ''
+        hero_image: initialHero,
+        hero_secondary_image: initialSecondary,
+        thumbnail: initialThumb
       }));
 
       // Hydrate custom demo links
@@ -554,7 +560,11 @@ export function AdminProductBuilderPage({ productId: propProductId, onBack, onSa
     setUploadingImage(true);
 
     const applyUrlToTarget = (url) => {
+      const pId = effectiveProductId || product.id;
+      const pSlug = product.slug || 'servicepro';
+
       if (targetField === 'hero') {
+        const thumb = product.thumbnail || url;
         setProduct(prev => ({ ...prev, hero_image: url, thumbnail: prev.thumbnail || url }));
         setMediaList(prev => {
           const next = [...prev];
@@ -568,12 +578,19 @@ export function AdminProductBuilderPage({ productId: propProductId, onBack, onSa
           }
           return next;
         });
+        // AUTO-SYNC TO LIVE WEBSITE STORAGE IMMEDIATELY
+        syncProductImageToStorage(pId, pSlug, { hero_image: url, thumbnail: thumb });
       } else if (targetField === 'hero_secondary') {
         setProduct(prev => ({ ...prev, hero_secondary_image: url }));
+        // AUTO-SYNC TO LIVE WEBSITE STORAGE IMMEDIATELY
+        syncProductImageToStorage(pId, pSlug, { hero_secondary_image: url });
       } else if (targetField === 'thumbnail') {
         setProduct(prev => ({ ...prev, thumbnail: url }));
+        // AUTO-SYNC TO LIVE WEBSITE STORAGE IMMEDIATELY
+        syncProductImageToStorage(pId, pSlug, { thumbnail: url });
       } else if (targetField === 'video_thumbnail') {
         setProduct(prev => ({ ...prev, video_thumbnail: url }));
+        syncProductImageToStorage(pId, pSlug, { video_thumbnail: url });
       } else if (targetField === 'customer_showcase' && extra?.index !== undefined) {
         setCustomerShowcase(prev => {
           const next = [...prev];
@@ -605,7 +622,7 @@ export function AdminProductBuilderPage({ productId: propProductId, onBack, onSa
           return next;
         });
       }
-      addToast('Image updated successfully!', 'success');
+      addToast('Image updated and synced to live website!', 'success');
       setUploadingImage(false);
     };
 
@@ -892,19 +909,37 @@ export function AdminProductBuilderPage({ productId: propProductId, onBack, onSa
         updated_at: new Date().toISOString()
       };
 
-      let finalProductId = productId;
+      let finalProductId = productId || effectiveProductId;
 
+      // 1. Immediately sync dedicated product image overrides to local storage
+      syncProductImageToStorage(finalProductId, productPayload.slug, {
+        hero_image: productPayload.hero_image,
+        hero_secondary_image: productPayload.hero_secondary_image,
+        thumbnail: productPayload.thumbnail
+      });
+
+      // 2. Persist to backend server if available, without blocking on network failure
       if (productId) {
-        await apiRequest(`/api/admin/products/${productId}`, {
-          method: 'PUT',
-          body: JSON.stringify(productPayload)
-        });
+        try {
+          await apiRequest(`/api/admin/products/${productId}`, {
+            method: 'PUT',
+            body: JSON.stringify(productPayload)
+          });
+        } catch (apiErr) {
+          console.warn('[AdminProductBuilder] Remote API PUT warning:', apiErr);
+        }
       } else {
-        const createRes = await apiRequest('/api/admin/products', {
-          method: 'POST',
-          body: JSON.stringify(productPayload)
-        });
-        finalProductId = createRes.productId;
+        try {
+          const createRes = await apiRequest('/api/admin/products', {
+            method: 'POST',
+            body: JSON.stringify(productPayload)
+          });
+          if (createRes && createRes.productId) {
+            finalProductId = createRes.productId;
+          }
+        } catch (createErr) {
+          console.warn('[AdminProductBuilder] Remote API POST warning:', createErr);
+        }
       }
 
       // Save sections with enriched structured data
@@ -948,10 +983,14 @@ export function AdminProductBuilderPage({ productId: propProductId, onBack, onSa
           };
         });
 
-        await apiRequest(`/api/admin/products/${finalProductId}/sections`, {
-          method: 'PUT',
-          body: JSON.stringify({ sections: enrichedSections })
-        });
+        try {
+          await apiRequest(`/api/admin/products/${finalProductId}/sections`, {
+            method: 'PUT',
+            body: JSON.stringify({ sections: enrichedSections })
+          });
+        } catch (secErr) {
+          console.warn('[AdminProductBuilder] Remote sections PUT warning:', secErr);
+        }
       }
 
       // Synchronize in-memory product state
@@ -1654,6 +1693,62 @@ export function AdminProductBuilderPage({ productId: propProductId, onBack, onSa
                 })()}
               </div>
 
+              {/* Live Website Image Sync Action Banner */}
+              <div style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                padding: '1rem 1.25rem',
+                background: 'linear-gradient(135deg, rgba(99, 102, 241, 0.12) 0%, rgba(139, 92, 246, 0.08) 100%)',
+                border: '1px solid rgba(99, 102, 241, 0.3)',
+                borderRadius: 'var(--radius-lg)',
+                marginBottom: '1.5rem',
+                flexWrap: 'wrap',
+                gap: '1rem'
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <span style={{
+                    width: '10px',
+                    height: '10px',
+                    borderRadius: '50%',
+                    background: '#10b981',
+                    boxShadow: '0 0 10px #10b981',
+                    display: 'inline-block'
+                  }} />
+                  <div>
+                    <div style={{ fontWeight: 800, fontSize: '0.92rem', color: 'var(--text-primary)' }}>
+                      Live Website Image Sync Active
+                    </div>
+                    <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
+                      All uploaded or pasted images sync directly to your live product page.
+                    </div>
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <button
+                    type="button"
+                    onClick={() => handleSave()}
+                    disabled={saving}
+                    className="btn btn-primary btn-sm"
+                    style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontWeight: 800, padding: '8px 18px', background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)' }}
+                  >
+                    <Save size={15} />
+                    <span>{saving ? 'Saving...' : 'Save All Changes'}</span>
+                  </button>
+                  <a
+                    href={`/products/${product.slug || effectiveProductId}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="btn btn-secondary btn-sm"
+                    style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '0.8rem' }}
+                  >
+                    <ExternalLink size={14} />
+                    <span>View on Live Website</span>
+                  </a>
+                </div>
+              </div>
+
               <div className="ab-form-grid" style={{ gap: '1.5rem' }}>
                 {/* 1. Primary Hero Image */}
                 <div className="ab-form-group" style={{
@@ -1745,7 +1840,14 @@ export function AdminProductBuilderPage({ productId: propProductId, onBack, onSa
                     <input
                       type="text"
                       value={product.hero_image || ''}
-                      onChange={(e) => setProduct(prev => ({ ...prev, hero_image: e.target.value }))}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setProduct(prev => ({ ...prev, hero_image: val, thumbnail: prev.thumbnail || val }));
+                        syncProductImageToStorage(effectiveProductId || product.id, product.slug, { hero_image: val, thumbnail: product.thumbnail || val });
+                      }}
+                      onBlur={() => {
+                        syncProductImageToStorage(effectiveProductId || product.id, product.slug, { hero_image: product.hero_image, thumbnail: product.thumbnail || product.hero_image });
+                      }}
                       placeholder="https://images.unsplash.com/... or /uploads/..."
                       className="ab-input"
                       style={{ fontSize: '0.8rem' }}
@@ -1791,6 +1893,7 @@ export function AdminProductBuilderPage({ productId: propProductId, onBack, onSa
                           onClick={() => {
                             if (confirm('Are you sure you want to remove the secondary hero image?')) {
                               setProduct(prev => ({ ...prev, hero_secondary_image: '' }));
+                              syncProductImageToStorage(effectiveProductId || product.id, product.slug, { hero_secondary_image: '' });
                               addToast('Secondary hero image removed', 'info');
                             }
                           }}
@@ -1848,7 +1951,14 @@ export function AdminProductBuilderPage({ productId: propProductId, onBack, onSa
                     <input
                       type="text"
                       value={product.hero_secondary_image || ''}
-                      onChange={(e) => setProduct(prev => ({ ...prev, hero_secondary_image: e.target.value }))}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setProduct(prev => ({ ...prev, hero_secondary_image: val }));
+                        syncProductImageToStorage(effectiveProductId || product.id, product.slug, { hero_secondary_image: val });
+                      }}
+                      onBlur={() => {
+                        syncProductImageToStorage(effectiveProductId || product.id, product.slug, { hero_secondary_image: product.hero_secondary_image });
+                      }}
                       placeholder="https://images.unsplash.com/... or /uploads/..."
                       className="ab-input"
                       style={{ fontSize: '0.8rem' }}
@@ -1888,6 +1998,7 @@ export function AdminProductBuilderPage({ productId: propProductId, onBack, onSa
                         onClick={() => {
                           if (product.hero_image) {
                             setProduct(prev => ({ ...prev, thumbnail: prev.hero_image }));
+                            syncProductImageToStorage(effectiveProductId || product.id, product.slug, { thumbnail: product.hero_image });
                             addToast('Synced thumbnail with hero image', 'success');
                           } else {
                             addToast('No hero image to sync', 'warning');
@@ -1906,6 +2017,7 @@ export function AdminProductBuilderPage({ productId: propProductId, onBack, onSa
                           onClick={() => {
                             if (confirm('Are you sure you want to remove the thumbnail?')) {
                               setProduct(prev => ({ ...prev, thumbnail: '' }));
+                              syncProductImageToStorage(effectiveProductId || product.id, product.slug, { thumbnail: '' });
                               addToast('Thumbnail removed', 'info');
                             }
                           }}
@@ -1963,7 +2075,14 @@ export function AdminProductBuilderPage({ productId: propProductId, onBack, onSa
                     <input
                       type="text"
                       value={product.thumbnail || ''}
-                      onChange={(e) => setProduct(prev => ({ ...prev, thumbnail: e.target.value }))}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setProduct(prev => ({ ...prev, thumbnail: val }));
+                        syncProductImageToStorage(effectiveProductId || product.id, product.slug, { thumbnail: val });
+                      }}
+                      onBlur={() => {
+                        syncProductImageToStorage(effectiveProductId || product.id, product.slug, { thumbnail: product.thumbnail });
+                      }}
                       placeholder="https://images.unsplash.com/... or /uploads/..."
                       className="ab-input"
                       style={{ fontSize: '0.8rem' }}

@@ -741,7 +741,7 @@ export const FALLBACK_PRODUCTS = [
     "video_url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
     "is_video_visible": 1,
     "show_demo_links": 1,
-    "hero_secondary_image": "https://images.unsplash.com/photo-1551288049-bebda4e38f71?auto=format&fit=crop&w=1200&q=80",
+    "hero_secondary_image": "https://images.unsplash.com/photo-1581578731548-c64695cc6952?auto=format&fit=crop&w=1200&q=80",
     "demo_links": [
       {
         "id": "demo-1",

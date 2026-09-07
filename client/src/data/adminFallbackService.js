@@ -1,5 +1,6 @@
 import { FALLBACK_PRODUCTS, FALLBACK_CATEGORIES } from './fallbackCatalog.js';
 import { storeDeliverableBlob } from '../utils/fileStorage.js';
+import { syncProductImageToStorage } from '../utils/imageCompressor.js';
 
 // Local storage keys for persistent admin actions
 const STORAGE_KEYS = {
@@ -522,6 +523,13 @@ export function handleAdminFallbackRoute(clean, method, options = {}, requestBod
         stored.push(updatedProduct);
       }
       setStored(STORAGE_KEYS.PRODUCTS, stored);
+
+      // Sync dedicated image overrides directly
+      syncProductImageToStorage(id, updatedProduct.slug, {
+        hero_image: updatedProduct.hero_image,
+        hero_secondary_image: updatedProduct.hero_secondary_image,
+        thumbnail: updatedProduct.thumbnail
+      });
 
       // Trigger cross-component notification
       if (typeof window !== 'undefined') {

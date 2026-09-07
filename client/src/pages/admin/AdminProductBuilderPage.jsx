@@ -321,16 +321,34 @@ export function AdminProductBuilderPage({ productId: propProductId, onBack, onSa
       // Sections hydration
       const loadedSectionsRaw = res.sections || prod.sections || [];
       if (Array.isArray(loadedSectionsRaw) && loadedSectionsRaw.length > 0) {
-        const loadedSections = loadedSectionsRaw.map((s, idx) => ({
-          id: s.id,
-          section_type: s.section_type || s.type,
-          title: s.title || s.section_type,
-          is_visible: s.is_visible !== undefined ? s.is_visible : 1,
-          sort_order: s.sort_order || idx + 1,
-          content: parseSecContent(s.content)
-        }));
+        const loadedSections = loadedSectionsRaw.map((s, idx) => {
+          let secType = s.section_type || s.type;
+          if (secType === 'showcase') secType = 'customer_experience';
+          if (secType === 'license_delivery') secType = 'license';
+          return {
+            id: s.id,
+            section_type: secType,
+            title: s.title || secType,
+            is_visible: s.is_visible !== undefined ? s.is_visible : 1,
+            sort_order: s.sort_order || idx + 1,
+            content: parseSecContent(s.content)
+          };
+        });
 
-        const combinedSections = [...loadedSections];
+        // Deduplicate loaded sections by section_type
+        const seen = new Set();
+        const dedupedLoaded = [];
+        loadedSections.forEach(s => {
+          const isCustom = s.section_type === 'custom' || s.section_type.startsWith('custom_') || s.is_custom;
+          if (isCustom) {
+            dedupedLoaded.push(s);
+          } else if (!seen.has(s.section_type)) {
+            seen.add(s.section_type);
+            dedupedLoaded.push(s);
+          }
+        });
+
+        const combinedSections = [...dedupedLoaded];
         defaultCanonicalSections.forEach(defSec => {
           if (!combinedSections.some(cs => cs.section_type === defSec.section_type)) {
             combinedSections.push({ ...defSec, sort_order: combinedSections.length + 1 });
@@ -981,6 +999,16 @@ export function AdminProductBuilderPage({ productId: propProductId, onBack, onSa
             sort_order: idx + 1,
             content: typeof secContent === 'object' && secContent !== null ? JSON.stringify(secContent) : secContent
           };
+        });
+
+        // Deduplicate enriched sections before persisting to eliminate duplicate sections
+        const seenSecs = new Set();
+        enrichedSections = enrichedSections.filter(s => {
+          const isCustom = s.section_type === 'custom' || s.section_type.startsWith('custom_');
+          if (isCustom) return true;
+          if (seenSecs.has(s.section_type)) return false;
+          seenSecs.add(s.section_type);
+          return true;
         });
 
         try {

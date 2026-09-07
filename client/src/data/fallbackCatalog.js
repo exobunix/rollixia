@@ -1005,8 +1005,8 @@ export const FALLBACK_PRODUCTS = [
       {
         "id": 811,
         "product_id": 33,
-        "section_type": "showcase",
-        "title": "Visual Feature Showcase",
+        "section_type": "customer_experience",
+        "title": "Customer & User Experience",
         "subtitle": null,
         "content": "[{\"title\":\"Frictionless Booking & Transparent Pricing\",\"description\":\"Customers choose required tasks with itemized sub-services, view estimated costs, and confirm appointment slots in under 60 seconds.\",\"image\":\"https://images.unsplash.com/photo-1581578731548-c64695cc6952?auto=format&fit=crop&w=1200&q=80\",\"alignment\":\"left\",\"bullet_points\":[\"Multi-Service Category Navigation\",\"Configurable Sub-Tasks with Fixed & Hourly Rates\",\"Live Provider ETA with Distance Calculation\",\"OTP Verification upon Job Arrival & Completion\"]},{\"title\":\"Provider Job Dispatcher & Commission Engine\",\"description\":\"Technicians receive instant audio push notifications for new jobs nearby. Admin takes automated platform commission cuts on every completed booking.\",\"image\":\"https://images.unsplash.com/photo-1551288049-bebda4e38f71?auto=format&fit=crop&w=1200&q=80\",\"alignment\":\"right\",\"bullet_points\":[\"Interactive Provider Schedule Calendar\",\"Commission Split between Admin & Service Provider\",\"Service Area Polygon Zone Restrictions\",\"Customer Ratings & Reviews with Photo Proof\"]}]",
         "settings": "{\"container\":\"standard\",\"padding\":\"normal\"}",

@@ -2436,11 +2436,11 @@ export function DynamicProductPage({ slug, productData: initialData, onNavigate,
     final_cta: renderFinalCta,
     support: renderSupport,
 
-    // Backward compatibility aliases
+    // Backward compatibility aliases - normalized and ignored to prevent duplicate renders
     highlights: () => null,
-    showcase: renderCustomerExperience,
+    showcase: () => null,
     screenshots: () => null,
-    license_delivery: renderLicense,
+    license_delivery: () => null,
     platforms: () => null,
     related: () => null
   };
@@ -2520,7 +2520,28 @@ export function DynamicProductPage({ slug, productData: initialData, onNavigate,
       }
     }
 
-    orderedSections = visibleSections;
+    // Deduplicate and normalize canonical sections to guarantee no section appears twice
+    const seenSecTypes = new Set();
+    const dedupedVisible = [];
+    for (const s of visibleSections) {
+      let secType = s.section_type || s.type;
+      if (!secType) continue;
+      // Normalize legacy aliases
+      if (secType === 'showcase') secType = 'customer_experience';
+      if (secType === 'license_delivery') secType = 'license';
+
+      const isCustom = secType === 'custom' || secType.startsWith('custom_') || s.is_custom;
+      if (isCustom) {
+        dedupedVisible.push(s);
+      } else {
+        if (!seenSecTypes.has(secType)) {
+          seenSecTypes.add(secType);
+          dedupedVisible.push({ ...s, section_type: secType });
+        }
+      }
+    }
+
+    orderedSections = dedupedVisible;
   } else {
     orderedSections = defaultCanonicalTypes
       .filter(type => {

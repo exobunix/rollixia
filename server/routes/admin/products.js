@@ -428,7 +428,10 @@ router.put('/:id', async (req, res) => {
       faqs,
       testimonials,
       deliverable_name,
-      deliverable_version
+      deliverable_version,
+      demo_links,
+      is_video_visible,
+      show_demo_links
     } = req.body;
 
     const existing = db.get('SELECT * FROM products WHERE id = ?', [productId]);
@@ -464,6 +467,9 @@ router.put('/:id', async (req, res) => {
         admin_demo_url = ?,
         web_demo_url = ?,
         docs_url = ?,
+        demo_links = ?,
+        is_video_visible = ?,
+        show_demo_links = ?,
         hero_image = ?,
         eyebrow = ?,
         subtitle = ?,
@@ -503,6 +509,9 @@ router.put('/:id', async (req, res) => {
         admin_demo_url !== undefined ? (admin_demo_url || null) : existing.admin_demo_url,
         web_demo_url !== undefined ? (web_demo_url || null) : existing.web_demo_url,
         docs_url !== undefined ? (docs_url || null) : existing.docs_url,
+        demo_links !== undefined ? (typeof demo_links === 'object' ? JSON.stringify(demo_links) : demo_links) : existing.demo_links,
+        is_video_visible !== undefined ? (is_video_visible ? 1 : 0) : (existing.is_video_visible !== undefined ? existing.is_video_visible : 1),
+        show_demo_links !== undefined ? (show_demo_links ? 1 : 0) : (existing.show_demo_links !== undefined ? existing.show_demo_links : 1),
         finalHeroImage || null,
         eyebrow !== undefined ? eyebrow : existing.eyebrow,
         subtitle !== undefined ? subtitle : existing.subtitle,
@@ -522,7 +531,7 @@ router.put('/:id', async (req, res) => {
 
     // 2. Update Media Gallery & Thumbnail in product_media
     const activeThumbUrl = thumbnail || hero_image || finalHeroImage;
-    if (activeThumbUrl || (Array.isArray(media) && media.length > 0)) {
+    if (media !== undefined || activeThumbUrl) {
       db.run('DELETE FROM product_media WHERE product_id = ?', [productId]);
       
       // Insert primary thumbnail

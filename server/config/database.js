@@ -444,7 +444,10 @@ function initSchema(db) {
       { name: 'partner_demo_url', def: 'TEXT' },
       { name: 'admin_demo_url', def: 'TEXT' },
       { name: 'web_demo_url', def: 'TEXT' },
-      { name: 'docs_url', def: 'TEXT' }
+      { name: 'docs_url', def: 'TEXT' },
+      { name: 'demo_links', def: 'TEXT' },
+      { name: 'is_video_visible', def: 'INTEGER DEFAULT 1' },
+      { name: 'show_demo_links', def: 'INTEGER DEFAULT 1' }
     ];
 
     for (const col of newCols) {

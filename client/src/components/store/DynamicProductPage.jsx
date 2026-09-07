@@ -138,6 +138,15 @@ function parseVideoUrl(rawUrl) {
     };
   }
 
+  // Loom detection
+  const loomMatch = url.match(/loom\.com\/(?:share|embed)\/([a-zA-Z0-9]+)/i);
+  if (loomMatch && loomMatch[1]) {
+    return {
+      provider: 'loom',
+      embedUrl: `https://www.loom.com/embed/${loomMatch[1]}`
+    };
+  }
+
   // Direct MP4 or WebM
   if (url.match(/\.(mp4|webm|ogg)($|\?)/i) || url.toLowerCase().includes('.mp4')) {
     return {
@@ -202,15 +211,17 @@ export function DynamicProductPage({ slug, productData: initialData, onNavigate,
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  // Keyboard navigation for Lightbox
+  // Keyboard navigation for Lightbox & Video Modal
   useEffect(() => {
     const handleKeyDown = (e) => {
-      if (!lightboxOpen) return;
-      if (e.key === 'Escape') setLightboxOpen(false);
+      if (e.key === 'Escape') {
+        if (lightboxOpen) setLightboxOpen(false);
+        if (isVideoModalOpen) setIsVideoModalOpen(false);
+      }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [lightboxOpen]);
+  }, [lightboxOpen, isVideoModalOpen]);
 
   // Load product data
   useEffect(() => {
@@ -690,38 +701,104 @@ export function DynamicProductPage({ slug, productData: initialData, onNavigate,
                   </button>
                 </div>
 
-                {/* Optional Hero Quick Action Links */}
-                {(product.demo_url || product.video_url) && (
-                  <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', paddingTop: '0.5rem', borderTop: '1px solid var(--border-subtle)' }}>
-                    {product.demo_url && (
-                      <a
-                        href={product.demo_url}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="btn btn-outline btn-sm"
-                        style={{ flex: '1 1 auto', justifyContent: 'center' }}
-                      >
-                        <ExternalLink size={13} />
-                        Live Demo Preview
-                      </a>
-                    )}
-                    {product.video_url && (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const videoEl = document.getElementById('section-video');
-                          if (videoEl) videoEl.scrollIntoView({ behavior: 'smooth' });
-                          else setIsVideoModalOpen(true);
-                        }}
-                        className="btn btn-outline btn-sm"
-                        style={{ flex: '1 1 auto', justifyContent: 'center' }}
-                      >
-                        <Play size={13} />
-                        Watch Video Demo
-                      </button>
-                    )}
-                  </div>
-                )}
+                {/* Dynamic Hero Quick Action Links (Demo Links & Video Launcher) */}
+                {(() => {
+                  const isDemoVisible = getSection('demo')?.is_visible !== 0 && product.show_demo_links !== false && product.show_demo_links !== 0;
+                  const isVideoVisible = getSection('video')?.is_visible !== 0 && product.is_video_visible !== false && product.is_video_visible !== 0;
+                  const hasVideo = !!(getSectionData('video')?.url || product.video_url);
+
+                  let activeDemos = [];
+                  if (isDemoVisible) {
+                    if (Array.isArray(product.demo_links) && product.demo_links.length > 0) {
+                      activeDemos = product.demo_links.filter(d => d && d.url && (d.is_visible === undefined || d.is_visible === true || d.is_visible === 1));
+                    } else if (typeof product.demo_links === 'string') {
+                      try {
+                        const parsed = JSON.parse(product.demo_links);
+                        if (Array.isArray(parsed)) {
+                          activeDemos = parsed.filter(d => d && d.url && (d.is_visible === undefined || d.is_visible === true || d.is_visible === 1));
+                        }
+                      } catch (e) {}
+                    }
+                    if (activeDemos.length === 0) {
+                      if (product.live_demo_url || product.demo_url) {
+                        activeDemos.push({ label: 'App Demo Link', url: product.live_demo_url || product.demo_url });
+                      }
+                      if (product.customer_demo_url) {
+                        activeDemos.push({ label: 'Customer App', url: product.customer_demo_url });
+                      }
+                      if (product.admin_demo_url) {
+                        activeDemos.push({ label: 'Admin Portal', url: product.admin_demo_url });
+                      }
+                      if (product.partner_demo_url) {
+                        activeDemos.push({ label: 'Partner Panel', url: product.partner_demo_url });
+                      }
+                      if (product.web_demo_url) {
+                        activeDemos.push({ label: 'Web App', url: product.web_demo_url });
+                      }
+                    }
+                  }
+
+                  if (activeDemos.length === 0 && (!hasVideo || !isVideoVisible)) return null;
+
+                  return (
+                    <div style={{ display: 'flex', gap: '0.6rem', flexWrap: 'wrap', paddingTop: '0.75rem', borderTop: '1px solid var(--border-subtle)' }}>
+                      {/* Render Each Active Demo Link with its Custom Name */}
+                      {activeDemos.map((demo, dIdx) => (
+                        <a
+                          key={demo.id || dIdx}
+                          href={demo.url}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="btn btn-outline btn-sm"
+                          style={{
+                            flex: '1 1 auto',
+                            justifyContent: 'center',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '6px',
+                            fontWeight: 700,
+                            padding: '8px 14px',
+                            background: 'rgba(99, 102, 241, 0.08)',
+                            borderColor: 'rgba(99, 102, 241, 0.3)'
+                          }}
+                        >
+                          <ExternalLink size={13} color="var(--primary)" />
+                          <span>{demo.label || 'Live Demo'}</span>
+                        </a>
+                      ))}
+
+                      {/* Video Walkthrough Play Button */}
+                      {hasVideo && isVideoVisible && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const videoEl = document.getElementById('section-video');
+                            if (videoEl) {
+                              videoEl.scrollIntoView({ behavior: 'smooth' });
+                            }
+                            setIsVideoModalOpen(true);
+                          }}
+                          className="btn btn-outline btn-sm"
+                          style={{
+                            flex: '1 1 auto',
+                            justifyContent: 'center',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '6px',
+                            fontWeight: 700,
+                            padding: '8px 14px',
+                            background: 'rgba(244, 63, 94, 0.08)',
+                            borderColor: 'rgba(244, 63, 94, 0.3)',
+                            color: '#f43f5e'
+                          }}
+                        >
+                          <Play size={13} fill="currentColor" />
+                          <span>Watch Video Demo</span>
+                        </button>
+                      )}
+                    </div>
+                  );
+                })()}
 
                 {/* Trust Indicators */}
                 <div className="pdp-trust-bar">
@@ -842,7 +919,7 @@ export function DynamicProductPage({ slug, productData: initialData, onNavigate,
             boxShadow: 'var(--shadow-xl)',
             position: 'relative'
           }}>
-            {parsed.provider === 'youtube' || parsed.provider === 'vimeo' || parsed.provider === 'iframe' ? (
+            {parsed.provider === 'youtube' || parsed.provider === 'vimeo' || parsed.provider === 'loom' || parsed.provider === 'iframe' ? (
               <iframe
                 src={parsed.embedUrl}
                 title={videoTitle}
@@ -985,17 +1062,59 @@ export function DynamicProductPage({ slug, productData: initialData, onNavigate,
 
   // 05. SECTION 05 — PRODUCT DEMO / LIVE PREVIEW STRIP
   const renderDemo = () => {
-    const demoLinks = [
-      { label: 'Live Demo', url: product.live_demo_url || product.demo_url, icon: ExternalLink },
-      { label: 'Try Customer App', url: product.customer_demo_url, icon: Smartphone },
-      { label: 'View Partner Panel', url: product.partner_demo_url, icon: Briefcase },
-      { label: 'Open Admin Demo', url: product.admin_demo_url, icon: Layout },
-      { label: 'Website Demo', url: product.web_demo_url, icon: Globe },
-      { label: 'Documentation', url: product.docs_url || product.doc_url, icon: FileCode },
-      { label: 'Watch Video Walkthrough', url: product.video_url, icon: Play, isVideo: true }
-    ].filter(d => !!d.url && typeof d.url === 'string' && d.url.trim() !== '');
+    const demoSec = getSection('demo');
+    if (demoSec && (demoSec.is_visible === 0 || demoSec.is_visible === false)) return null;
+    if (product.show_demo_links === 0 || product.show_demo_links === false) return null;
 
-    if (demoLinks.length === 0) return null;
+    let activeDemoLinks = [];
+    const rawDemoContent = getSectionData('demo') || product.demo_links;
+
+    if (Array.isArray(rawDemoContent) && rawDemoContent.length > 0) {
+      activeDemoLinks = rawDemoContent
+        .filter(d => d && d.url && (d.is_visible === undefined || d.is_visible === true || d.is_visible === 1))
+        .map(d => ({
+          label: d.label || 'Live Demo',
+          url: d.url,
+          icon: ExternalLink
+        }));
+    } else if (typeof rawDemoContent === 'string') {
+      try {
+        const parsed = JSON.parse(rawDemoContent);
+        if (Array.isArray(parsed)) {
+          activeDemoLinks = parsed
+            .filter(d => d && d.url && (d.is_visible === undefined || d.is_visible === true || d.is_visible === 1))
+            .map(d => ({
+              label: d.label || 'Live Demo',
+              url: d.url,
+              icon: ExternalLink
+            }));
+        }
+      } catch (e) {}
+    }
+
+    if (activeDemoLinks.length === 0) {
+      activeDemoLinks = [
+        (product.live_demo_url || product.demo_url) ? { label: 'App Demo Link', url: product.live_demo_url || product.demo_url, icon: ExternalLink } : null,
+        product.customer_demo_url ? { label: 'Try Customer App', url: product.customer_demo_url, icon: Smartphone } : null,
+        product.partner_demo_url ? { label: 'View Partner Panel', url: product.partner_demo_url, icon: Briefcase } : null,
+        product.admin_demo_url ? { label: 'Open Admin Demo', url: product.admin_demo_url, icon: Layout } : null,
+        product.web_demo_url ? { label: 'Website Demo', url: product.web_demo_url, icon: Globe } : null,
+        (product.docs_url || product.doc_url) ? { label: 'Documentation', url: product.docs_url || product.doc_url, icon: FileCode } : null
+      ].filter(Boolean);
+    }
+
+    // Add Watch Video walkthrough button if video exists and visible
+    const isVideoVisible = getSection('video')?.is_visible !== 0 && product.is_video_visible !== false && product.is_video_visible !== 0;
+    if ((product.video_url || getSectionData('video')?.url) && isVideoVisible) {
+      activeDemoLinks.push({
+        label: 'Watch Video Walkthrough',
+        url: product.video_url || getSectionData('video')?.url,
+        icon: Play,
+        isVideo: true
+      });
+    }
+
+    if (activeDemoLinks.length === 0) return null;
 
     return (
       <section className="pdp-section" style={{ paddingTop: '1rem', paddingBottom: '1rem' }}>
@@ -1009,8 +1128,22 @@ export function DynamicProductPage({ slug, productData: initialData, onNavigate,
             </div>
 
             <div className="pdp-demo-links">
-              {demoLinks.map((demo, idx) => {
+              {activeDemoLinks.map((demo, idx) => {
                 const IconComponent = demo.icon;
+                if (demo.isVideo) {
+                  return (
+                    <button
+                      key={idx}
+                      type="button"
+                      onClick={() => setIsVideoModalOpen(true)}
+                      className="pdp-demo-btn"
+                      style={{ cursor: 'pointer', background: 'rgba(244, 63, 94, 0.1)', borderColor: 'rgba(244, 63, 94, 0.3)', color: '#f43f5e' }}
+                    >
+                      <IconComponent size={14} fill="currentColor" />
+                      <span>{demo.label}</span>
+                    </button>
+                  );
+                }
                 return (
                   <a
                     key={idx}
@@ -2259,17 +2392,60 @@ export function DynamicProductPage({ slug, productData: initialData, onNavigate,
   // Compile active sections from database or fall back to canonical order
   let orderedSections = [];
   if (Array.isArray(dbSections) && dbSections.length > 0) {
-    const visibleSections = dbSections
+    let visibleSections = dbSections
       .filter(s => s && (s.is_visible === undefined || s.is_visible === 1 || s.is_visible === true))
       .sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0));
 
+    // Dynamic Video Section Visibility
+    const hasVideo = !!(product.video_url || getSectionData('video')?.url);
+    const isVideoExplicitlyHidden = product.is_video_visible === 0 || product.is_video_visible === false;
+    const isVideoExplicitlyEnabled = product.is_video_visible === 1 || product.is_video_visible === true;
+
+    if (!hasVideo || isVideoExplicitlyHidden) {
+      visibleSections = visibleSections.filter(s => (s.section_type || s.type) !== 'video');
+    } else if (hasVideo && isVideoExplicitlyEnabled) {
+      const alreadyHasVideo = visibleSections.some(s => (s.section_type || s.type) === 'video');
+      if (!alreadyHasVideo) {
+        const heroIdx = visibleSections.findIndex(s => (s.section_type || s.type) === 'hero');
+        const videoEntry = { section_type: 'video', is_visible: 1, sort_order: 2.5 };
+        if (heroIdx !== -1) {
+          visibleSections.splice(heroIdx + 1, 0, videoEntry);
+        } else {
+          visibleSections.unshift(videoEntry);
+        }
+      }
+    }
+
+    // Dynamic Demo Section Visibility
+    const isDemoExplicitlyHidden = product.show_demo_links === 0 || product.show_demo_links === false;
+    if (isDemoExplicitlyHidden) {
+      visibleSections = visibleSections.filter(s => (s.section_type || s.type) !== 'demo');
+    } else {
+      const alreadyHasDemo = visibleSections.some(s => (s.section_type || s.type) === 'demo');
+      if (!alreadyHasDemo) {
+        const heroIdx = visibleSections.findIndex(s => (s.section_type || s.type) === 'hero');
+        const demoEntry = { section_type: 'demo', is_visible: 1, sort_order: 2.2 };
+        if (heroIdx !== -1) {
+          visibleSections.splice(heroIdx + 1, 0, demoEntry);
+        } else {
+          visibleSections.unshift(demoEntry);
+        }
+      }
+    }
+
     orderedSections = visibleSections;
   } else {
-    orderedSections = defaultCanonicalTypes.map((type, idx) => ({
-      section_type: type,
-      is_visible: 1,
-      sort_order: idx + 1
-    }));
+    orderedSections = defaultCanonicalTypes
+      .filter(type => {
+        if (type === 'video' && (!product.video_url || product.is_video_visible === 0 || product.is_video_visible === false)) return false;
+        if (type === 'demo' && (product.show_demo_links === 0 || product.show_demo_links === false)) return false;
+        return true;
+      })
+      .map((type, idx) => ({
+        section_type: type,
+        is_visible: 1,
+        sort_order: idx + 1
+      }));
   }
 
   return (
@@ -2336,7 +2512,7 @@ export function DynamicProductPage({ slug, productData: initialData, onNavigate,
         </div>
       )}
 
-      {/* Lightbox Modal */}
+      {/* Image Gallery Lightbox Modal */}
       {lightboxOpen && (
         <div
           role="dialog"
@@ -2366,6 +2542,85 @@ export function DynamicProductPage({ slug, productData: initialData, onNavigate,
           )}
         </div>
       )}
+
+      {/* Product Video Demo Modal Lightbox */}
+      {isVideoModalOpen && (() => {
+        const rawVideoUrl = getSectionData('video')?.url || product.video_url;
+        const parsed = parseVideoUrl(rawVideoUrl);
+        if (!parsed) return null;
+        const videoTitle = getSectionData('video')?.title || product.video_title || product.title || 'Product Video Demo';
+
+        return (
+          <div
+            role="dialog"
+            aria-modal="true"
+            className="pdp-lightbox-overlay"
+            style={{ zIndex: 99999, background: 'rgba(5, 7, 15, 0.9)', backdropFilter: 'blur(16px)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+            onClick={() => setIsVideoModalOpen(false)}
+          >
+            <button
+              onClick={() => setIsVideoModalOpen(false)}
+              className="pdp-lightbox-close"
+              aria-label="Close Video Modal"
+              style={{
+                position: 'fixed',
+                top: '1.5rem',
+                right: '1.5rem',
+                width: '44px',
+                height: '44px',
+                borderRadius: '50%',
+                background: 'rgba(255,255,255,0.12)',
+                color: '#fff',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: 'pointer',
+                border: '1px solid rgba(255,255,255,0.2)',
+                zIndex: 100000,
+                transition: 'all 0.2s'
+              }}
+            >
+              <X size={22} />
+            </button>
+
+            <div
+              style={{
+                width: '94%',
+                maxWidth: '1020px',
+                aspectRatio: '16/9',
+                borderRadius: 'var(--radius-xl)',
+                overflow: 'hidden',
+                background: '#000',
+                boxShadow: '0 25px 60px -15px rgba(0,0,0,0.85), 0 0 50px rgba(99, 102, 241, 0.3)',
+                border: '1px solid var(--border-medium)',
+                position: 'relative'
+              }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              {parsed.provider === 'youtube' || parsed.provider === 'vimeo' || parsed.provider === 'loom' || parsed.provider === 'iframe' ? (
+                <iframe
+                  src={parsed.embedUrl.includes('?') ? `${parsed.embedUrl}&autoplay=1` : `${parsed.embedUrl}?autoplay=1`}
+                  title={videoTitle}
+                  style={{ width: '100%', height: '100%', border: 0 }}
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                  allowFullScreen
+                />
+              ) : (
+                <video
+                  controls
+                  autoPlay
+                  preload="auto"
+                  poster={product.video_thumbnail || product.hero_image}
+                  style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+                >
+                  <source src={parsed.src} type="video/mp4" />
+                  Your browser does not support the video tag.
+                </video>
+              )}
+            </div>
+          </div>
+        );
+      })()}
     </article>
   );
 }

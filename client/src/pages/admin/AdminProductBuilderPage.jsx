@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Save,
   Eye,
@@ -45,7 +45,12 @@ import {
   ListChecks,
   Sliders,
   Copy,
-  Edit3
+  Edit3,
+  UploadCloud,
+  Play,
+  ToggleLeft,
+  ToggleRight,
+  Film
 } from 'lucide-react';
 import { apiRequest } from '../../utils/api';
 import { useToast } from '../../context/ToastContext';
@@ -97,6 +102,9 @@ export function AdminProductBuilderPage({ productId: propProductId, onBack, onSa
     video_thumbnail: '',
     video_title: 'See the Product in Action',
     video_description: 'Watch the complete video walkthrough.',
+    is_video_visible: 1,
+    show_demo_links: 1,
+    demo_links: [],
     demo_url: '',
     live_demo_url: '',
     customer_demo_url: '',
@@ -115,6 +123,15 @@ export function AdminProductBuilderPage({ productId: propProductId, onBack, onSa
     seo_keywords: '',
     og_image: ''
   });
+
+  const [demoLinks, setDemoLinks] = useState([]);
+  const [uploadingImage, setUploadingImage] = useState(false);
+
+  // Hidden File Input Refs
+  const heroFileInputRef = useRef(null);
+  const thumbFileInputRef = useRef(null);
+  const multiGalleryInputRef = useRef(null);
+  const videoPosterInputRef = useRef(null);
 
   // Canonical 26 sections manager + custom sections
   const defaultCanonicalSections = [
@@ -228,6 +245,9 @@ export function AdminProductBuilderPage({ productId: propProductId, onBack, onSa
         video_thumbnail: prod.video_thumbnail || '',
         video_title: prod.video_title || 'See the Product in Action',
         video_description: prod.video_description || 'Watch the complete video walkthrough.',
+        is_video_visible: prod.is_video_visible !== undefined ? (prod.is_video_visible ? 1 : 0) : 1,
+        show_demo_links: prod.show_demo_links !== undefined ? (prod.show_demo_links ? 1 : 0) : 1,
+        demo_links: prod.demo_links || [],
         demo_url: prod.demo_url || prod.live_demo_url || '',
         live_demo_url: prod.live_demo_url || prod.demo_url || '',
         customer_demo_url: prod.customer_demo_url || '',
@@ -245,6 +265,46 @@ export function AdminProductBuilderPage({ productId: propProductId, onBack, onSa
         hero_image: prod.hero_image || '',
         thumbnail: prod.thumbnail || ''
       }));
+
+      // Hydrate custom demo links
+      let rawDemoLinks = prod.demo_links;
+      if (typeof rawDemoLinks === 'string') {
+        try { rawDemoLinks = JSON.parse(rawDemoLinks); } catch (e) { rawDemoLinks = []; }
+      }
+      let initialDemos = [];
+      if (Array.isArray(rawDemoLinks) && rawDemoLinks.length > 0) {
+        initialDemos = rawDemoLinks.map((d, i) => ({
+          id: d.id || `demo-${i + 1}`,
+          label: d.label || 'App Demo Link',
+          url: d.url || '',
+          is_visible: d.is_visible !== undefined ? !!d.is_visible : true
+        }));
+      } else {
+        if (prod.live_demo_url || prod.demo_url) {
+          initialDemos.push({ id: 'demo-1', label: 'App Demo Link', url: prod.live_demo_url || prod.demo_url, is_visible: true });
+        }
+        if (prod.customer_demo_url) {
+          initialDemos.push({ id: 'demo-2', label: 'Customer App Demo', url: prod.customer_demo_url, is_visible: true });
+        }
+        if (prod.partner_demo_url) {
+          initialDemos.push({ id: 'demo-3', label: 'Partner / Provider Panel', url: prod.partner_demo_url, is_visible: true });
+        }
+        if (prod.admin_demo_url) {
+          initialDemos.push({ id: 'demo-4', label: 'Admin Dashboard Demo', url: prod.admin_demo_url, is_visible: true });
+        }
+        if (prod.web_demo_url) {
+          initialDemos.push({ id: 'demo-5', label: 'Web App Demo', url: prod.web_demo_url, is_visible: true });
+        }
+        if (prod.docs_url || prod.doc_url) {
+          initialDemos.push({ id: 'demo-6', label: 'Documentation / Guide', url: prod.docs_url || prod.doc_url, is_visible: true });
+        }
+      }
+      if (initialDemos.length === 0) {
+        initialDemos = [
+          { id: 'demo-1', label: 'App Demo Link', url: '', is_visible: true }
+        ];
+      }
+      setDemoLinks(initialDemos);
 
       // Sections hydration
       const loadedSectionsRaw = res.sections || prod.sections || [];
@@ -404,8 +464,203 @@ export function AdminProductBuilderPage({ productId: propProductId, onBack, onSa
 
   const toggleSectionVisibility = (index) => {
     const updated = [...sections];
-    updated[index].is_visible = updated[index].is_visible === 1 ? 0 : 1;
+    const newVis = (updated[index].is_visible === 1 || updated[index].is_visible === true) ? 0 : 1;
+    updated[index].is_visible = newVis;
     setSections(updated);
+
+    if (updated[index].section_type === 'video') {
+      setProduct(prev => ({ ...prev, is_video_visible: newVis }));
+    } else if (updated[index].section_type === 'demo') {
+      setProduct(prev => ({ ...prev, show_demo_links: newVis }));
+    }
+  };
+
+  const toggleSectionTypeVisibility = (secType, explicitState = null) => {
+    setSections(prev => prev.map(s => {
+      if (s.section_type === secType) {
+        const nextState = explicitState !== null ? (explicitState ? 1 : 0) : ((s.is_visible === 1 || s.is_visible === true) ? 0 : 1);
+        return { ...s, is_visible: nextState };
+      }
+      return s;
+    }));
+    if (secType === 'video') {
+      setProduct(prev => ({
+        ...prev,
+        is_video_visible: explicitState !== null ? (explicitState ? 1 : 0) : ((prev.is_video_visible === 1 || prev.is_video_visible === true) ? 0 : 1)
+      }));
+    } else if (secType === 'demo') {
+      setProduct(prev => ({
+        ...prev,
+        show_demo_links: explicitState !== null ? (explicitState ? 1 : 0) : ((prev.show_demo_links === 1 || prev.show_demo_links === true) ? 0 : 1)
+      }));
+    }
+  };
+
+  function parseAdminVideoUrl(rawUrl) {
+    if (!rawUrl || typeof rawUrl !== 'string') return null;
+    const url = rawUrl.trim();
+    if (!url) return null;
+
+    const ytMatch = url.match(/(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?|shorts)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/i);
+    if (ytMatch && ytMatch[1]) {
+      return {
+        provider: 'youtube',
+        embedUrl: `https://www.youtube-nocookie.com/embed/${ytMatch[1]}?autoplay=0&rel=0`
+      };
+    }
+
+    const vimeoMatch = url.match(/(?:vimeo\.com\/(?:channels\/(?:\w+\/)?|groups\/([^\/]*)\/videos\/|album\/(\d+)\/video\/|video\/|)(\d+))/i);
+    if (vimeoMatch && vimeoMatch[3]) {
+      return {
+        provider: 'vimeo',
+        embedUrl: `https://player.vimeo.com/video/${vimeoMatch[3]}`
+      };
+    }
+
+    const loomMatch = url.match(/loom\.com\/(?:share|embed)\/([a-zA-Z0-9]+)/i);
+    if (loomMatch && loomMatch[1]) {
+      return {
+        provider: 'loom',
+        embedUrl: `https://www.loom.com/embed/${loomMatch[1]}`
+      };
+    }
+
+    if (url.match(/\.(mp4|webm|ogg)($|\?)/i) || url.toLowerCase().includes('.mp4')) {
+      return {
+        provider: 'mp4',
+        src: url
+      };
+    }
+
+    if (url.includes('embed') || url.startsWith('http')) {
+      return {
+        provider: 'iframe',
+        embedUrl: url
+      };
+    }
+
+    return null;
+  }
+
+  // File Upload Handlers (Hero, Thumbnail, Video Thumbnail, Gallery)
+  const handleImageFileUpload = async (file, targetField) => {
+    if (!file) return;
+    setUploadingImage(true);
+    try {
+      const formData = new FormData();
+      formData.append('media', file);
+      const res = await apiRequest('/api/admin/files/upload-media', {
+        method: 'POST',
+        body: formData
+      });
+      if (res && res.url) {
+        if (targetField === 'hero') {
+          setProduct(prev => ({ ...prev, hero_image: res.url, thumbnail: prev.thumbnail || res.url }));
+        } else if (targetField === 'thumbnail') {
+          setProduct(prev => ({ ...prev, thumbnail: res.url }));
+        } else if (targetField === 'video_thumbnail') {
+          setProduct(prev => ({ ...prev, video_thumbnail: res.url }));
+        }
+        addToast('Image uploaded successfully!', 'success');
+        setUploadingImage(false);
+        return;
+      }
+    } catch (e) {
+      // Fallback to local FileReader below
+    }
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const dataUrl = e.target.result;
+      if (targetField === 'hero') {
+        setProduct(prev => ({ ...prev, hero_image: dataUrl, thumbnail: prev.thumbnail || dataUrl }));
+      } else if (targetField === 'thumbnail') {
+        setProduct(prev => ({ ...prev, thumbnail: dataUrl }));
+      } else if (targetField === 'video_thumbnail') {
+        setProduct(prev => ({ ...prev, video_thumbnail: dataUrl }));
+      }
+      addToast('Image updated successfully!', 'success');
+      setUploadingImage(false);
+    };
+    reader.onerror = () => {
+      addToast('Failed to read image file', 'error');
+      setUploadingImage(false);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleMultipleImagesUpload = async (files) => {
+    if (!files || files.length === 0) return;
+    const fileList = Array.from(files);
+    setUploadingImage(true);
+    addToast(`Uploading ${fileList.length} gallery image(s)...`, 'info');
+
+    const newItems = [];
+    for (const file of fileList) {
+      let mediaUrl = '';
+      try {
+        const formData = new FormData();
+        formData.append('media', file);
+        const res = await apiRequest('/api/admin/files/upload-media', {
+          method: 'POST',
+          body: formData
+        });
+        if (res && res.url) {
+          mediaUrl = res.url;
+        }
+      } catch (err) {}
+
+      if (!mediaUrl) {
+        mediaUrl = await new Promise((resolve) => {
+          const reader = new FileReader();
+          reader.onload = (e) => resolve(e.target.result);
+          reader.onerror = () => resolve('');
+          reader.readAsDataURL(file);
+        });
+      }
+
+      if (mediaUrl) {
+        const cleanName = file.name.replace(/\.[^/.]+$/, '').replace(/[-_]/g, ' ');
+        newItems.push({
+          media_url: mediaUrl,
+          caption: cleanName.charAt(0).toUpperCase() + cleanName.slice(1),
+          media_type: 'image'
+        });
+      }
+    }
+
+    if (newItems.length > 0) {
+      setMediaList(prev => [...prev, ...newItems]);
+      setProduct(prev => ({
+        ...prev,
+        hero_image: prev.hero_image || newItems[0].media_url,
+        thumbnail: prev.thumbnail || newItems[0].media_url
+      }));
+      addToast(`Added ${newItems.length} images to product gallery!`, 'success');
+    }
+    setUploadingImage(false);
+  };
+
+  // Custom Demo Links Handlers
+  const handleDemoLinkChange = (index, field, value) => {
+    const updated = [...demoLinks];
+    updated[index][field] = value;
+    setDemoLinks(updated);
+  };
+
+  const handleAddDemoLink = (presetLabel = 'App Demo Link') => {
+    const newDemo = {
+      id: `demo-${Date.now()}`,
+      label: presetLabel,
+      url: '',
+      is_visible: true
+    };
+    setDemoLinks([...demoLinks, newDemo]);
+    addToast(`Added "${presetLabel}" slot`, 'info');
+  };
+
+  const handleDeleteDemoLink = (index) => {
+    setDemoLinks(demoLinks.filter((_, idx) => idx !== index));
   };
 
   const duplicateSection = (index) => {
@@ -487,8 +742,7 @@ export function AdminProductBuilderPage({ productId: propProductId, onBack, onSa
       else if (s.section_type === 'use_cases') content = useCases;
       else if (s.section_type === 'comparison') content = comparisonRows;
       else if (s.section_type === 'after_purchase') content = afterPurchaseSteps;
-      else if (s.section_type === 'faq') content = faqs;
-      else if (s.section_type === 'testimonials') content = testimonials;
+      else if (s.section_type === 'demo') content = demoLinks;
       else if (s.section_type === 'video') {
         content = product.video_url ? {
           url: product.video_url,
@@ -511,10 +765,14 @@ export function AdminProductBuilderPage({ productId: propProductId, onBack, onSa
     setSaving(true);
     try {
       const targetStatus = overrideStatus || product.status || 'published';
+      const firstActiveDemo = demoLinks.find(d => d.is_visible && d.url) || demoLinks[0];
       const productPayload = {
         ...product,
         status: targetStatus,
         media: mediaList,
+        demo_links: demoLinks,
+        live_demo_url: firstActiveDemo?.url || product.live_demo_url,
+        demo_url: firstActiveDemo?.url || product.demo_url,
         features,
         faqs,
         testimonials,
@@ -558,6 +816,7 @@ export function AdminProductBuilderPage({ productId: propProductId, onBack, onSa
           else if (s.section_type === 'after_purchase') secContent = afterPurchaseSteps;
           else if (s.section_type === 'faq') secContent = faqs;
           else if (s.section_type === 'testimonials') secContent = testimonials;
+          else if (s.section_type === 'demo') secContent = demoLinks;
           else if (s.section_type === 'video') {
             secContent = product.video_url ? {
               url: product.video_url,
@@ -1123,106 +1382,576 @@ export function AdminProductBuilderPage({ productId: propProductId, onBack, onSa
           {/* TAB 3: MEDIA & GALLERY */}
           {activeTab === 'media' && (
             <div>
-              <div className="ab-section-title">Images & Visual Media Gallery</div>
-              <div className="ab-section-desc">Manage the primary hero image, thumbnail, screenshots, and visual product gallery.</div>
+              {/* Hidden File Inputs for Universal Image Uploads */}
+              <input
+                type="file"
+                ref={heroFileInputRef}
+                accept="image/*"
+                onChange={(e) => {
+                  if (e.target.files && e.target.files[0]) {
+                    handleImageFileUpload(e.target.files[0], 'hero');
+                  }
+                  e.target.value = '';
+                }}
+                style={{ display: 'none' }}
+              />
+              <input
+                type="file"
+                ref={thumbFileInputRef}
+                accept="image/*"
+                onChange={(e) => {
+                  if (e.target.files && e.target.files[0]) {
+                    handleImageFileUpload(e.target.files[0], 'thumbnail');
+                  }
+                  e.target.value = '';
+                }}
+                style={{ display: 'none' }}
+              />
+              <input
+                type="file"
+                ref={multiGalleryInputRef}
+                multiple
+                accept="image/*"
+                onChange={(e) => {
+                  if (e.target.files && e.target.files.length > 0) {
+                    handleMultipleImagesUpload(e.target.files);
+                  }
+                  e.target.value = '';
+                }}
+                style={{ display: 'none' }}
+              />
 
-              <div className="ab-form-grid">
-                <div className="ab-form-group">
-                  <label className="ab-form-label">Primary Hero Image URL</label>
-                  <input
-                    type="text"
-                    value={product.hero_image || ''}
-                    onChange={(e) => setProduct(prev => ({ ...prev, hero_image: e.target.value }))}
-                    placeholder="https://images.unsplash.com/..."
-                    className="ab-input"
-                  />
-                  {product.hero_image && (
-                    <div style={{ marginTop: '8px', borderRadius: 'var(--radius-md)', overflow: 'hidden', height: '140px', background: 'var(--bg-surface-elevated)' }}>
-                      <img src={product.hero_image} alt="Hero Preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                    </div>
-                  )}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1rem', marginBottom: '1.25rem' }}>
+                <div>
+                  <div className="ab-section-title">Images & Visual Media Gallery</div>
+                  <div className="ab-section-desc">
+                    Manage the primary hero image, thumbnail, and product gallery. Upload multiple images at once, replace existing images, or delete them.
+                  </div>
                 </div>
 
-                <div className="ab-form-group">
-                  <label className="ab-form-label">Thumbnail Image URL</label>
-                  <input
-                    type="text"
-                    value={product.thumbnail || ''}
-                    onChange={(e) => setProduct(prev => ({ ...prev, thumbnail: e.target.value }))}
-                    placeholder="https://images.unsplash.com/..."
-                    className="ab-input"
-                  />
-                  {product.thumbnail && (
-                    <div style={{ marginTop: '8px', borderRadius: 'var(--radius-md)', overflow: 'hidden', height: '140px', background: 'var(--bg-surface-elevated)' }}>
-                      <img src={product.thumbnail} alt="Thumbnail Preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                {/* Quick Toggle for Gallery Section on Storefront */}
+                {(() => {
+                  const gallerySec = sections.find(s => s.section_type === 'gallery');
+                  const isGalVisible = gallerySec ? (gallerySec.is_visible === 1 || gallerySec.is_visible === true) : true;
+                  return (
+                    <div style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '10px',
+                      background: 'var(--bg-surface-elevated)',
+                      padding: '8px 14px',
+                      borderRadius: 'var(--radius-md)',
+                      border: '1px solid var(--border-subtle)'
+                    }}>
+                      <div style={{ textAlign: 'right' }}>
+                        <div style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                          Gallery on Storefront
+                        </div>
+                        <div style={{ fontSize: '0.72rem', color: isGalVisible ? '#10b981' : '#f43f5e', fontWeight: 600 }}>
+                          {isGalVisible ? 'Visible to Users' : 'Hidden from Users'}
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => toggleSectionTypeVisibility('gallery')}
+                        style={{
+                          width: '42px',
+                          height: '22px',
+                          borderRadius: '9999px',
+                          background: isGalVisible ? 'var(--primary)' : 'rgba(255,255,255,0.15)',
+                          border: 'none',
+                          position: 'relative',
+                          cursor: 'pointer',
+                          transition: 'background 0.2s',
+                          padding: 0,
+                          flexShrink: 0
+                        }}
+                        title={isGalVisible ? "Click to hide gallery on storefront" : "Click to show gallery on storefront"}
+                      >
+                        <span
+                          style={{
+                            position: 'absolute',
+                            top: '3px',
+                            left: isGalVisible ? '23px' : '3px',
+                            width: '16px',
+                            height: '16px',
+                            borderRadius: '50%',
+                            background: '#fff',
+                            transition: 'left 0.2s',
+                            boxShadow: '0 1px 3px rgba(0,0,0,0.4)'
+                          }}
+                        />
+                      </button>
                     </div>
-                  )}
-                </div>
+                  );
+                })()}
               </div>
 
-              {/* Additional Gallery Media */}
-              <div style={{ marginTop: '2rem', paddingTop: '1.5rem', borderTop: '1px solid var(--border-subtle)' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-                  <div>
-                    <h3 style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
-                      Product Carousel & Lightbox Gallery
-                    </h3>
-                    <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', margin: '2px 0 0' }}>
-                      Additional screenshots and photos that appear in the interactive hero gallery.
-                    </p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setMediaList([...mediaList, { media_url: '', caption: 'Screenshot preview', media_type: 'image' }])}
-                    className="btn btn-secondary btn-sm"
-                    style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}
-                  >
-                    <Plus size={14} /> Add Gallery Image
-                  </button>
-                </div>
-
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                  {mediaList.length === 0 ? (
-                    <div style={{ padding: '1.5rem', textAlign: 'center', color: 'var(--text-muted)', background: 'var(--bg-surface-elevated)', borderRadius: 'var(--radius-md)' }}>
-                      No additional gallery images added. The hero image will be used as the primary showcase image.
+              <div className="ab-form-grid" style={{ gap: '1.5rem' }}>
+                {/* 1. Primary Hero Image */}
+                <div className="ab-form-group" style={{
+                  background: 'var(--bg-surface-elevated)',
+                  padding: '1.25rem',
+                  borderRadius: 'var(--radius-lg)',
+                  border: '1px solid var(--border-subtle)'
+                }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
+                    <div>
+                      <label className="ab-form-label" style={{ margin: 0, fontSize: '0.9rem', fontWeight: 700 }}>
+                        Primary Hero Showcase Image
+                      </label>
+                      <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                        Main image displayed on product detail page header
+                      </span>
                     </div>
-                  ) : (
-                    mediaList.map((m, idx) => (
-                      <div key={idx} className="ab-item-row">
-                        <div style={{ flex: 1, display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '8px' }}>
-                          <input
-                            type="text"
-                            value={m.media_url || ''}
-                            onChange={(e) => {
-                              const updated = [...mediaList];
-                              updated[idx].media_url = e.target.value;
-                              setMediaList(updated);
-                            }}
-                            placeholder="Image URL: https://..."
-                            className="ab-input"
-                          />
-                          <input
-                            type="text"
-                            value={m.caption || ''}
-                            onChange={(e) => {
-                              const updated = [...mediaList];
-                              updated[idx].caption = e.target.value;
-                              setMediaList(updated);
-                            }}
-                            placeholder="Caption (e.g. Dashboard view)"
-                            className="ab-input"
-                          />
-                        </div>
+                    <div style={{ display: 'flex', gap: '6px' }}>
+                      <button
+                        type="button"
+                        onClick={() => heroFileInputRef.current?.click()}
+                        disabled={uploadingImage}
+                        className="btn btn-primary btn-sm"
+                        style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '0.78rem', padding: '6px 12px' }}
+                      >
+                        <UploadCloud size={14} />
+                        <span>{uploadingImage ? 'Uploading...' : 'Change / Upload Image'}</span>
+                      </button>
+                      {product.hero_image && (
                         <button
                           type="button"
-                          onClick={() => setMediaList(mediaList.filter((_, i) => i !== idx))}
+                          onClick={() => {
+                            if (confirm('Are you sure you want to remove the hero image?')) {
+                              setProduct(prev => ({ ...prev, hero_image: '' }));
+                              addToast('Hero image removed', 'info');
+                            }
+                          }}
                           className="btn btn-outline btn-sm"
-                          style={{ color: '#f43f5e', borderColor: 'rgba(244, 63, 94, 0.3)' }}
+                          style={{ color: '#f43f5e', borderColor: 'rgba(244, 63, 94, 0.3)', padding: '6px 10px' }}
+                          title="Delete Hero Image"
                         >
                           <Trash2 size={14} />
                         </button>
+                      )}
+                    </div>
+                  </div>
+
+                  <div style={{
+                    borderRadius: 'var(--radius-md)',
+                    overflow: 'hidden',
+                    height: '180px',
+                    background: '#0a0e1a',
+                    border: '1px dashed var(--border-medium)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    position: 'relative',
+                    marginBottom: '0.75rem'
+                  }}>
+                    {product.hero_image ? (
+                      <img
+                        src={product.hero_image}
+                        alt="Hero Preview"
+                        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                        onError={(e) => {
+                          e.currentTarget.onerror = null;
+                          e.currentTarget.src = 'https://images.unsplash.com/photo-1551288049-bebda4e38f71?auto=format&fit=crop&w=600&q=80';
+                        }}
+                      />
+                    ) : (
+                      <div style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '1rem' }}>
+                        <ImageIcon size={32} style={{ margin: '0 auto 6px', opacity: 0.5 }} />
+                        <p style={{ fontSize: '0.8rem', margin: 0 }}>No hero image set</p>
+                        <button
+                          type="button"
+                          onClick={() => heroFileInputRef.current?.click()}
+                          style={{ marginTop: '6px', background: 'none', border: 'none', color: 'var(--primary)', fontSize: '0.78rem', cursor: 'pointer', textDecoration: 'underline' }}
+                        >
+                          Upload Image File
+                        </button>
                       </div>
-                    ))
+                    )}
+                  </div>
+
+                  <div>
+                    <label style={{ fontSize: '0.72rem', fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: '4px' }}>
+                      Or enter image direct URL / CDN path:
+                    </label>
+                    <input
+                      type="text"
+                      value={product.hero_image || ''}
+                      onChange={(e) => setProduct(prev => ({ ...prev, hero_image: e.target.value }))}
+                      placeholder="https://images.unsplash.com/... or /uploads/..."
+                      className="ab-input"
+                      style={{ fontSize: '0.8rem' }}
+                    />
+                  </div>
+                </div>
+
+                {/* 2. Thumbnail Image */}
+                <div className="ab-form-group" style={{
+                  background: 'var(--bg-surface-elevated)',
+                  padding: '1.25rem',
+                  borderRadius: 'var(--radius-lg)',
+                  border: '1px solid var(--border-subtle)'
+                }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
+                    <div>
+                      <label className="ab-form-label" style={{ margin: 0, fontSize: '0.9rem', fontWeight: 700 }}>
+                        Catalog Thumbnail Card Image
+                      </label>
+                      <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                        Appears on store homepage, catalog cards, and checkout
+                      </span>
+                    </div>
+                    <div style={{ display: 'flex', gap: '6px' }}>
+                      <button
+                        type="button"
+                        onClick={() => thumbFileInputRef.current?.click()}
+                        disabled={uploadingImage}
+                        className="btn btn-primary btn-sm"
+                        style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '0.78rem', padding: '6px 12px' }}
+                      >
+                        <UploadCloud size={14} />
+                        <span>{uploadingImage ? 'Uploading...' : 'Change / Upload'}</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (product.hero_image) {
+                            setProduct(prev => ({ ...prev, thumbnail: prev.hero_image }));
+                            addToast('Synced thumbnail with hero image', 'success');
+                          } else {
+                            addToast('No hero image to sync', 'warning');
+                          }
+                        }}
+                        className="btn btn-secondary btn-sm"
+                        style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '0.75rem', padding: '6px 10px' }}
+                        title="Copy image from Hero"
+                      >
+                        <RefreshCw size={13} />
+                        <span>Same as Hero</span>
+                      </button>
+                      {product.thumbnail && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (confirm('Are you sure you want to remove the thumbnail?')) {
+                              setProduct(prev => ({ ...prev, thumbnail: '' }));
+                              addToast('Thumbnail removed', 'info');
+                            }
+                          }}
+                          className="btn btn-outline btn-sm"
+                          style={{ color: '#f43f5e', borderColor: 'rgba(244, 63, 94, 0.3)', padding: '6px 10px' }}
+                          title="Delete Thumbnail"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  <div style={{
+                    borderRadius: 'var(--radius-md)',
+                    overflow: 'hidden',
+                    height: '180px',
+                    background: '#0a0e1a',
+                    border: '1px dashed var(--border-medium)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    position: 'relative',
+                    marginBottom: '0.75rem'
+                  }}>
+                    {product.thumbnail ? (
+                      <img
+                        src={product.thumbnail}
+                        alt="Thumbnail Preview"
+                        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                        onError={(e) => {
+                          e.currentTarget.onerror = null;
+                          e.currentTarget.src = 'https://images.unsplash.com/photo-1551288049-bebda4e38f71?auto=format&fit=crop&w=600&q=80';
+                        }}
+                      />
+                    ) : (
+                      <div style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '1rem' }}>
+                        <ImageIcon size={32} style={{ margin: '0 auto 6px', opacity: 0.5 }} />
+                        <p style={{ fontSize: '0.8rem', margin: 0 }}>No thumbnail image set</p>
+                        <button
+                          type="button"
+                          onClick={() => thumbFileInputRef.current?.click()}
+                          style={{ marginTop: '6px', background: 'none', border: 'none', color: 'var(--primary)', fontSize: '0.78rem', cursor: 'pointer', textDecoration: 'underline' }}
+                        >
+                          Upload Thumbnail File
+                        </button>
+                      </div>
+                    )}
+                  </div>
+
+                  <div>
+                    <label style={{ fontSize: '0.72rem', fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: '4px' }}>
+                      Or enter thumbnail direct URL / CDN path:
+                    </label>
+                    <input
+                      type="text"
+                      value={product.thumbnail || ''}
+                      onChange={(e) => setProduct(prev => ({ ...prev, thumbnail: e.target.value }))}
+                      placeholder="https://images.unsplash.com/... or /uploads/..."
+                      className="ab-input"
+                      style={{ fontSize: '0.8rem' }}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* 3. Product Carousel & Multi-Image Gallery */}
+              <div style={{
+                marginTop: '2rem',
+                padding: '1.5rem',
+                borderRadius: 'var(--radius-lg)',
+                background: 'var(--bg-surface-elevated)',
+                border: '1px solid var(--border-subtle)'
+              }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem', marginBottom: '1.25rem' }}>
+                  <div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <h3 style={{ fontSize: '1.05rem', fontWeight: 800, color: 'var(--text-primary)', margin: 0 }}>
+                        Product Image Gallery & Screenshots
+                      </h3>
+                      <span style={{
+                        fontSize: '0.72rem',
+                        fontWeight: 700,
+                        padding: '2px 8px',
+                        borderRadius: '9999px',
+                        background: 'rgba(99, 102, 241, 0.15)',
+                        color: 'var(--primary)',
+                        border: '1px solid rgba(99, 102, 241, 0.3)'
+                      }}>
+                        {mediaList.length} image{mediaList.length === 1 ? '' : 's'}
+                      </span>
+                    </div>
+                    <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', margin: '4px 0 0' }}>
+                      Upload multiple images simultaneously. Users can swipe through or click any image to view the high-resolution lightbox.
+                    </p>
+                  </div>
+
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                    <button
+                      type="button"
+                      onClick={() => multiGalleryInputRef.current?.click()}
+                      disabled={uploadingImage}
+                      className="btn btn-primary btn-sm"
+                      style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontWeight: 700 }}
+                    >
+                      <UploadCloud size={15} />
+                      <span>{uploadingImage ? 'Uploading Images...' : '+ Upload Multiple Images'}</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setMediaList([...mediaList, { media_url: '', caption: `Screenshot ${mediaList.length + 1}`, media_type: 'image' }])}
+                      className="btn btn-secondary btn-sm"
+                      style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                    >
+                      <Plus size={14} />
+                      <span>Add via URL</span>
+                    </button>
+
+                    {mediaList.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (confirm(`Are you sure you want to remove all ${mediaList.length} gallery images?`)) {
+                            setMediaList([]);
+                            addToast('Gallery cleared', 'info');
+                          }
+                        }}
+                        className="btn btn-outline btn-sm"
+                        style={{ color: '#f43f5e', borderColor: 'rgba(244, 63, 94, 0.3)', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                        title="Delete All Gallery Images"
+                      >
+                        <Trash2 size={13} />
+                        <span>Clear All</span>
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                {/* Gallery Items List */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  {mediaList.length === 0 ? (
+                    <div
+                      onClick={() => multiGalleryInputRef.current?.click()}
+                      style={{
+                        padding: '2.5rem 1.5rem',
+                        textAlign: 'center',
+                        color: 'var(--text-muted)',
+                        background: 'rgba(255,255,255,0.02)',
+                        borderRadius: 'var(--radius-md)',
+                        border: '2px dashed var(--border-medium)',
+                        cursor: 'pointer',
+                        transition: 'border-color 0.2s'
+                      }}
+                    >
+                      <UploadCloud size={36} color="var(--primary)" style={{ margin: '0 auto 8px', opacity: 0.8 }} />
+                      <p style={{ fontWeight: 700, fontSize: '0.95rem', color: 'var(--text-primary)', margin: '0 0 4px' }}>
+                        No gallery images added yet
+                      </p>
+                      <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', margin: 0 }}>
+                        Click here or use the <strong>"+ Upload Multiple Images"</strong> button to select screenshots from your computer.
+                      </p>
+                    </div>
+                  ) : (
+                    mediaList.map((m, idx) => {
+                      const itemFileRef = `gallery-file-${idx}`;
+                      return (
+                        <div
+                          key={idx}
+                          className="ab-item-row"
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '12px',
+                            background: 'var(--bg-surface)',
+                            border: '1px solid var(--border-subtle)',
+                            padding: '10px 14px',
+                            borderRadius: 'var(--radius-md)'
+                          }}
+                        >
+                          {/* Hidden single file replacer */}
+                          <input
+                            type="file"
+                            id={itemFileRef}
+                            accept="image/*"
+                            style={{ display: 'none' }}
+                            onChange={async (e) => {
+                              if (e.target.files && e.target.files[0]) {
+                                const file = e.target.files[0];
+                                const reader = new FileReader();
+                                reader.onload = (rev) => {
+                                  const updated = [...mediaList];
+                                  updated[idx].media_url = rev.target.result;
+                                  setMediaList(updated);
+                                  addToast('Gallery image replaced', 'success');
+                                };
+                                reader.readAsDataURL(file);
+                              }
+                              e.target.value = '';
+                            }}
+                          />
+
+                          {/* Thumbnail Preview */}
+                          <div style={{
+                            width: '80px',
+                            height: '56px',
+                            borderRadius: 'var(--radius-sm)',
+                            overflow: 'hidden',
+                            background: '#0a0e1a',
+                            border: '1px solid var(--border-subtle)',
+                            flexShrink: 0,
+                            position: 'relative'
+                          }}>
+                            {m.media_url ? (
+                              <img
+                                src={m.media_url}
+                                alt={m.caption || `Image ${idx + 1}`}
+                                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                                onError={(e) => {
+                                  e.currentTarget.onerror = null;
+                                  e.currentTarget.src = 'https://images.unsplash.com/photo-1551288049-bebda4e38f71?auto=format&fit=crop&w=200&q=80';
+                                }}
+                              />
+                            ) : (
+                              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100%', height: '100%', color: 'var(--text-muted)' }}>
+                                <ImageIcon size={18} />
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Inputs: URL & Caption */}
+                          <div style={{ flex: 1, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                            <div>
+                              <label style={{ fontSize: '0.68rem', fontWeight: 600, color: 'var(--text-muted)', display: 'block', marginBottom: '2px' }}>
+                                Image Caption / Title
+                              </label>
+                              <input
+                                type="text"
+                                value={m.caption || ''}
+                                onChange={(e) => {
+                                  const updated = [...mediaList];
+                                  updated[idx].caption = e.target.value;
+                                  setMediaList(updated);
+                                }}
+                                placeholder="Caption (e.g. Dashboard view)"
+                                className="ab-input"
+                                style={{ fontSize: '0.8rem', padding: '6px 10px' }}
+                              />
+                            </div>
+
+                            <div>
+                              <label style={{ fontSize: '0.68rem', fontWeight: 600, color: 'var(--text-muted)', display: 'block', marginBottom: '2px' }}>
+                                Image URL / Path
+                              </label>
+                              <input
+                                type="text"
+                                value={m.media_url || ''}
+                                onChange={(e) => {
+                                  const updated = [...mediaList];
+                                  updated[idx].media_url = e.target.value;
+                                  setMediaList(updated);
+                                }}
+                                placeholder="https://... or data:image/..."
+                                className="ab-input"
+                                style={{ fontSize: '0.8rem', padding: '6px 10px' }}
+                              />
+                            </div>
+                          </div>
+
+                          {/* Actions: Replace, Make Hero, Delete */}
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const el = document.getElementById(itemFileRef);
+                                if (el) el.click();
+                              }}
+                              className="btn btn-secondary btn-sm"
+                              style={{ fontSize: '0.72rem', padding: '4px 8px' }}
+                              title="Change / Replace Image File"
+                            >
+                              <UploadCloud size={13} />
+                              <span>Change</span>
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (m.media_url) {
+                                  setProduct(prev => ({ ...prev, hero_image: m.media_url, thumbnail: prev.thumbnail || m.media_url }));
+                                  addToast('Set as product primary hero image!', 'success');
+                                }
+                              }}
+                              className="btn btn-secondary btn-sm"
+                              style={{ fontSize: '0.72rem', padding: '4px 8px' }}
+                              title="Make this image the primary Hero image"
+                            >
+                              <span>Set as Hero</span>
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setMediaList(mediaList.filter((_, i) => i !== idx));
+                                addToast('Gallery image removed', 'info');
+                              }}
+                              className="btn btn-outline btn-sm"
+                              style={{ color: '#f43f5e', borderColor: 'rgba(244, 63, 94, 0.3)', padding: '5px 8px' }}
+                              title="Delete this image"
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })
                   )}
                 </div>
               </div>
@@ -1232,99 +1961,550 @@ export function AdminProductBuilderPage({ productId: propProductId, onBack, onSa
           {/* TAB 4: LINKS & DELIVERABLES */}
           {activeTab === 'links' && (
             <div>
-              <div className="ab-section-title">Links & Digital Deliverable Packages</div>
-              <div className="ab-section-desc">Manage all 7 live demo URLs, customer apps, partner panels, documentation, and the deliverable download bundle.</div>
+              {/* Hidden file input for video poster */}
+              <input
+                type="file"
+                ref={videoPosterInputRef}
+                accept="image/*"
+                onChange={(e) => {
+                  if (e.target.files && e.target.files[0]) {
+                    handleImageFileUpload(e.target.files[0], 'video_thumbnail');
+                  }
+                  e.target.value = '';
+                }}
+                style={{ display: 'none' }}
+              />
 
-              <div className="ab-form-grid">
-                <div className="ab-form-group">
-                  <label className="ab-form-label">Primary Live Demo URL</label>
-                  <input
-                    type="url"
-                    value={product.live_demo_url || product.demo_url || ''}
-                    onChange={(e) => setProduct(prev => ({ ...prev, live_demo_url: e.target.value, demo_url: e.target.value }))}
-                    placeholder="https://demo.rollixia.com/..."
-                    className="ab-input"
-                  />
+              {/* 1. CUSTOM LIVE DEMO LINKS BUILDER */}
+              <div style={{
+                background: 'var(--bg-surface-elevated)',
+                padding: '1.5rem',
+                borderRadius: 'var(--radius-lg)',
+                border: '1px solid var(--border-subtle)',
+                marginBottom: '2rem'
+              }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1rem', marginBottom: '1rem' }}>
+                  <div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <LinkIcon size={18} color="var(--primary)" />
+                      <h3 style={{ fontSize: '1.1rem', fontWeight: 800, color: 'var(--text-primary)', margin: 0 }}>
+                        Product Live Demo Links & Interactive Previews
+                      </h3>
+                    </div>
+                    <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', margin: '4px 0 0' }}>
+                      Add live demo buttons with any custom label (e.g. "App Demo Link", "Customer App", "Web App Preview", "Admin Portal").
+                      These render as prominent, working action buttons on the storefront.
+                    </p>
+                  </div>
+
+                  {/* Section Visibility Toggle */}
+                  {(() => {
+                    const demoSec = sections.find(s => s.section_type === 'demo');
+                    const isDemoVisible = demoSec ? (demoSec.is_visible === 1 || demoSec.is_visible === true) : (product.show_demo_links !== 0);
+                    return (
+                      <div style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '10px',
+                        background: 'var(--bg-surface)',
+                        padding: '8px 14px',
+                        borderRadius: 'var(--radius-md)',
+                        border: '1px solid var(--border-subtle)'
+                      }}>
+                        <div style={{ textAlign: 'right' }}>
+                          <div style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                            Show Demo Links on Storefront
+                          </div>
+                          <div style={{ fontSize: '0.72rem', color: isDemoVisible ? '#10b981' : '#f43f5e', fontWeight: 600 }}>
+                            {isDemoVisible ? 'Visible to Users' : 'Hidden from Users'}
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => toggleSectionTypeVisibility('demo')}
+                          style={{
+                            width: '42px',
+                            height: '22px',
+                            borderRadius: '9999px',
+                            background: isDemoVisible ? 'var(--primary)' : 'rgba(255,255,255,0.15)',
+                            border: 'none',
+                            position: 'relative',
+                            cursor: 'pointer',
+                            transition: 'background 0.2s',
+                            padding: 0,
+                            flexShrink: 0
+                          }}
+                          title={isDemoVisible ? "Click to hide demo links on storefront" : "Click to show demo links on storefront"}
+                        >
+                          <span
+                            style={{
+                              position: 'absolute',
+                              top: '3px',
+                              left: isDemoVisible ? '23px' : '3px',
+                              width: '16px',
+                              height: '16px',
+                              borderRadius: '50%',
+                              background: '#fff',
+                              transition: 'left 0.2s',
+                              boxShadow: '0 1px 3px rgba(0,0,0,0.4)'
+                            }}
+                          />
+                        </button>
+                      </div>
+                    );
+                  })()}
                 </div>
 
-                <div className="ab-form-group">
-                  <label className="ab-form-label">Customer App Demo URL</label>
-                  <input
-                    type="url"
-                    value={product.customer_demo_url || ''}
-                    onChange={(e) => setProduct(prev => ({ ...prev, customer_demo_url: e.target.value }))}
-                    placeholder="https://customer.demo.rollixia.com"
-                    className="ab-input"
-                  />
+                {/* Quick Presets & Add Button */}
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px', marginBottom: '1.25rem', paddingTop: '0.5rem', borderTop: '1px solid var(--border-subtle)' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                    <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)' }}>Quick Presets:</span>
+                    {[
+                      'App Demo Link',
+                      'Customer App Demo',
+                      'Partner / Provider Panel',
+                      'Admin Dashboard Demo',
+                      'Web App Demo',
+                      'Live Documentation'
+                    ].map(preset => (
+                      <button
+                        key={preset}
+                        type="button"
+                        onClick={() => handleAddDemoLink(preset)}
+                        className="btn btn-secondary btn-sm"
+                        style={{ padding: '3px 9px', fontSize: '0.72rem' }}
+                      >
+                        + {preset}
+                      </button>
+                    ))}
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => handleAddDemoLink('App Demo Link')}
+                    className="btn btn-primary btn-sm"
+                    style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontWeight: 700 }}
+                  >
+                    <Plus size={14} />
+                    <span>+ Add Custom Demo Link</span>
+                  </button>
                 </div>
 
-                <div className="ab-form-group">
-                  <label className="ab-form-label">Partner / Provider Panel Demo URL</label>
-                  <input
-                    type="url"
-                    value={product.partner_demo_url || ''}
-                    onChange={(e) => setProduct(prev => ({ ...prev, partner_demo_url: e.target.value }))}
-                    placeholder="https://partner.demo.rollixia.com"
-                    className="ab-input"
-                  />
+                {/* List of Custom Demo Links */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  {demoLinks.length === 0 ? (
+                    <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)', background: 'rgba(255,255,255,0.02)', borderRadius: 'var(--radius-md)', border: '1px dashed var(--border-medium)' }}>
+                      <Globe size={28} style={{ margin: '0 auto 6px', opacity: 0.5 }} />
+                      <p style={{ margin: 0, fontWeight: 600 }}>No demo links added yet.</p>
+                      <p style={{ fontSize: '0.78rem', margin: '4px 0 0', color: 'var(--text-secondary)' }}>
+                        Click "+ Add Custom Demo Link" above to configure your app demo or live preview.
+                      </p>
+                    </div>
+                  ) : (
+                    demoLinks.map((demo, idx) => (
+                      <div
+                        key={demo.id || idx}
+                        className="ab-item-row"
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '12px',
+                          background: 'var(--bg-surface)',
+                          border: '1px solid var(--border-subtle)',
+                          padding: '12px 14px',
+                          borderRadius: 'var(--radius-md)',
+                          opacity: demo.is_visible ? 1 : 0.6
+                        }}
+                      >
+                        <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.8rem', color: 'var(--text-muted)', minWidth: '24px' }}>
+                          #{idx + 1}
+                        </span>
+
+                        <div style={{ flex: 1, display: 'grid', gridTemplateColumns: '1.2fr 2fr', gap: '10px' }}>
+                          <div>
+                            <label style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--text-secondary)', display: 'block', marginBottom: '2px' }}>
+                              Button Name / Label on Storefront *
+                            </label>
+                            <input
+                              type="text"
+                              value={demo.label || ''}
+                              onChange={(e) => handleDemoLinkChange(idx, 'label', e.target.value)}
+                              placeholder="e.g. App Demo Link, Customer App, Live Preview"
+                              className="ab-input"
+                              style={{ fontWeight: 600 }}
+                              required
+                            />
+                          </div>
+
+                          <div>
+                            <label style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--text-secondary)', display: 'block', marginBottom: '2px' }}>
+                              Demo URL Link *
+                            </label>
+                            <input
+                              type="url"
+                              value={demo.url || ''}
+                              onChange={(e) => handleDemoLinkChange(idx, 'url', e.target.value)}
+                              placeholder="https://app.demo.rollixia.com"
+                              className="ab-input"
+                              style={{ fontFamily: 'var(--font-mono)', fontSize: '0.82rem' }}
+                              required
+                            />
+                          </div>
+                        </div>
+
+                        {/* Individual link visibility toggle */}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
+                          <button
+                            type="button"
+                            onClick={() => handleDemoLinkChange(idx, 'is_visible', !demo.is_visible)}
+                            style={{
+                              width: '36px',
+                              height: '20px',
+                              borderRadius: '9999px',
+                              background: demo.is_visible ? 'var(--primary)' : 'rgba(255,255,255,0.15)',
+                              border: 'none',
+                              position: 'relative',
+                              cursor: 'pointer',
+                              transition: 'background 0.2s',
+                              padding: 0
+                            }}
+                            title={demo.is_visible ? "Active on storefront" : "Hidden on storefront"}
+                          >
+                            <span
+                              style={{
+                                position: 'absolute',
+                                top: '2px',
+                                left: demo.is_visible ? '18px' : '2px',
+                                width: '16px',
+                                height: '16px',
+                                borderRadius: '50%',
+                                background: '#fff',
+                                transition: 'left 0.2s',
+                                boxShadow: '0 1px 2px rgba(0,0,0,0.4)'
+                              }}
+                            />
+                          </button>
+
+                          {demo.url && (
+                            <a
+                              href={demo.url}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="btn btn-secondary btn-sm"
+                              style={{ padding: '6px 8px', display: 'inline-flex', alignItems: 'center' }}
+                              title="Test URL in new tab"
+                            >
+                              <ExternalLink size={13} />
+                            </a>
+                          )}
+
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteDemoLink(idx)}
+                            className="btn btn-outline btn-sm"
+                            style={{ color: '#f43f5e', borderColor: 'rgba(244, 63, 94, 0.3)', padding: '6px 8px' }}
+                            title="Delete Demo Link"
+                          >
+                            <Trash2 size={13} />
+                          </button>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+
+              {/* 2. PRODUCT VIDEO WALKTHROUGH CONFIGURATION & LIVE PLAYER */}
+              <div style={{
+                background: 'var(--bg-surface-elevated)',
+                padding: '1.5rem',
+                borderRadius: 'var(--radius-lg)',
+                border: '1px solid var(--border-subtle)',
+                marginBottom: '2rem'
+              }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1rem', marginBottom: '1.25rem' }}>
+                  <div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <Video size={18} color="var(--primary)" />
+                      <h3 style={{ fontSize: '1.1rem', fontWeight: 800, color: 'var(--text-primary)', margin: 0 }}>
+                        Product Video Walkthrough & Responsive Player
+                      </h3>
+                    </div>
+                    <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', margin: '4px 0 0' }}>
+                      Enter a video link (YouTube, Vimeo, Loom, or MP4 URL). The frontend automatically embeds the player and renders a "Watch Video Demo" button on the storefront.
+                    </p>
+                  </div>
+
+                  {/* Video Section Storefront Toggle */}
+                  {(() => {
+                    const videoSec = sections.find(s => s.section_type === 'video');
+                    const isVidVisible = videoSec ? (videoSec.is_visible === 1 || videoSec.is_visible === true) : (product.is_video_visible !== 0);
+                    return (
+                      <div style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '10px',
+                        background: 'var(--bg-surface)',
+                        padding: '8px 14px',
+                        borderRadius: 'var(--radius-md)',
+                        border: '1px solid var(--border-subtle)'
+                      }}>
+                        <div style={{ textAlign: 'right' }}>
+                          <div style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                            Show Video on Storefront
+                          </div>
+                          <div style={{ fontSize: '0.72rem', color: isVidVisible ? '#10b981' : '#f43f5e', fontWeight: 600 }}>
+                            {isVidVisible ? 'Visible to Users' : 'Hidden from Users'}
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => toggleSectionTypeVisibility('video')}
+                          style={{
+                            width: '42px',
+                            height: '22px',
+                            borderRadius: '9999px',
+                            background: isVidVisible ? 'var(--primary)' : 'rgba(255,255,255,0.15)',
+                            border: 'none',
+                            position: 'relative',
+                            cursor: 'pointer',
+                            transition: 'background 0.2s',
+                            padding: 0,
+                            flexShrink: 0
+                          }}
+                          title={isVidVisible ? "Click to hide video section on storefront" : "Click to show video section on storefront"}
+                        >
+                          <span
+                            style={{
+                              position: 'absolute',
+                              top: '3px',
+                              left: isVidVisible ? '23px' : '3px',
+                              width: '16px',
+                              height: '16px',
+                              borderRadius: '50%',
+                              background: '#fff',
+                              transition: 'left 0.2s',
+                              boxShadow: '0 1px 3px rgba(0,0,0,0.4)'
+                            }}
+                          />
+                        </button>
+                      </div>
+                    );
+                  })()}
                 </div>
 
-                <div className="ab-form-group">
-                  <label className="ab-form-label">Admin Dashboard Demo URL</label>
-                  <input
-                    type="url"
-                    value={product.admin_demo_url || ''}
-                    onChange={(e) => setProduct(prev => ({ ...prev, admin_demo_url: e.target.value }))}
-                    placeholder="https://admin.demo.rollixia.com"
-                    className="ab-input"
-                  />
+                <div className="ab-form-grid" style={{ gap: '1rem', marginBottom: '1.25rem' }}>
+                  <div className="ab-form-group" style={{ gridColumn: 'span 2' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+                      <label className="ab-form-label" style={{ margin: 0 }}>Product Video URL *</label>
+                      <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+                        Supported: YouTube, YouTube Shorts, Vimeo, Loom, direct MP4
+                      </span>
+                    </div>
+                    <input
+                      type="url"
+                      value={product.video_url || ''}
+                      onChange={(e) => setProduct(prev => ({ ...prev, video_url: e.target.value }))}
+                      placeholder="https://www.youtube.com/watch?v=... OR https://vimeo.com/... OR https://www.loom.com/share/... OR https://.../video.mp4"
+                      className="ab-input"
+                      style={{ fontFamily: 'var(--font-mono)' }}
+                    />
+                  </div>
+
+                  <div className="ab-form-group">
+                    <label className="ab-form-label">Video Section Title</label>
+                    <input
+                      type="text"
+                      value={product.video_title || ''}
+                      onChange={(e) => setProduct(prev => ({ ...prev, video_title: e.target.value }))}
+                      placeholder="See the Product in Action"
+                      className="ab-input"
+                    />
+                  </div>
+
+                  <div className="ab-form-group">
+                    <label className="ab-form-label">Video Player Type</label>
+                    <select
+                      value={product.video_type || 'auto'}
+                      onChange={(e) => setProduct(prev => ({ ...prev, video_type: e.target.value }))}
+                      className="ab-select"
+                    >
+                      <option value="auto">Auto-Detect Provider</option>
+                      <option value="youtube">YouTube Embed</option>
+                      <option value="vimeo">Vimeo Player</option>
+                      <option value="loom">Loom Embed</option>
+                      <option value="mp4">Direct MP4 HTML5 Video</option>
+                    </select>
+                  </div>
+
+                  <div className="ab-form-group" style={{ gridColumn: 'span 2' }}>
+                    <label className="ab-form-label">Video Short Description</label>
+                    <input
+                      type="text"
+                      value={product.video_description || ''}
+                      onChange={(e) => setProduct(prev => ({ ...prev, video_description: e.target.value }))}
+                      placeholder="Watch the comprehensive video walkthrough to explore key features and user flows."
+                      className="ab-input"
+                    />
+                  </div>
+
+                  <div className="ab-form-group" style={{ gridColumn: 'span 2' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+                      <label className="ab-form-label" style={{ margin: 0 }}>Video Poster / Custom Thumbnail</label>
+                      <div style={{ display: 'flex', gap: '6px' }}>
+                        <button
+                          type="button"
+                          onClick={() => videoPosterInputRef.current?.click()}
+                          className="btn btn-secondary btn-sm"
+                          style={{ padding: '3px 8px', fontSize: '0.72rem' }}
+                        >
+                          <UploadCloud size={12} /> Upload Poster File
+                        </button>
+                        {product.video_thumbnail && (
+                          <button
+                            type="button"
+                            onClick={() => setProduct(prev => ({ ...prev, video_thumbnail: '' }))}
+                            className="btn btn-outline btn-sm"
+                            style={{ color: '#f43f5e', borderColor: 'rgba(244, 63, 94, 0.3)', padding: '3px 8px', fontSize: '0.72rem' }}
+                          >
+                            Remove Poster
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                    <input
+                      type="text"
+                      value={product.video_thumbnail || ''}
+                      onChange={(e) => setProduct(prev => ({ ...prev, video_thumbnail: e.target.value }))}
+                      placeholder="https://... or upload a thumbnail above"
+                      className="ab-input"
+                      style={{ fontSize: '0.8rem' }}
+                    />
+                  </div>
                 </div>
 
-                <div className="ab-form-group">
-                  <label className="ab-form-label">Web App Demo URL</label>
-                  <input
-                    type="url"
-                    value={product.web_demo_url || ''}
-                    onChange={(e) => setProduct(prev => ({ ...prev, web_demo_url: e.target.value }))}
-                    placeholder="https://web.demo.rollixia.com"
-                    className="ab-input"
-                  />
+                {/* LIVE EMBEDDED VIDEO PREVIEW PLAYER */}
+                {(() => {
+                  const parsed = parseAdminVideoUrl(product.video_url);
+                  return (
+                    <div style={{
+                      marginTop: '1rem',
+                      padding: '1rem',
+                      borderRadius: 'var(--radius-md)',
+                      background: 'var(--bg-surface)',
+                      border: '1px solid var(--border-subtle)'
+                    }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <Play size={15} color="var(--primary)" />
+                          <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                            Live Video Player Preview
+                          </span>
+                        </div>
+                        {parsed && (
+                          <span style={{
+                            fontSize: '0.7rem',
+                            fontWeight: 700,
+                            padding: '2px 8px',
+                            borderRadius: '9999px',
+                            background: 'rgba(16, 185, 129, 0.15)',
+                            color: '#10b981',
+                            border: '1px solid rgba(16, 185, 129, 0.3)'
+                          }}>
+                            {parsed.provider.toUpperCase()} DETECTED & READY
+                          </span>
+                        )}
+                      </div>
+
+                      {parsed ? (
+                        <div style={{
+                          maxWidth: '720px',
+                          margin: '0 auto',
+                          borderRadius: 'var(--radius-md)',
+                          overflow: 'hidden',
+                          border: '1px solid var(--border-medium)',
+                          background: '#000',
+                          aspectRatio: '16/9',
+                          boxShadow: '0 10px 25px rgba(0,0,0,0.5)'
+                        }}>
+                          {parsed.provider === 'youtube' || parsed.provider === 'vimeo' || parsed.provider === 'loom' || parsed.provider === 'iframe' ? (
+                            <iframe
+                              src={parsed.embedUrl}
+                              title="Product Video Preview"
+                              style={{ width: '100%', height: '100%', border: 0 }}
+                              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                              allowFullScreen
+                            />
+                          ) : (
+                            <video
+                              controls
+                              poster={product.video_thumbnail || product.hero_image}
+                              preload="metadata"
+                              style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+                            >
+                              <source src={parsed.src} type="video/mp4" />
+                              Your browser does not support the video tag.
+                            </video>
+                          )}
+                        </div>
+                      ) : (
+                        <div style={{
+                          padding: '1.5rem',
+                          textAlign: 'center',
+                          color: 'var(--text-muted)',
+                          border: '1px dashed var(--border-medium)',
+                          borderRadius: 'var(--radius-sm)'
+                        }}>
+                          <Film size={28} style={{ margin: '0 auto 6px', opacity: 0.4 }} />
+                          <p style={{ fontSize: '0.85rem', margin: 0 }}>
+                            Enter a valid video URL above to preview and test playback here.
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
+              </div>
+
+              {/* 3. DIGITAL DELIVERABLE PACKAGE */}
+              <div style={{
+                background: 'var(--bg-surface-elevated)',
+                padding: '1.5rem',
+                borderRadius: 'var(--radius-lg)',
+                border: '1px solid var(--border-subtle)'
+              }}>
+                <div className="ab-section-title" style={{ fontSize: '1.05rem', margin: '0 0 4px' }}>
+                  Associated Digital Deliverable Package
+                </div>
+                <div className="ab-section-desc" style={{ marginBottom: '1rem' }}>
+                  The archive file that customers will be authorized to download upon successful order payment.
                 </div>
 
-                <div className="ab-form-group">
-                  <label className="ab-form-label">Documentation / Guide URL</label>
-                  <input
-                    type="url"
-                    value={product.docs_url || product.doc_url || ''}
-                    onChange={(e) => setProduct(prev => ({ ...prev, docs_url: e.target.value, doc_url: e.target.value }))}
-                    placeholder="https://docs.rollixia.com/..."
-                    className="ab-input"
-                  />
-                </div>
-
-                <div className="ab-form-group" style={{ gridColumn: 'span 2' }}>
-                  <label className="ab-form-label">Associated Deliverable File Name</label>
-                  <input
-                    type="text"
-                    value={product.deliverable_name || (product.slug ? `${product.slug}-v1.0.0.zip` : '')}
-                    onChange={(e) => setProduct(prev => ({ ...prev, deliverable_name: e.target.value }))}
-                    placeholder="software-package-v1.0.0.zip"
-                    className="ab-input"
-                    style={{ fontFamily: 'var(--font-mono)' }}
-                  />
+                <div className="ab-form-grid">
+                  <div className="ab-form-group" style={{ gridColumn: 'span 2' }}>
+                    <label className="ab-form-label">Deliverable Archive File Name</label>
+                    <input
+                      type="text"
+                      value={product.deliverable_name || (product.slug ? `${product.slug}-v1.0.0.zip` : '')}
+                      onChange={(e) => setProduct(prev => ({ ...prev, deliverable_name: e.target.value }))}
+                      placeholder="software-package-v1.0.0.zip"
+                      className="ab-input"
+                      style={{ fontFamily: 'var(--font-mono)' }}
+                    />
+                  </div>
                 </div>
               </div>
             </div>
           )}
 
-          {/* TAB 5: SECTIONS & ORDERING (SECTION BUILDER) */}
+          {/* TAB 5: SECTIONS & ORDERING (SECTION BUILDER WITH TOGGLE SWITCHES) */}
           {activeTab === 'sections' && (
             <div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem', marginBottom: '0.75rem' }}>
                 <div>
                   <div className="ab-section-title">Visual Page Section Manager</div>
                   <div className="ab-section-desc">
-                    Enable, disable, reorder, duplicate, or delete any storefront section. Disabled sections gracefully collapse.
+                    Toggle visibility switches on/off to directly control what sections display on the user storefront. Reorder sections using up/down arrows.
                   </div>
                 </div>
                 <button
@@ -1344,33 +2524,86 @@ export function AdminProductBuilderPage({ productId: propProductId, onBack, onSa
                   const isCustom = sec.section_type.startsWith('custom_') || sec.is_custom;
 
                   return (
-                    <div key={sec.section_type || idx} className="ab-item-row" style={{ opacity: isVisible ? 1 : 0.6 }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flex: 1 }}>
-                        <input
-                          type="checkbox"
-                          checked={isVisible}
-                          onChange={() => toggleSectionVisibility(idx)}
-                          id={`sec-${idx}`}
-                          style={{ width: '16px', height: '16px', accentColor: 'var(--primary)', cursor: 'pointer' }}
-                        />
-                        <label htmlFor={`sec-${idx}`} style={{ fontSize: '0.85rem', fontWeight: 600, color: isVisible ? 'var(--text-primary)' : 'var(--text-muted)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                          <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--text-muted)' }}>
+                    <div
+                      key={sec.section_type || idx}
+                      className="ab-item-row"
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        padding: '12px 16px',
+                        borderRadius: 'var(--radius-md)',
+                        background: 'var(--bg-surface-elevated)',
+                        border: `1px solid ${isVisible ? 'var(--border-subtle)' : 'rgba(255,255,255,0.05)'}`,
+                        opacity: isVisible ? 1 : 0.6,
+                        transition: 'all 0.2s ease'
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '14px', flex: 1 }}>
+                        {/* Modern Toggle Switch */}
+                        <button
+                          type="button"
+                          onClick={() => toggleSectionVisibility(idx)}
+                          style={{
+                            width: '42px',
+                            height: '22px',
+                            borderRadius: '9999px',
+                            background: isVisible ? 'var(--primary)' : 'rgba(255,255,255,0.15)',
+                            border: 'none',
+                            position: 'relative',
+                            cursor: 'pointer',
+                            transition: 'background 0.2s',
+                            padding: 0,
+                            flexShrink: 0
+                          }}
+                          title={isVisible ? "Click to hide on storefront" : "Click to show on storefront"}
+                        >
+                          <span
+                            style={{
+                              position: 'absolute',
+                              top: '3px',
+                              left: isVisible ? '23px' : '3px',
+                              width: '16px',
+                              height: '16px',
+                              borderRadius: '50%',
+                              background: '#fff',
+                              transition: 'left 0.2s',
+                              boxShadow: '0 1px 3px rgba(0,0,0,0.4)'
+                            }}
+                          />
+                        </button>
+
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                          <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--text-muted)', fontSize: '0.8rem' }}>
                             {String(idx + 1).padStart(2, '0')}.
                           </span>
-                          <span>{sec.title}</span>
-                          <span style={{ fontSize: '0.72rem', color: isCustom ? '#10b981' : 'var(--primary)', fontFamily: 'var(--font-mono)', background: 'var(--bg-surface-elevated)', padding: '1px 6px', borderRadius: '4px' }}>
+                          <span style={{ fontSize: '0.9rem', fontWeight: 600, color: isVisible ? 'var(--text-primary)' : 'var(--text-muted)' }}>
+                            {sec.title}
+                          </span>
+                          <span style={{ fontSize: '0.7rem', color: isCustom ? '#10b981' : 'var(--primary)', fontFamily: 'var(--font-mono)', background: 'var(--bg-surface)', padding: '2px 6px', borderRadius: '4px', border: '1px solid var(--border-subtle)' }}>
                             [{sec.section_type}]
                           </span>
-                        </label>
+                          <span style={{
+                            fontSize: '0.68rem',
+                            fontWeight: 700,
+                            padding: '2px 8px',
+                            borderRadius: '9999px',
+                            background: isVisible ? 'rgba(16, 185, 129, 0.15)' : 'rgba(244, 63, 94, 0.15)',
+                            color: isVisible ? '#10b981' : '#f43f5e',
+                            border: `1px solid ${isVisible ? 'rgba(16, 185, 129, 0.3)' : 'rgba(244, 63, 94, 0.3)'}`
+                          }}>
+                            {isVisible ? 'VISIBLE ON STOREFRONT' : 'HIDDEN FROM STOREFRONT'}
+                          </span>
+                        </div>
                       </div>
 
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flexShrink: 0 }}>
                         <button
                           type="button"
                           onClick={() => moveSection(idx, -1)}
                           disabled={idx === 0}
                           className="btn btn-secondary btn-sm"
-                          style={{ padding: '4px 8px' }}
+                          style={{ padding: '5px 8px' }}
                           title="Move Up"
                         >
                           <ArrowUp size={13} />
@@ -1380,7 +2613,7 @@ export function AdminProductBuilderPage({ productId: propProductId, onBack, onSa
                           onClick={() => moveSection(idx, 1)}
                           disabled={idx === sections.length - 1}
                           className="btn btn-secondary btn-sm"
-                          style={{ padding: '4px 8px' }}
+                          style={{ padding: '5px 8px' }}
                           title="Move Down"
                         >
                           <ArrowDown size={13} />
@@ -1389,7 +2622,7 @@ export function AdminProductBuilderPage({ productId: propProductId, onBack, onSa
                           type="button"
                           onClick={() => duplicateSection(idx)}
                           className="btn btn-secondary btn-sm"
-                          style={{ padding: '4px 8px' }}
+                          style={{ padding: '5px 8px' }}
                           title="Duplicate Section"
                         >
                           <Copy size={13} />
@@ -1399,7 +2632,7 @@ export function AdminProductBuilderPage({ productId: propProductId, onBack, onSa
                             type="button"
                             onClick={() => deleteSection(idx)}
                             className="btn btn-outline btn-sm"
-                            style={{ color: '#f43f5e', borderColor: 'rgba(244, 63, 94, 0.3)', padding: '4px 8px' }}
+                            style={{ color: '#f43f5e', borderColor: 'rgba(244, 63, 94, 0.3)', padding: '5px 8px' }}
                             title="Delete Custom Section"
                           >
                             <Trash2 size={13} />

@@ -737,8 +737,30 @@ export const FALLBACK_PRODUCTS = [
     "sale_price": 4299,
     "badge": "MARKETPLACE",
     "status": "published",
-    "demo_url": null,
-    "video_url": null,
+    "demo_url": "https://rollixia.com/products/servicepro",
+    "video_url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+    "is_video_visible": 1,
+    "show_demo_links": 1,
+    "demo_links": [
+      {
+        "id": "demo-1",
+        "label": "App Demo Link",
+        "url": "https://rollixia.com/products/servicepro",
+        "is_visible": 1
+      },
+      {
+        "id": "demo-2",
+        "label": "Customer App",
+        "url": "https://rollixia.com/products/servicepro",
+        "is_visible": 1
+      },
+      {
+        "id": "demo-3",
+        "label": "Admin Dispatch Portal",
+        "url": "https://rollixia.com/products/servicepro",
+        "is_visible": 1
+      }
+    ],
     "rating_avg": 5,
     "review_count": 24,
     "sales_count": 85,
@@ -1079,7 +1101,7 @@ export const FALLBACK_PRODUCTS = [
         "content": null,
         "settings": "{\"container\":\"standard\",\"padding\":\"normal\"}",
         "sort_order": 14,
-        "is_visible": 0,
+        "is_visible": 1,
         "created_at": "2026-09-05 11:53:45",
         "updated_at": "2026-09-05 11:53:45"
       },

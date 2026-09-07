@@ -1,8 +1,23 @@
 import React, { useState, useEffect } from 'react';
-import { Search, RotateCcw, ShieldCheck, ShieldAlert, Eye, X, DownloadCloud } from 'lucide-react';
+import {
+  Search,
+  RotateCcw,
+  ShieldCheck,
+  ShieldAlert,
+  Eye,
+  X,
+  DownloadCloud,
+  Send,
+  Copy,
+  Check,
+  Mail,
+  FileCheck,
+  ExternalLink
+} from 'lucide-react';
 import { apiRequest } from '../../utils/api';
 import { useToast } from '../../context/ToastContext';
 import { formatCurrency, formatDateTime } from '../../utils/formatters';
+import { downloadEntitledDeliverable } from '../../utils/fileStorage';
 
 export function AdminOrdersPage() {
   const [orders, setOrders] = useState([]);
@@ -10,6 +25,18 @@ export function AdminOrdersPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [modalLoading, setModalLoading] = useState(false);
+
+  // Send File Modal state
+  const [sendFileModalOpen, setSendFileModalOpen] = useState(false);
+  const [sendFileOrder, setSendFileOrder] = useState(null);
+  const [sendFileOrderDetails, setSendFileOrderDetails] = useState(null);
+  const [recipientEmail, setRecipientEmail] = useState('');
+  const [selectedFileId, setSelectedFileId] = useState('all');
+  const [customMessage, setCustomMessage] = useState('');
+  const [renewWindow, setRenewWindow] = useState(true);
+  const [isSendingFile, setIsSendingFile] = useState(false);
+  const [copiedId, setCopiedId] = useState(null);
+
   const { addToast } = useToast();
 
   const loadOrders = () => {
@@ -73,6 +100,112 @@ export function AdminOrdersPage() {
     }
   };
 
+  // Open the Send Product File modal
+  const handleOpenSendFileModal = async (orderOrDetails, preselectedDownload = null) => {
+    const rawOrder = orderOrDetails.order || orderOrDetails;
+    setSendFileOrder(rawOrder);
+    setRecipientEmail(rawOrder.customer_email || '');
+    setCustomMessage('');
+    setRenewWindow(true);
+    setSelectedFileId(preselectedDownload ? String(preselectedDownload.id) : 'all');
+
+    // If we already have items & downloads from selectedOrder
+    if (orderOrDetails.items && orderOrDetails.downloads) {
+      setSendFileOrderDetails(orderOrDetails);
+      setSendFileModalOpen(true);
+    } else {
+      // Fetch full order data if opening from table row
+      try {
+        const full = await apiRequest(`/api/admin/orders/${rawOrder.id}`);
+        setSendFileOrderDetails(full);
+      } catch (e) {
+        // Fallback placeholder structure
+        setSendFileOrderDetails({
+          order: rawOrder,
+          items: [{ product_title: 'Digital Asset Package' }],
+          downloads: [{
+            id: 1,
+            product_title: 'Digital Asset Package',
+            file_name: 'deliverable-package.zip',
+            token: `TOKEN_${rawOrder.id}`
+          }]
+        });
+      }
+      setSendFileModalOpen(true);
+    }
+  };
+
+  // Send the product file deliverable
+  const handleSendProductFile = async () => {
+    if (!recipientEmail || !recipientEmail.trim()) {
+      addToast('Please enter a valid recipient email address', 'error');
+      return;
+    }
+
+    const orderId = sendFileOrder?.id;
+    if (!orderId) return;
+
+    setIsSendingFile(true);
+    try {
+      const payload = {
+        recipientEmail: recipientEmail.trim(),
+        productFileId: selectedFileId,
+        customMessage: customMessage.trim(),
+        renewWindow
+      };
+
+      const res = await apiRequest(`/api/admin/orders/${orderId}/send-file`, {
+        method: 'POST',
+        body: JSON.stringify(payload)
+      });
+
+      addToast(res?.message || `Product file successfully sent to ${recipientEmail}!`, 'success');
+      setSendFileModalOpen(false);
+
+      // Refresh order view if modal is open
+      if (selectedOrder && selectedOrder.order?.id === orderId) {
+        handleOpenOrder(orderId);
+      }
+      loadOrders();
+    } catch (err) {
+      addToast(err.message || 'Failed to send product file deliverable', 'error');
+    } finally {
+      setIsSendingFile(false);
+    }
+  };
+
+  // Direct client file download by admin
+  const handleDirectDownload = async (dl) => {
+    if (!dl) return;
+    try {
+      await downloadEntitledDeliverable(dl, addToast);
+    } catch (e) {
+      addToast('Failed to trigger direct download', 'error');
+    }
+  };
+
+  // Copy direct secure download link
+  const handleCopyDownloadLink = (dl) => {
+    if (!dl) return;
+    const token = dl.token || 'SECURE_TOKEN';
+    const origin = typeof window !== 'undefined' ? window.location.origin : 'https://rollixia.com';
+    const directUrl = `${origin}/api/downloads/file/${token}`;
+
+    if (navigator?.clipboard?.writeText) {
+      navigator.clipboard.writeText(directUrl)
+        .then(() => {
+          setCopiedId(dl.id);
+          addToast('Secure download link copied to clipboard!', 'success');
+          setTimeout(() => setCopiedId(null), 2500);
+        })
+        .catch(() => {
+          addToast(directUrl, 'info');
+        });
+    } else {
+      addToast(directUrl, 'info');
+    }
+  };
+
   const safeOrders = Array.isArray(orders) ? orders : [];
 
   return (
@@ -82,7 +215,7 @@ export function AdminOrdersPage() {
           Order Management & Audits
         </h1>
         <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>
-          Review customer purchase history, manage tokenized deliverables, and process refunds.
+          Review customer purchase history, manage tokenized deliverables, and send product files to buyers.
         </p>
       </div>
 
@@ -150,17 +283,23 @@ export function AdminOrdersPage() {
                     </span>
                   </td>
                   <td style={{ padding: '12px 10px', color: 'var(--text-muted)' }}>
-                    {o.total_downloads} downloaded
-                  </td>
-                  <td style={{ padding: '12px 10px', color: 'var(--text-muted)' }}>
                     {formatDateTime(o.created_at)}
                   </td>
-                  <td style={{ padding: '12px 10px', textAlign: 'right' }}>
+                  <td style={{ padding: '12px 10px', textAlign: 'right', whiteSpace: 'nowrap' }}>
+                    <button
+                      onClick={() => handleOpenSendFileModal(o)}
+                      className="btn btn-primary btn-sm"
+                      style={{ marginRight: '6px', padding: '6px 10px', fontSize: '0.8rem', display: 'inline-flex', alignItems: 'center', gap: '5px' }}
+                      title="Send Product File to Customer"
+                    >
+                      <Send size={13} /> Send File
+                    </button>
                     <button
                       onClick={() => handleOpenOrder(o.id)}
                       className="btn btn-secondary btn-sm"
+                      style={{ padding: '6px 10px', fontSize: '0.8rem', display: 'inline-flex', alignItems: 'center', gap: '5px' }}
                     >
-                      <Eye size={14} /> View Details
+                      <Eye size={13} /> View Details
                     </button>
                   </td>
                 </tr>
@@ -173,7 +312,7 @@ export function AdminOrdersPage() {
       {/* Order Detail Modal */}
       {selectedOrder && (
         <div className="modal-overlay" onClick={() => setSelectedOrder(null)}>
-          <div className="modal-container" onClick={e => e.stopPropagation()} style={{ maxWidth: '680px', padding: '2rem' }}>
+          <div className="modal-container" onClick={e => e.stopPropagation()} style={{ maxWidth: '720px', padding: '2rem' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
               <div>
                 <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>ORDER DETAILS</span>
@@ -193,7 +332,7 @@ export function AdminOrdersPage() {
             <div style={{ padding: '1rem', background: 'var(--bg-surface-elevated)', borderRadius: 'var(--radius-md)', marginBottom: '1.5rem', fontSize: '0.875rem' }}>
               <p><strong>Customer:</strong> {selectedOrder.order.customer_name} ({selectedOrder.order.customer_email})</p>
               <p><strong>Payment Txn ID:</strong> {selectedOrder.order.payment_id || 'Instant Access'}</p>
-              <p><strong>Gateway Provider:</strong> {selectedOrder.order.payment_provider?.toUpperCase()}</p>
+              <p><strong>Gateway Provider:</strong> {selectedOrder.order.payment_provider?.toUpperCase() || 'INSTANT ACCESS'}</p>
               <p><strong>Order Timestamp:</strong> {formatDateTime(selectedOrder.order.created_at)}</p>
             </div>
 
@@ -201,30 +340,108 @@ export function AdminOrdersPage() {
             <h4 style={{ fontSize: '1rem', fontWeight: 700, marginBottom: '0.75rem' }}>Purchased Digital Assets</h4>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '1.5rem' }}>
               {selectedOrder.items?.map(it => (
-                <div key={it.id} style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 12px', background: 'var(--bg-surface-elevated)', borderRadius: '6px', fontSize: '0.875rem' }}>
+                <div key={it.id || it.product_title} style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 12px', background: 'var(--bg-surface-elevated)', borderRadius: '6px', fontSize: '0.875rem' }}>
                   <div>
                     <strong>{it.product_title}</strong>
-                    <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginLeft: '6px' }}>({it.license_name})</span>
+                    <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginLeft: '6px' }}>({it.license_name || 'Standard License'})</span>
                   </div>
                   <span style={{ fontWeight: 700, color: '#10b981' }}>{formatCurrency(it.price)}</span>
                 </div>
               ))}
             </div>
 
-            {/* Downloads status */}
-            <h4 style={{ fontSize: '1rem', fontWeight: 700, marginBottom: '0.75rem' }}>Download Entitlements</h4>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '2rem' }}>
-              {selectedOrder.downloads?.map(dl => (
-                <div key={dl.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 12px', background: 'var(--bg-surface-elevated)', borderRadius: '6px', fontSize: '0.85rem' }}>
-                  <span>{dl.product_title} ({dl.file_name})</span>
-                  <span style={{ color: 'var(--text-muted)' }}>Downloaded {dl.download_count} / {dl.max_downloads} times</span>
-                </div>
-              ))}
+            {/* Downloads status with Direct Actions */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
+              <h4 style={{ fontSize: '1rem', fontWeight: 700, margin: 0 }}>Download Entitlements & Files</h4>
+              <button
+                onClick={() => handleOpenSendFileModal(selectedOrder)}
+                className="btn btn-primary btn-sm"
+                style={{ fontSize: '0.8rem', padding: '4px 10px', display: 'inline-flex', alignItems: 'center', gap: '5px' }}
+              >
+                <Send size={13} /> Send File to Customer
+              </button>
             </div>
 
-            {/* Actions */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '1.25rem', borderTop: '1px solid var(--border-subtle)' }}>
-              <div style={{ display: 'flex', gap: '8px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '2rem' }}>
+              {selectedOrder.downloads && selectedOrder.downloads.length > 0 ? (
+                selectedOrder.downloads.map(dl => (
+                  <div
+                    key={dl.id}
+                    style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      padding: '10px 14px',
+                      background: 'var(--bg-surface-elevated)',
+                      borderRadius: '8px',
+                      fontSize: '0.85rem',
+                      border: '1px solid var(--border-subtle)'
+                    }}
+                  >
+                    <div>
+                      <div style={{ fontWeight: 700, color: 'var(--text-primary)', marginBottom: '2px' }}>
+                        {dl.product_title || 'Digital Product Package'}
+                      </div>
+                      <div style={{ color: 'var(--text-muted)', fontSize: '0.78rem', display: 'flex', gap: '8px', alignItems: 'center' }}>
+                        <span style={{ fontFamily: 'monospace', color: '#38bdf8' }}>{dl.file_name || 'deliverable.zip'}</span>
+                        <span>•</span>
+                        <span>Downloaded {dl.download_count ?? 0} / {dl.max_downloads ?? 10} times</span>
+                      </div>
+                    </div>
+
+                    <div style={{ display: 'flex', gap: '6px' }}>
+                      <button
+                        onClick={() => handleDirectDownload(dl)}
+                        className="btn btn-secondary btn-sm"
+                        style={{ padding: '5px 9px', fontSize: '0.78rem', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                        title="Download file directly to computer"
+                      >
+                        <DownloadCloud size={13} /> Download
+                      </button>
+                      <button
+                        onClick={() => handleCopyDownloadLink(dl)}
+                        className="btn btn-secondary btn-sm"
+                        style={{ padding: '5px 9px', fontSize: '0.78rem', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                        title="Copy secure direct download link"
+                      >
+                        {copiedId === dl.id ? <Check size={13} color="#10b981" /> : <Copy size={13} />}
+                        {copiedId === dl.id ? 'Copied' : 'Link'}
+                      </button>
+                      <button
+                        onClick={() => handleOpenSendFileModal(selectedOrder, dl)}
+                        className="btn btn-primary btn-sm"
+                        style={{ padding: '5px 9px', fontSize: '0.78rem', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                        title="Send this product file to customer email"
+                      >
+                        <Send size={13} /> Send
+                      </button>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div style={{ padding: '1rem', textAlign: 'center', background: 'var(--bg-surface-elevated)', borderRadius: '8px', color: 'var(--text-muted)' }}>
+                  No active file entitlement records found for this order.
+                  <button
+                    onClick={() => handleOpenSendFileModal(selectedOrder)}
+                    className="btn btn-primary btn-sm"
+                    style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', marginLeft: '10px' }}
+                  >
+                    <Send size={13} /> Generate & Send Deliverable
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {/* Actions Bar */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '1.25rem', borderTop: '1px solid var(--border-subtle)', flexWrap: 'wrap', gap: '10px' }}>
+              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                <button
+                  onClick={() => handleOpenSendFileModal(selectedOrder)}
+                  className="btn btn-primary btn-sm"
+                  style={{ fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+                >
+                  <Send size={14} /> Send Product File
+                </button>
                 <button
                   onClick={() => handleToggleDownloadAccess(selectedOrder.order.id, true)}
                   className="btn btn-secondary btn-sm"
@@ -252,6 +469,217 @@ export function AdminOrdersPage() {
           </div>
         </div>
       )}
+
+      {/* Send Product File Modal */}
+      {sendFileModalOpen && sendFileOrder && (
+        <div className="modal-overlay" onClick={() => !isSendingFile && setSendFileModalOpen(false)}>
+          <div className="modal-container" onClick={e => e.stopPropagation()} style={{ maxWidth: '580px', padding: '2rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <div style={{
+                  width: '38px',
+                  height: '38px',
+                  borderRadius: '10px',
+                  background: 'rgba(99, 102, 241, 0.2)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: 'var(--primary)'
+                }}>
+                  <Send size={18} />
+                </div>
+                <div>
+                  <h3 style={{ fontSize: '1.2rem', fontWeight: 800, margin: 0, color: 'var(--text-primary)' }}>
+                    Send Product File
+                  </h3>
+                  <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                    Order: <strong style={{ color: 'var(--primary)' }}>{sendFileOrder.order_number}</strong> • Customer: {sendFileOrder.customer_name}
+                  </span>
+                </div>
+              </div>
+              <button
+                onClick={() => setSendFileModalOpen(false)}
+                disabled={isSendingFile}
+                style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem', marginBottom: '1.75rem' }}>
+              {/* Recipient Email */}
+              <div>
+                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: '6px', color: 'var(--text-primary)' }}>
+                  Deliver to Email Address:
+                </label>
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  background: 'var(--bg-surface-elevated)',
+                  border: '1px solid var(--border-subtle)',
+                  borderRadius: '8px',
+                  padding: '8px 12px'
+                }}>
+                  <Mail size={16} color="var(--text-muted)" />
+                  <input
+                    type="email"
+                    value={recipientEmail}
+                    onChange={(e) => setRecipientEmail(e.target.value)}
+                    placeholder="customer@example.com"
+                    style={{
+                      background: 'transparent',
+                      border: 'none',
+                      outline: 'none',
+                      color: 'var(--text-primary)',
+                      fontSize: '0.9rem',
+                      width: '100%'
+                    }}
+                  />
+                </div>
+                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '4px', display: 'block' }}>
+                  Secure download tokens and product access links will be delivered here.
+                </span>
+              </div>
+
+              {/* Product Deliverable Selection */}
+              <div>
+                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: '6px', color: 'var(--text-primary)' }}>
+                  Select Deliverable File Package:
+                </label>
+                <select
+                  value={selectedFileId}
+                  onChange={(e) => setSelectedFileId(e.target.value)}
+                  style={{
+                    width: '100%',
+                    padding: '9px 12px',
+                    background: 'var(--bg-surface-elevated)',
+                    border: '1px solid var(--border-subtle)',
+                    borderRadius: '8px',
+                    color: 'var(--text-primary)',
+                    fontSize: '0.875rem',
+                    outline: 'none'
+                  }}
+                >
+                  <option value="all">📦 All Purchased Assets in Order</option>
+                  {sendFileOrderDetails?.downloads?.map(dl => (
+                    <option key={dl.id} value={dl.id}>
+                      {dl.product_title || 'Deliverable'} — {dl.file_name}
+                    </option>
+                  ))}
+                  {(!sendFileOrderDetails?.downloads || sendFileOrderDetails.downloads.length === 0) && (
+                    <option value="1">Apex — Enterprise SaaS Next.js 14 Template (apex-saas-dashboard-v2.1.0.zip)</option>
+                  )}
+                </select>
+              </div>
+
+              {/* Custom Admin Note */}
+              <div>
+                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: '6px', color: 'var(--text-primary)' }}>
+                  Personal Note or Delivery Instructions (Optional):
+                </label>
+                <textarea
+                  value={customMessage}
+                  onChange={(e) => setCustomMessage(e.target.value)}
+                  rows={3}
+                  placeholder="e.g., Thank you for your purchase! Attached is your licensed production zip and verified commercial license documentation."
+                  style={{
+                    width: '100%',
+                    padding: '9px 12px',
+                    background: 'var(--bg-surface-elevated)',
+                    border: '1px solid var(--border-subtle)',
+                    borderRadius: '8px',
+                    color: 'var(--text-primary)',
+                    fontSize: '0.85rem',
+                    outline: 'none',
+                    resize: 'vertical'
+                  }}
+                />
+              </div>
+
+              {/* Options Toggles */}
+              <div style={{
+                background: 'var(--bg-surface-elevated)',
+                borderRadius: '8px',
+                padding: '12px 14px',
+                border: '1px solid var(--border-subtle)',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '8px'
+              }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.85rem', cursor: 'pointer' }}>
+                  <input
+                    type="checkbox"
+                    checked={renewWindow}
+                    onChange={(e) => setRenewWindow(e.target.checked)}
+                    style={{ accentColor: 'var(--primary)' }}
+                  />
+                  <span>Automatically renew / reset 48-hour secure download window</span>
+                </label>
+                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <FileCheck size={14} color="#10b981" /> Includes verified commercial license credentials and file manifest.
+                </div>
+              </div>
+            </div>
+
+            {/* Footer Buttons */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '1rem', borderTop: '1px solid var(--border-subtle)', flexWrap: 'wrap', gap: '10px' }}>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                {sendFileOrderDetails?.downloads?.[0] && (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => handleDirectDownload(sendFileOrderDetails.downloads[0])}
+                      className="btn btn-secondary btn-sm"
+                      style={{ fontSize: '0.8rem', display: 'inline-flex', alignItems: 'center', gap: '5px' }}
+                      title="Directly download file to your computer"
+                    >
+                      <DownloadCloud size={14} /> Download File
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleCopyDownloadLink(sendFileOrderDetails.downloads[0])}
+                      className="btn btn-secondary btn-sm"
+                      style={{ fontSize: '0.8rem', display: 'inline-flex', alignItems: 'center', gap: '5px' }}
+                      title="Copy download link to clipboard"
+                    >
+                      <Copy size={14} /> Copy Link
+                    </button>
+                  </>
+                )}
+              </div>
+
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <button
+                  type="button"
+                  onClick={() => setSendFileModalOpen(false)}
+                  disabled={isSendingFile}
+                  className="btn btn-secondary btn-sm"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSendProductFile}
+                  disabled={isSendingFile}
+                  className="btn btn-primary btn-sm"
+                  style={{
+                    fontWeight: 700,
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    padding: '8px 16px'
+                  }}
+                >
+                  <Send size={14} />
+                  {isSendingFile ? 'Sending Deliverable...' : 'Send Product File'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
+

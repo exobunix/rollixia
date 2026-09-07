@@ -720,6 +720,27 @@ export function handleAdminFallbackRoute(clean, method, options = {}, requestBod
     return getFallbackAdminOrders(queryStr);
   }
 
+  if (clean.startsWith('admin/orders/') && clean.endsWith('/send-file') && method === 'POST') {
+    const targetOrderId = clean.replace(/^admin\/orders\//, '').replace(/\/send-file$/, '');
+    const recipient = requestBody?.recipientEmail || 'customer';
+    const logs = getStored(STORAGE_KEYS.LOGS, []);
+    logs.unshift({
+      id: Date.now(),
+      action: 'PRODUCT_FILE_SENT',
+      target: 'order',
+      target_id: targetOrderId,
+      details: `Product file deliverable dispatched to ${recipient}`,
+      timestamp: new Date().toISOString()
+    });
+    setStored(STORAGE_KEYS.LOGS, logs);
+    return {
+      success: true,
+      message: `Product file deliverable successfully sent to ${recipient}!`,
+      recipientEmail: recipient,
+      downloadUrl: `https://rollixia.com/api/downloads/file/DL_TOKEN_${Date.now()}`
+    };
+  }
+
   if (clean.startsWith('admin/orders/') && clean.endsWith('/refund') && method === 'POST') {
     return { success: true, message: 'Refund issued and access revoked' };
   }
@@ -732,11 +753,14 @@ export function handleAdminFallbackRoute(clean, method, options = {}, requestBod
     const orderId = clean.replace(/^admin\/orders\//, '');
     const all = getFallbackAdminOrders().orders;
     const target = all.find(o => String(o.id) === String(orderId) || o.order_number === orderId) || all[0];
+    const targetTitle = (target && target.items_summary) || 'Apex — Enterprise SaaS Next.js 14 Template';
     return {
       order: target,
       items: [
         {
-          product_title: 'Apex — Enterprise SaaS Next.js 14 Template',
+          id: 1,
+          product_id: 1,
+          product_title: targetTitle,
           license_name: 'Standard Commercial License',
           price: target.total_amount
         }
@@ -744,9 +768,16 @@ export function handleAdminFallbackRoute(clean, method, options = {}, requestBod
       downloads: [
         {
           id: 101,
+          product_id: 1,
+          product_title: targetTitle,
+          product_slug: 'apex-saas-dashboard',
           file_name: 'apex-saas-dashboard-v2.1.0.zip',
           file_size: 15485760,
-          token: `DL_TOKEN_${Date.now()}`
+          version: '2.1.0',
+          download_count: 0,
+          max_downloads: 10,
+          token: `DL_TOKEN_${Date.now()}`,
+          expires_at: new Date(Date.now() + 48 * 3600 * 1000).toISOString()
         }
       ]
     };

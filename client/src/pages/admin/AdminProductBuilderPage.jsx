@@ -90,6 +90,7 @@ export function AdminProductBuilderPage({ productId: propProductId, onBack, onSa
     sale_price: 1499,
     badge: 'POPULAR',
     hero_image: '',
+    hero_secondary_image: '',
     thumbnail: '',
     short_description: '',
     full_description: '',
@@ -129,9 +130,12 @@ export function AdminProductBuilderPage({ productId: propProductId, onBack, onSa
 
   // Hidden File Input Refs
   const heroFileInputRef = useRef(null);
+  const heroSecondaryFileInputRef = useRef(null);
   const thumbFileInputRef = useRef(null);
   const multiGalleryInputRef = useRef(null);
   const videoPosterInputRef = useRef(null);
+  const sectionImageInputRef = useRef(null);
+  const [activeSectionImageTarget, setActiveSectionImageTarget] = useState(null);
 
   // Canonical 26 sections manager + custom sections
   const defaultCanonicalSections = [
@@ -263,6 +267,7 @@ export function AdminProductBuilderPage({ productId: propProductId, onBack, onSa
         seo_keywords: prod.seo_keywords || '',
         og_image: prod.og_image || '',
         hero_image: prod.hero_image || '',
+        hero_secondary_image: prod.hero_secondary_image || '',
         thumbnail: prod.thumbnail || ''
       }));
 
@@ -542,10 +547,55 @@ export function AdminProductBuilderPage({ productId: propProductId, onBack, onSa
     return null;
   }
 
-  // File Upload Handlers (Hero, Thumbnail, Video Thumbnail, Gallery)
-  const handleImageFileUpload = async (file, targetField) => {
+  // File Upload Handlers (Hero, Secondary Hero, Thumbnail, Video Thumbnail, Section Images, Gallery)
+  const handleImageFileUpload = async (file, targetField, extra = null) => {
     if (!file) return;
     setUploadingImage(true);
+
+    const applyUrlToTarget = (url) => {
+      if (targetField === 'hero') {
+        setProduct(prev => ({ ...prev, hero_image: url, thumbnail: prev.thumbnail || url }));
+      } else if (targetField === 'hero_secondary') {
+        setProduct(prev => ({ ...prev, hero_secondary_image: url }));
+      } else if (targetField === 'thumbnail') {
+        setProduct(prev => ({ ...prev, thumbnail: url }));
+      } else if (targetField === 'video_thumbnail') {
+        setProduct(prev => ({ ...prev, video_thumbnail: url }));
+      } else if (targetField === 'customer_showcase' && extra?.index !== undefined) {
+        setCustomerShowcase(prev => {
+          const next = [...prev];
+          if (next[extra.index]) next[extra.index] = { ...next[extra.index], image: url };
+          return next;
+        });
+      } else if (targetField === 'partner_showcase' && extra?.index !== undefined) {
+        setPartnerShowcase(prev => {
+          const next = [...prev];
+          if (next[extra.index]) next[extra.index] = { ...next[extra.index], image: url };
+          return next;
+        });
+      } else if (targetField === 'admin_showcase' && extra?.index !== undefined) {
+        setAdminShowcase(prev => {
+          const next = [...prev];
+          if (next[extra.index]) next[extra.index] = { ...next[extra.index], image: url };
+          return next;
+        });
+      } else if (targetField === 'custom_section' && extra?.index !== undefined) {
+        setSections(prev => {
+          const next = [...prev];
+          if (next[extra.index]) {
+            const curContent = typeof next[extra.index].content === 'object' && next[extra.index].content !== null ? next[extra.index].content : {};
+            next[extra.index] = {
+              ...next[extra.index],
+              content: { ...curContent, image: url }
+            };
+          }
+          return next;
+        });
+      }
+      addToast('Image updated successfully!', 'success');
+      setUploadingImage(false);
+    };
+
     try {
       const formData = new FormData();
       formData.append('media', file);
@@ -554,15 +604,7 @@ export function AdminProductBuilderPage({ productId: propProductId, onBack, onSa
         body: formData
       });
       if (res && res.url) {
-        if (targetField === 'hero') {
-          setProduct(prev => ({ ...prev, hero_image: res.url, thumbnail: prev.thumbnail || res.url }));
-        } else if (targetField === 'thumbnail') {
-          setProduct(prev => ({ ...prev, thumbnail: res.url }));
-        } else if (targetField === 'video_thumbnail') {
-          setProduct(prev => ({ ...prev, video_thumbnail: res.url }));
-        }
-        addToast('Image uploaded successfully!', 'success');
-        setUploadingImage(false);
+        applyUrlToTarget(res.url);
         return;
       }
     } catch (e) {
@@ -571,16 +613,7 @@ export function AdminProductBuilderPage({ productId: propProductId, onBack, onSa
 
     const reader = new FileReader();
     reader.onload = (e) => {
-      const dataUrl = e.target.result;
-      if (targetField === 'hero') {
-        setProduct(prev => ({ ...prev, hero_image: dataUrl, thumbnail: prev.thumbnail || dataUrl }));
-      } else if (targetField === 'thumbnail') {
-        setProduct(prev => ({ ...prev, thumbnail: dataUrl }));
-      } else if (targetField === 'video_thumbnail') {
-        setProduct(prev => ({ ...prev, video_thumbnail: dataUrl }));
-      }
-      addToast('Image updated successfully!', 'success');
-      setUploadingImage(false);
+      applyUrlToTarget(e.target.result);
     };
     reader.onerror = () => {
       addToast('Failed to read image file', 'error');
@@ -1409,6 +1442,30 @@ export function AdminProductBuilderPage({ productId: propProductId, onBack, onSa
               />
               <input
                 type="file"
+                ref={heroSecondaryFileInputRef}
+                accept="image/*"
+                onChange={(e) => {
+                  if (e.target.files && e.target.files[0]) {
+                    handleImageFileUpload(e.target.files[0], 'hero_secondary');
+                  }
+                  e.target.value = '';
+                }}
+                style={{ display: 'none' }}
+              />
+              <input
+                type="file"
+                ref={sectionImageInputRef}
+                accept="image/*"
+                onChange={(e) => {
+                  if (e.target.files && e.target.files[0] && activeSectionImageTarget) {
+                    handleImageFileUpload(e.target.files[0], activeSectionImageTarget.type, activeSectionImageTarget);
+                  }
+                  e.target.value = '';
+                }}
+                style={{ display: 'none' }}
+              />
+              <input
+                type="file"
                 ref={multiGalleryInputRef}
                 multiple
                 accept="image/*"
@@ -1586,7 +1643,110 @@ export function AdminProductBuilderPage({ productId: propProductId, onBack, onSa
                   </div>
                 </div>
 
-                {/* 2. Thumbnail Image */}
+                {/* 2. Secondary Hero Image (Dual Hero Mockup) */}
+                <div className="ab-form-group" style={{
+                  background: 'var(--bg-surface-elevated)',
+                  padding: '1.25rem',
+                  borderRadius: 'var(--radius-lg)',
+                  border: '1px solid var(--border-subtle)'
+                }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
+                    <div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <label className="ab-form-label" style={{ margin: 0, fontSize: '0.9rem', fontWeight: 700 }}>
+                          Secondary Hero Mockup Image
+                        </label>
+                        <span style={{ fontSize: '0.68rem', fontWeight: 800, background: 'rgba(99, 102, 241, 0.15)', color: 'var(--primary)', padding: '2px 6px', borderRadius: '4px' }}>
+                          DUAL HERO
+                        </span>
+                      </div>
+                      <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                        Displayed in hero alongside primary mockup (e.g. mobile/workflow view)
+                      </span>
+                    </div>
+                    <div style={{ display: 'flex', gap: '6px' }}>
+                      <button
+                        type="button"
+                        onClick={() => heroSecondaryFileInputRef.current?.click()}
+                        disabled={uploadingImage}
+                        className="btn btn-primary btn-sm"
+                        style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '0.78rem', padding: '6px 12px' }}
+                      >
+                        <UploadCloud size={14} />
+                        <span>{uploadingImage ? 'Uploading...' : 'Change / Upload Image'}</span>
+                      </button>
+                      {product.hero_secondary_image && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (confirm('Are you sure you want to remove the secondary hero image?')) {
+                              setProduct(prev => ({ ...prev, hero_secondary_image: '' }));
+                              addToast('Secondary hero image removed', 'info');
+                            }
+                          }}
+                          className="btn btn-outline btn-sm"
+                          style={{ color: '#f43f5e', borderColor: 'rgba(244, 63, 94, 0.3)', padding: '6px 10px' }}
+                          title="Delete Secondary Hero Image"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  <div style={{
+                    borderRadius: 'var(--radius-md)',
+                    overflow: 'hidden',
+                    height: '180px',
+                    background: '#0a0e1a',
+                    border: '1px dashed var(--border-medium)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    position: 'relative',
+                    marginBottom: '0.75rem'
+                  }}>
+                    {product.hero_secondary_image ? (
+                      <img
+                        src={product.hero_secondary_image}
+                        alt="Secondary Hero Preview"
+                        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                        onError={(e) => {
+                          e.currentTarget.onerror = null;
+                          e.currentTarget.src = 'https://images.unsplash.com/photo-1581578731548-c64695cc6952?auto=format&fit=crop&w=600&q=80';
+                        }}
+                      />
+                    ) : (
+                      <div style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '1rem' }}>
+                        <ImageIcon size={32} style={{ margin: '0 auto 6px', opacity: 0.5 }} />
+                        <p style={{ fontSize: '0.8rem', margin: 0 }}>No secondary hero image set</p>
+                        <button
+                          type="button"
+                          onClick={() => heroSecondaryFileInputRef.current?.click()}
+                          style={{ marginTop: '6px', background: 'none', border: 'none', color: 'var(--primary)', fontSize: '0.78rem', cursor: 'pointer', textDecoration: 'underline' }}
+                        >
+                          Upload Secondary Image File
+                        </button>
+                      </div>
+                    )}
+                  </div>
+
+                  <div>
+                    <label style={{ fontSize: '0.72rem', fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: '4px' }}>
+                      Or enter image direct URL / CDN path:
+                    </label>
+                    <input
+                      type="text"
+                      value={product.hero_secondary_image || ''}
+                      onChange={(e) => setProduct(prev => ({ ...prev, hero_secondary_image: e.target.value }))}
+                      placeholder="https://images.unsplash.com/... or /uploads/..."
+                      className="ab-input"
+                      style={{ fontSize: '0.8rem' }}
+                    />
+                  </div>
+                </div>
+
+                {/* 3. Thumbnail Image */}
                 <div className="ab-form-group" style={{
                   background: 'var(--bg-surface-elevated)',
                   padding: '1.25rem',
@@ -1699,6 +1859,297 @@ export function AdminProductBuilderPage({ productId: propProductId, onBack, onSa
                       style={{ fontSize: '0.8rem' }}
                     />
                   </div>
+                </div>
+              </div>
+
+              {/* 2. SECTION FEATURE & SHOWCASE IMAGES MANAGER */}
+              <div style={{
+                marginTop: '2rem',
+                background: 'var(--bg-surface-elevated)',
+                padding: '1.5rem',
+                borderRadius: 'var(--radius-lg)',
+                border: '1px solid var(--border-medium)'
+              }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1rem', marginBottom: '1.25rem' }}>
+                  <div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <Layers size={18} color="var(--primary)" />
+                      <h3 style={{ fontSize: '1.05rem', fontWeight: 800, color: 'var(--text-primary)', margin: 0 }}>
+                        Product Page Section & Feature Images
+                      </h3>
+                      <span style={{ fontSize: '0.72rem', fontWeight: 700, padding: '2px 8px', borderRadius: '9999px', background: 'rgba(16, 185, 129, 0.15)', color: '#10b981', border: '1px solid rgba(16, 185, 129, 0.3)' }}>
+                        Live Storefront Sections
+                      </span>
+                    </div>
+                    <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', margin: '4px 0 0' }}>
+                      Easily change or replace images for each storefront section (Customer User Experience, Partner Dispatcher, Dashboards, Custom Sections).
+                    </p>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setCustomerShowcase(prev => [
+                        ...prev,
+                        {
+                          title: 'New Section Feature',
+                          description: 'Feature description explaining user experience and capabilities.',
+                          image: 'https://images.unsplash.com/photo-1551288049-bebda4e38f71?auto=format&fit=crop&w=1200&q=80',
+                          bullet_points: ['Feature highlight']
+                        }
+                      ]);
+                      addToast('Added new feature showcase card', 'success');
+                    }}
+                    className="btn btn-secondary btn-sm"
+                    style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+                  >
+                    <Plus size={14} />
+                    <span>+ Add Section Feature Card</span>
+                  </button>
+                </div>
+
+                {/* Grid of Section Images */}
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))', gap: '1rem' }}>
+                  {/* Customer Experience / Showcase Items */}
+                  {customerShowcase.map((item, idx) => (
+                    <div
+                      key={`cs-${idx}`}
+                      style={{
+                        background: 'var(--bg-surface)',
+                        borderRadius: 'var(--radius-md)',
+                        border: '1px solid var(--border-subtle)',
+                        padding: '1rem',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '0.75rem'
+                      }}
+                    >
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <span style={{ fontSize: '0.72rem', fontWeight: 800, color: 'var(--primary)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                          Customer Experience · Card {String(idx + 1).padStart(2, '0')}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (confirm(`Remove showcase item "${item.title || 'Feature'}"?`)) {
+                              setCustomerShowcase(prev => prev.filter((_, i) => i !== idx));
+                              addToast('Showcase item removed', 'info');
+                            }
+                          }}
+                          className="btn btn-outline btn-sm"
+                          style={{ color: '#f43f5e', borderColor: 'rgba(244, 63, 94, 0.25)', padding: '2px 6px', height: 'auto' }}
+                          title="Delete Feature"
+                        >
+                          <Trash2 size={13} />
+                        </button>
+                      </div>
+
+                      {/* Image Preview with overlay button */}
+                      <div style={{
+                        position: 'relative',
+                        height: '160px',
+                        borderRadius: 'var(--radius-sm)',
+                        overflow: 'hidden',
+                        background: '#0a0e1a',
+                        border: '1px solid var(--border-subtle)'
+                      }}>
+                        {item.image ? (
+                          <img
+                            src={item.image}
+                            alt={item.title || 'Showcase Image'}
+                            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                            onError={(e) => {
+                              e.currentTarget.onerror = null;
+                              e.currentTarget.src = 'https://images.unsplash.com/photo-1551288049-bebda4e38f71?auto=format&fit=crop&w=600&q=80';
+                            }}
+                          />
+                        ) : (
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: 'var(--text-muted)', fontSize: '0.8rem', gap: '6px' }}>
+                            <ImageIcon size={20} />
+                            <span>No image set</span>
+                          </div>
+                        )}
+
+                        <div style={{
+                          position: 'absolute',
+                          bottom: '8px',
+                          right: '8px',
+                          display: 'flex',
+                          gap: '6px',
+                          background: 'rgba(15, 23, 42, 0.9)',
+                          backdropFilter: 'blur(8px)',
+                          padding: '4px 8px',
+                          borderRadius: 'var(--radius-sm)'
+                        }}>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setActiveSectionImageTarget({ type: 'customer_showcase', index: idx });
+                              sectionImageInputRef.current?.click();
+                            }}
+                            className="btn btn-primary btn-sm"
+                            style={{ fontSize: '0.72rem', padding: '4px 8px', height: 'auto', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                          >
+                            <UploadCloud size={12} />
+                            <span>Change Image</span>
+                          </button>
+                          {item.image && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const next = [...customerShowcase];
+                                next[idx] = { ...next[idx], image: '' };
+                                setCustomerShowcase(next);
+                                addToast('Image cleared', 'info');
+                              }}
+                              className="btn btn-secondary btn-sm"
+                              style={{ fontSize: '0.72rem', padding: '4px 6px', height: 'auto', color: '#f43f5e' }}
+                              title="Clear Image"
+                            >
+                              <X size={12} />
+                            </button>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Title & Image URL inputs */}
+                      <input
+                        type="text"
+                        value={item.title || ''}
+                        onChange={(e) => {
+                          const next = [...customerShowcase];
+                          next[idx] = { ...next[idx], title: e.target.value };
+                          setCustomerShowcase(next);
+                        }}
+                        placeholder="Feature Title (e.g. Frictionless Booking)"
+                        className="ab-input"
+                        style={{ fontWeight: 700, fontSize: '0.85rem' }}
+                      />
+                      <input
+                        type="text"
+                        value={item.image || ''}
+                        onChange={(e) => {
+                          const next = [...customerShowcase];
+                          next[idx] = { ...next[idx], image: e.target.value };
+                          setCustomerShowcase(next);
+                        }}
+                        placeholder="Or enter image URL: https://..."
+                        className="ab-input"
+                        style={{ fontSize: '0.75rem', fontFamily: 'var(--font-mono)' }}
+                      />
+                    </div>
+                  ))}
+
+                  {/* Partner Showcase Items */}
+                  {partnerShowcase.map((item, idx) => (
+                    <div
+                      key={`ps-${idx}`}
+                      style={{
+                        background: 'var(--bg-surface)',
+                        borderRadius: 'var(--radius-md)',
+                        border: '1px solid var(--border-subtle)',
+                        padding: '1rem',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '0.75rem'
+                      }}
+                    >
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <span style={{ fontSize: '0.72rem', fontWeight: 800, color: '#f59e0b', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                          Partner Flow · Card {String(idx + 1).padStart(2, '0')}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (confirm(`Remove partner item "${item.title || 'Feature'}"?`)) {
+                              setPartnerShowcase(prev => prev.filter((_, i) => i !== idx));
+                              addToast('Partner item removed', 'info');
+                            }
+                          }}
+                          className="btn btn-outline btn-sm"
+                          style={{ color: '#f43f5e', borderColor: 'rgba(244, 63, 94, 0.25)', padding: '2px 6px', height: 'auto' }}
+                        >
+                          <Trash2 size={13} />
+                        </button>
+                      </div>
+
+                      <div style={{
+                        position: 'relative',
+                        height: '160px',
+                        borderRadius: 'var(--radius-sm)',
+                        overflow: 'hidden',
+                        background: '#0a0e1a',
+                        border: '1px solid var(--border-subtle)'
+                      }}>
+                        {item.image ? (
+                          <img
+                            src={item.image}
+                            alt={item.title || 'Partner Image'}
+                            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                            onError={(e) => {
+                              e.currentTarget.onerror = null;
+                              e.currentTarget.src = 'https://images.unsplash.com/photo-1551288049-bebda4e38f71?auto=format&fit=crop&w=600&q=80';
+                            }}
+                          />
+                        ) : (
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: 'var(--text-muted)', fontSize: '0.8rem', gap: '6px' }}>
+                            <ImageIcon size={20} />
+                            <span>No image set</span>
+                          </div>
+                        )}
+
+                        <div style={{
+                          position: 'absolute',
+                          bottom: '8px',
+                          right: '8px',
+                          display: 'flex',
+                          gap: '6px',
+                          background: 'rgba(15, 23, 42, 0.9)',
+                          backdropFilter: 'blur(8px)',
+                          padding: '4px 8px',
+                          borderRadius: 'var(--radius-sm)'
+                        }}>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setActiveSectionImageTarget({ type: 'partner_showcase', index: idx });
+                              sectionImageInputRef.current?.click();
+                            }}
+                            className="btn btn-primary btn-sm"
+                            style={{ fontSize: '0.72rem', padding: '4px 8px', height: 'auto', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                          >
+                            <UploadCloud size={12} />
+                            <span>Change Image</span>
+                          </button>
+                        </div>
+                      </div>
+
+                      <input
+                        type="text"
+                        value={item.title || ''}
+                        onChange={(e) => {
+                          const next = [...partnerShowcase];
+                          next[idx] = { ...next[idx], title: e.target.value };
+                          setPartnerShowcase(next);
+                        }}
+                        placeholder="Feature Title"
+                        className="ab-input"
+                        style={{ fontWeight: 700, fontSize: '0.85rem' }}
+                      />
+                      <input
+                        type="text"
+                        value={item.image || ''}
+                        onChange={(e) => {
+                          const next = [...partnerShowcase];
+                          next[idx] = { ...next[idx], image: e.target.value };
+                          setPartnerShowcase(next);
+                        }}
+                        placeholder="Direct image URL: https://..."
+                        className="ab-input"
+                        style={{ fontSize: '0.75rem', fontFamily: 'var(--font-mono)' }}
+                      />
+                    </div>
+                  ))}
                 </div>
               </div>
 

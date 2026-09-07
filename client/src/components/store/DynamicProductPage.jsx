@@ -818,68 +818,123 @@ export function DynamicProductPage({ slug, productData: initialData, onNavigate,
               </div>
             </div>
 
-            {/* RIGHT: Large Mockup Frame */}
-            <div className="pdp-hero-right">
-              <div className="pdp-mockup-frame">
-                <div className="pdp-mockup-viewport">
-                  <img
-                    src={product.hero_image || currentGalleryImg.media_url}
-                    alt={product.title}
-                    className="pdp-mockup-img"
-                    onError={(e) => {
-                      e.currentTarget.onerror = null;
-                      e.currentTarget.src = 'https://images.unsplash.com/photo-1551288049-bebda4e38f71?auto=format&fit=crop&w=1200&q=80';
-                    }}
-                  />
+            {/* RIGHT: Large Mockup Frame(s) - Supports Dual Mockup to fill vertical blank space */}
+            {(() => {
+              const primaryHeroImg = product.hero_image || currentGalleryImg?.media_url || 'https://images.unsplash.com/photo-1551288049-bebda4e38f71?auto=format&fit=crop&w=1200&q=80';
+              const secondaryHeroImg = product.hero_secondary_image || (Array.isArray(product.media) && product.media.length > 1 ? product.media[1].media_url : null);
 
-                  {product.demo_url && (
-                    <a
-                      href={product.demo_url}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="btn btn-secondary btn-sm"
+              return (
+                <div className="pdp-hero-right" style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+                  {/* 1. Primary Mockup Frame */}
+                  <div className="pdp-mockup-frame">
+                    <div className="pdp-mockup-viewport">
+                      <img
+                        src={primaryHeroImg}
+                        alt={product.title}
+                        className="pdp-mockup-img"
+                        onClick={() => {
+                          setLightboxImage(primaryHeroImg);
+                          setLightboxCaption(`${product.title} — Main Showcase`);
+                          setLightboxOpen(true);
+                        }}
+                        style={{ cursor: 'pointer' }}
+                        onError={(e) => {
+                          e.currentTarget.onerror = null;
+                          e.currentTarget.src = 'https://images.unsplash.com/photo-1551288049-bebda4e38f71?auto=format&fit=crop&w=1200&q=80';
+                        }}
+                      />
+
+                      {product.demo_url && (
+                        <a
+                          href={product.demo_url}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="btn btn-secondary btn-sm"
+                          style={{
+                            position: 'absolute',
+                            bottom: '0.85rem',
+                            right: '0.85rem',
+                            background: 'rgba(15, 23, 42, 0.9)',
+                            backdropFilter: 'blur(10px)',
+                            boxShadow: 'var(--shadow-md)',
+                            zIndex: 2
+                          }}
+                        >
+                          <ExternalLink size={13} />
+                          Live Preview
+                        </a>
+                      )}
+                    </div>
+
+                    {/* Floating Quality Badge */}
+                    <div className="pdp-hero-badge-float">
+                      <div style={{
+                        width: '36px',
+                        height: '36px',
+                        borderRadius: 'var(--radius-sm)',
+                        background: 'rgba(16, 185, 129, 0.15)',
+                        border: '1px solid rgba(16, 185, 129, 0.3)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        color: 'var(--accent-emerald)',
+                        flexShrink: 0
+                      }}>
+                        <ShieldCheck size={20} />
+                      </div>
+                      <div>
+                        <div style={{ fontSize: '0.75rem', fontWeight: 800, color: 'var(--text-primary)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                          Quality Verified
+                        </div>
+                        <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
+                          Production Ready Code
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* 2. Secondary Mockup Frame (Dual Hero Showcase - Fills Vertical Blank Space) */}
+                  {secondaryHeroImg && (
+                    <div
+                      className="pdp-mockup-frame"
                       style={{
-                        position: 'absolute',
-                        bottom: '1rem',
-                        right: '1rem',
-                        background: 'rgba(15, 23, 42, 0.9)',
-                        backdropFilter: 'blur(10px)',
-                        boxShadow: 'var(--shadow-md)'
+                        background: 'linear-gradient(180deg, rgba(20, 28, 48, 0.85) 0%, rgba(10, 15, 30, 0.95) 100%)',
+                        borderColor: 'rgba(99, 102, 241, 0.25)',
+                        boxShadow: 'var(--shadow-md), 0 10px 25px rgba(0,0,0,0.4)',
+                        marginTop: '0.5rem'
                       }}
                     >
-                      <ExternalLink size={13} />
-                      Live Preview
-                    </a>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0 0.5rem 0.5rem', borderBottom: '1px solid var(--border-subtle)', marginBottom: '0.5rem' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                          <Sparkles size={13} color="var(--primary)" />
+                          <span>Mobile App & Workflow View</span>
+                        </div>
+                        <span style={{ fontSize: '0.7rem', color: 'var(--primary)', fontWeight: 600 }}>Click to Zoom</span>
+                      </div>
+                      <div
+                        className="pdp-mockup-viewport"
+                        style={{ aspectRatio: '16 / 9', cursor: 'pointer' }}
+                        onClick={() => {
+                          setLightboxImage(secondaryHeroImg);
+                          setLightboxCaption(`${product.title} — Workflow & Mobile View`);
+                          setLightboxOpen(true);
+                        }}
+                      >
+                        <img
+                          src={secondaryHeroImg}
+                          alt={`${product.title} Secondary View`}
+                          className="pdp-mockup-img"
+                          onError={(e) => {
+                            e.currentTarget.onerror = null;
+                            e.currentTarget.src = 'https://images.unsplash.com/photo-1581578731548-c64695cc6952?auto=format&fit=crop&w=1200&q=80';
+                          }}
+                        />
+                      </div>
+                    </div>
                   )}
                 </div>
-
-                {/* Floating Quality Badge */}
-                <div className="pdp-hero-badge-float">
-                  <div style={{
-                    width: '36px',
-                    height: '36px',
-                    borderRadius: 'var(--radius-sm)',
-                    background: 'rgba(16, 185, 129, 0.15)',
-                    border: '1px solid rgba(16, 185, 129, 0.3)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    color: 'var(--accent-emerald)',
-                    flexShrink: 0
-                  }}>
-                    <ShieldCheck size={20} />
-                  </div>
-                  <div>
-                    <div style={{ fontSize: '0.75rem', fontWeight: 800, color: 'var(--text-primary)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                      Quality Verified
-                    </div>
-                    <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
-                      Production Ready Code
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
+              );
+            })()}
           </div>
         </div>
       </section>

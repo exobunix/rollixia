@@ -126,6 +126,7 @@ router.post('/', async (req, res) => {
     const status = req.body.status || 'published';
     const demo_url = req.body.demo_url || req.body.demoUrl || null;
     const video_url = req.body.video_url || req.body.videoUrl || null;
+    const hero_secondary_image = req.body.hero_secondary_image || null;
     const media = req.body.media || (req.body.mediaUrl ? [req.body.mediaUrl] : []);
     const licenses = req.body.licenses || [];
     const features = req.body.features || [];
@@ -153,8 +154,8 @@ router.post('/', async (req, res) => {
     const prodRes = db.run(
       `INSERT INTO products (
         title, slug, sku, category_id, short_description, full_description, product_type,
-        author, regular_price, sale_price, badge, status, demo_url, video_url
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        author, regular_price, sale_price, badge, status, demo_url, video_url, hero_secondary_image
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         title.trim(),
         finalSlug,
@@ -169,7 +170,8 @@ router.post('/', async (req, res) => {
         badge || null,
         status,
         demo_url || null,
-        video_url || null
+        video_url || null,
+        hero_secondary_image || null
       ]
     );
     const productId = prodRes.lastInsertRowid;
@@ -421,6 +423,7 @@ router.put('/:id', async (req, res) => {
       seo_keywords,
       og_image,
       hero_image,
+      hero_secondary_image,
       thumbnail,
       media,
       licenses,
@@ -438,6 +441,7 @@ router.put('/:id', async (req, res) => {
     if (!existing) return res.status(404).json({ error: 'Product not found' });
 
     const finalHeroImage = hero_image || thumbnail || existing.hero_image;
+    const finalHeroSecondaryImage = hero_secondary_image !== undefined ? (hero_secondary_image || null) : existing.hero_secondary_image;
     const finalRegularPrice = regular_price !== undefined ? parseFloat(regular_price) : existing.regular_price;
     const finalSalePrice = sale_price !== undefined ? (sale_price === null || sale_price === '' ? null : parseFloat(sale_price)) : existing.sale_price;
 
@@ -471,6 +475,7 @@ router.put('/:id', async (req, res) => {
         is_video_visible = ?,
         show_demo_links = ?,
         hero_image = ?,
+        hero_secondary_image = ?,
         eyebrow = ?,
         subtitle = ?,
         cta_text = ?,
@@ -513,6 +518,7 @@ router.put('/:id', async (req, res) => {
         is_video_visible !== undefined ? (is_video_visible ? 1 : 0) : (existing.is_video_visible !== undefined ? existing.is_video_visible : 1),
         show_demo_links !== undefined ? (show_demo_links ? 1 : 0) : (existing.show_demo_links !== undefined ? existing.show_demo_links : 1),
         finalHeroImage || null,
+        finalHeroSecondaryImage || null,
         eyebrow !== undefined ? eyebrow : existing.eyebrow,
         subtitle !== undefined ? subtitle : existing.subtitle,
         cta_text !== undefined ? cta_text : existing.cta_text,
